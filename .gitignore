@@ -1,0 +1,42 @@
+# ---- Secrets / Environment ----
+.env
+.env.local
+.env.*.local
+**/.env.local
+
+# ---- Python ----
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
+
+# ---- Logs ----
+*.log
+logs/*.log
+
+# ---- AI Models (ใหญ่เกินไป commit ผ่าน Git) ----
+*.pt
+Models/
+
+# ---- Node / Frontend ----
+node_modules/
+dist/
+frontend/node_modules/
+frontend/dist/
+data-api/node_modules/
+data-api/dist/
+
+# ---- รูปจาก detection จริง (ห้าม commit) ----
+assets/sample-images/real/
+**/detection_*.jpg
+
+# ---- OS / IDE ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+frontend/.vscode/
+frontend/src/node_modules/
+data-api/.vscode/
+data-api/node_modules/

@@ -1,0 +1,246 @@
+-- =============================================================================
+-- 04_create_stored_procedures.sql  |  รันหลัง 03_create_indexes.sql
+-- Stored Procedures ทั้งหมด — ใช้ CREATE OR ALTER (SQL Server 2016+)
+-- ทุก SP ใช้ parameterized อย่างเดียว ห้ามต่อ string SQL เด็ดขาด
+-- =============================================================================
+
+
+-- ===========================================================================
+-- ww.sp_insert_detection_event
+-- Python เรียกเมื่อเกิด event — คืน event_id ที่เพิ่งสร้าง
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE ww.sp_insert_detection_event
+    @company_code       NVARCHAR(20),
+    @camera_no          NVARCHAR(20),
+    @camera_name        NVARCHAR(100),
+    @location_name      NVARCHAR(200),
+    @detected_class     NVARCHAR(50)    = 'person',
+    @confidence         DECIMAL(5,4),
+    @event_type         NVARCHAR(50),       -- 'INTRUSION' | 'DWELL'
+    @image_path         NVARCHAR(500)   = NULL,
+    @image_url          NVARCHAR(500)   = NULL,
+    @created_by         NVARCHAR(100)   = 'system',
+    @event_id           BIGINT          OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO ww.trn_detection_event
+        (company_code, camera_no, camera_name, location_name,
+         detected_class, confidence, event_type,
+         image_path, image_url, created_by, detected_at)
+    VALUES
+        (@company_code, @camera_no, @camera_name, @location_name,
+         @detected_class, @confidence, @event_type,
+         @image_path, @image_url, @created_by, SYSUTCDATETIME());
+
+    SET @event_id = SCOPE_IDENTITY();
+END;
+GO
+
+
+-- ===========================================================================
+-- ww.sp_get_detection_events
+-- ตาราง event + filter — ใช้ใน dashboard / รายงาน
+-- @page_no เริ่มที่ 1, @page_size = 0 คืนทั้งหมด
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE ww.sp_get_detection_events
+    @company_code   NVARCHAR(20),
+    @camera_no      NVARCHAR(20)    = NULL,
+    @date_from      DATE            = NULL,
+    @date_to        DATE            = NULL,
+    @event_status   NVARCHAR(20)    = NULL,   -- NEW|REVIEWED|DISMISSED
+    @event_type     NVARCHAR(50)    = NULL,
+    @page_no        INT             = 1,
+    @page_size      INT             = 50
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        event_id, company_code, camera_no, camera_name, location_name,
+        detected_class, confidence, event_type, event_status,
+        detected_at, image_url,
+        alert_teams_status, alert_email_status,
+        created_at, created_by
+    FROM ww.trn_detection_event
+    WHERE
+        company_code   = @company_code
+        AND (@camera_no    IS NULL OR camera_no    = @camera_no)
+        AND (@event_status IS NULL OR event_status = @event_status)
+        AND (@event_type   IS NULL OR event_type   = @event_type)
+        AND (@date_from    IS NULL OR CAST(detected_at AS DATE) >= @date_from)
+        AND (@date_to      IS NULL OR CAST(detected_at AS DATE) <= @date_to)
+    ORDER BY detected_at DESC
+    OFFSET  (CASE WHEN @page_size = 0 THEN 0 ELSE (@page_no - 1) * @page_size END) ROWS
+    FETCH NEXT (CASE WHEN @page_size = 0 THEN 2147483647 ELSE @page_size END) ROWS ONLY;
+END;
+GO
+
+
+-- ===========================================================================
+-- ww.sp_get_detection_event_detail
+-- รายละเอียด event เดียว + ประวัติ alert
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE ww.sp_get_detection_event_detail
+    @event_id       BIGINT,
+    @company_code   NVARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- event หลัก
+    SELECT
+        e.event_id, e.company_code, e.camera_no, e.camera_name, e.location_name,
+        e.detected_class, e.confidence, e.event_type, e.event_status,
+        e.detected_at, e.image_path, e.image_url,
+        e.alert_teams_status, e.alert_email_status,
+        e.created_at, e.created_by
+    FROM ww.trn_detection_event e
+    WHERE e.event_id = @event_id AND e.company_code = @company_code;
+
+    -- ประวัติ alert
+    SELECT
+        log_id, alert_channel, alert_status,
+        response_code, response_msg, sent_at
+    FROM ww.trn_alert_log
+    WHERE event_id = @event_id
+    ORDER BY sent_at;
+END;
+GO
+
+
+-- ===========================================================================
+-- ww.sp_get_dashboard_summary
+-- ตัวเลขสรุป dashboard: รวม event, แยก status, แยก camera, วันนี้
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE ww.sp_get_dashboard_summary
+    @company_code   NVARCHAR(20),
+    @date_from      DATE = NULL,
+    @date_to        DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- summary รวม
+    SELECT
+        COUNT(*)                                            AS total_events,
+        SUM(CASE WHEN event_status = 'NEW'       THEN 1 ELSE 0 END) AS new_count,
+        SUM(CASE WHEN event_status = 'REVIEWED'  THEN 1 ELSE 0 END) AS reviewed_count,
+        SUM(CASE WHEN event_status = 'DISMISSED' THEN 1 ELSE 0 END) AS dismissed_count,
+        SUM(CASE WHEN CAST(detected_at AS DATE) = CAST(SYSUTCDATETIME() AS DATE) THEN 1 ELSE 0 END) AS today_count,
+        SUM(CASE WHEN alert_teams_status = 'FAILED' OR alert_email_status = 'FAILED' THEN 1 ELSE 0 END) AS alert_failed_count
+    FROM ww.trn_detection_event
+    WHERE
+        company_code = @company_code
+        AND (@date_from IS NULL OR CAST(detected_at AS DATE) >= @date_from)
+        AND (@date_to   IS NULL OR CAST(detected_at AS DATE) <= @date_to);
+
+    -- แยกตามกล้อง
+    SELECT
+        camera_no, camera_name, location_name,
+        COUNT(*)   AS event_count,
+        MAX(detected_at) AS last_event_at
+    FROM ww.trn_detection_event
+    WHERE
+        company_code = @company_code
+        AND (@date_from IS NULL OR CAST(detected_at AS DATE) >= @date_from)
+        AND (@date_to   IS NULL OR CAST(detected_at AS DATE) <= @date_to)
+    GROUP BY camera_no, camera_name, location_name
+    ORDER BY event_count DESC;
+END;
+GO
+
+
+-- ===========================================================================
+-- ww.sp_get_camera_status
+-- สถานะกล้องทั้งหมดของบริษัท + event ล่าสุดของแต่ละกล้อง
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE ww.sp_get_camera_status
+    @company_code   NVARCHAR(20),
+    @camera_no      NVARCHAR(20) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        c.company_code,
+        c.camera_no,
+        c.camera_name,
+        c.location_name,
+        c.is_active,
+        last_ev.last_event_at,
+        last_ev.last_event_status,
+        last_ev.last_event_id
+    FROM ww.mst_camera c
+    OUTER APPLY (
+        SELECT TOP 1
+            event_id   AS last_event_id,
+            event_status AS last_event_status,
+            detected_at  AS last_event_at
+        FROM ww.trn_detection_event
+        WHERE company_code = c.company_code AND camera_no = c.camera_no
+        ORDER BY detected_at DESC
+    ) last_ev
+    WHERE
+        c.company_code = @company_code
+        AND (@camera_no IS NULL OR c.camera_no = @camera_no)
+    ORDER BY c.camera_no;
+END;
+GO
+
+
+-- ===========================================================================
+-- ww.sp_update_alert_status
+-- Python เรียกหลังส่ง Teams/Email — อัปเดต event + บันทึก alert log
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE ww.sp_update_alert_status
+    @event_id       BIGINT,
+    @company_code   NVARCHAR(20),
+    @alert_channel  NVARCHAR(20),   -- TEAMS | EMAIL
+    @alert_status   NVARCHAR(20),   -- SENT | FAILED
+    @response_code  INT             = NULL,
+    @response_msg   NVARCHAR(500)   = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- อัปเดต column ใน event ตามช่องทาง
+    IF @alert_channel = 'TEAMS'
+        UPDATE ww.trn_detection_event
+        SET alert_teams_status = @alert_status
+        WHERE event_id = @event_id AND company_code = @company_code;
+    ELSE IF @alert_channel = 'EMAIL'
+        UPDATE ww.trn_detection_event
+        SET alert_email_status = @alert_status
+        WHERE event_id = @event_id AND company_code = @company_code;
+
+    -- บันทึก log ทุกครั้ง
+    INSERT INTO ww.trn_alert_log
+        (event_id, company_code, alert_channel, alert_status, response_code, response_msg)
+    VALUES
+        (@event_id, @company_code, @alert_channel, @alert_status, @response_code, @response_msg);
+END;
+GO
+
+
+-- ===========================================================================
+-- ww.sp_insert_system_log
+-- Python เรียกบันทึก health/monitor log
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE ww.sp_insert_system_log
+    @company_code   NVARCHAR(20),
+    @camera_no      NVARCHAR(20)    = NULL,
+    @log_level      NVARCHAR(10),   -- INFO | WARNING | ERROR
+    @log_message    NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO ww.trn_system_log (company_code, camera_no, log_level, log_message)
+    VALUES (@company_code, @camera_no, @log_level, @log_message);
+END;
+GO
+
+PRINT '04_create_stored_procedures.sql completed.';
+GO
