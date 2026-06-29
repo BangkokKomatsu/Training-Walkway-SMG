@@ -61,10 +61,10 @@ function requireAuth(req, res, next) {
   }
   try {
     req.user = jwt.verify(authHeader.slice(7), JWT_SECRET)
-    // Super admin: honour x-company header to view any company's data
-    // Regular user: always use their own company_code from JWT
+    // Super admin: x-company header = กรอง; ไม่มี header = ทุกบริษัท (null)
+    // Regular user: ใช้ company_code จาก JWT เสมอ
     req.companyCode = req.user.is_super_admin
-      ? (req.headers['x-company'] || req.user.company_code)
+      ? (req.headers['x-company'] || null)
       : req.user.company_code
     next()
   } catch {
@@ -105,6 +105,17 @@ app.post('/api/auth/login', async (req, res) => {
     }
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES })
     res.json({ token, user: payload })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/companies  (Super Admin only) ───────────
+app.get('/api/companies', requireAuth, async (req, res) => {
+  if (!req.user.is_super_admin) return res.status(403).json({ error: 'Forbidden' })
+  try {
+    const result = await execSP('smg.sp_get_company_list', [])
+    res.json(result.recordset)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

@@ -45,7 +45,7 @@ GO
 -- @page_no เริ่มที่ 1, @page_size = 0 คืนทั้งหมด
 -- ===========================================================================
 CREATE OR ALTER PROCEDURE smg.sp_get_detection_events
-    @company_code   NVARCHAR(20),
+    @company_code   NVARCHAR(20)    = NULL,   -- NULL = ทุกบริษัท (Super Admin)
     @camera_no      NVARCHAR(20)    = NULL,
     @date_from      DATE            = NULL,
     @date_to        DATE            = NULL,
@@ -65,7 +65,7 @@ BEGIN
         created_at, created_by
     FROM smg.trn_detection_event
     WHERE
-        company_code   = @company_code
+        (@company_code IS NULL OR company_code = @company_code)
         AND (@camera_no    IS NULL OR camera_no    = @camera_no)
         AND (@event_status IS NULL OR event_status = @event_status)
         AND (@event_type   IS NULL OR event_type   = @event_type)
@@ -84,7 +84,7 @@ GO
 -- ===========================================================================
 CREATE OR ALTER PROCEDURE smg.sp_get_detection_event_detail
     @event_id       BIGINT,
-    @company_code   NVARCHAR(20)
+    @company_code   NVARCHAR(20)    = NULL   -- NULL = Super Admin (ไม่จำกัดบริษัท)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -97,7 +97,7 @@ BEGIN
         e.alert_teams_status, e.alert_email_status,
         e.created_at, e.created_by
     FROM smg.trn_detection_event e
-    WHERE e.event_id = @event_id AND e.company_code = @company_code;
+    WHERE e.event_id = @event_id AND (@company_code IS NULL OR e.company_code = @company_code);
 
     -- ประวัติ alert
     SELECT
@@ -115,7 +115,7 @@ GO
 -- ตัวเลขสรุป dashboard: รวม event, แยก status, แยก camera, วันนี้
 -- ===========================================================================
 CREATE OR ALTER PROCEDURE smg.sp_get_dashboard_summary
-    @company_code   NVARCHAR(20),
+    @company_code   NVARCHAR(20)    = NULL,   -- NULL = ทุกบริษัท (Super Admin)
     @date_from      DATE = NULL,
     @date_to        DATE = NULL
 AS
@@ -132,21 +132,21 @@ BEGIN
         SUM(CASE WHEN alert_teams_status = 'FAILED' OR alert_email_status = 'FAILED' THEN 1 ELSE 0 END) AS alert_failed_count
     FROM smg.trn_detection_event
     WHERE
-        company_code = @company_code
+        (@company_code IS NULL OR company_code = @company_code)
         AND (@date_from IS NULL OR CAST(detected_at AS DATE) >= @date_from)
         AND (@date_to   IS NULL OR CAST(detected_at AS DATE) <= @date_to);
 
     -- แยกตามกล้อง
     SELECT
-        camera_no, camera_name, location_name,
+        company_code, camera_no, camera_name, location_name,
         COUNT(*)   AS event_count,
         MAX(detected_at) AS last_event_at
     FROM smg.trn_detection_event
     WHERE
-        company_code = @company_code
+        (@company_code IS NULL OR company_code = @company_code)
         AND (@date_from IS NULL OR CAST(detected_at AS DATE) >= @date_from)
         AND (@date_to   IS NULL OR CAST(detected_at AS DATE) <= @date_to)
-    GROUP BY camera_no, camera_name, location_name
+    GROUP BY company_code, camera_no, camera_name, location_name
     ORDER BY event_count DESC;
 END;
 GO
@@ -157,8 +157,8 @@ GO
 -- สถานะกล้องทั้งหมดของบริษัท + event ล่าสุดของแต่ละกล้อง
 -- ===========================================================================
 CREATE OR ALTER PROCEDURE smg.sp_get_camera_status
-    @company_code   NVARCHAR(20),
-    @camera_no      NVARCHAR(20) = NULL
+    @company_code   NVARCHAR(20)    = NULL,   -- NULL = ทุกบริษัท (Super Admin)
+    @camera_no      NVARCHAR(20)    = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -183,7 +183,7 @@ BEGIN
         ORDER BY detected_at DESC
     ) last_ev
     WHERE
-        c.company_code = @company_code
+        (@company_code IS NULL OR c.company_code = @company_code)
         AND (@camera_no IS NULL OR c.camera_no = @camera_no)
     ORDER BY c.camera_no;
 END;
@@ -274,7 +274,7 @@ GO
 -- ดึง alert log พร้อม pagination — ใช้ใน data-api /api/alerts
 -- ===========================================================================
 CREATE OR ALTER PROCEDURE smg.sp_get_alert_log
-    @company_code   NVARCHAR(20),
+    @company_code   NVARCHAR(20)    = NULL,   -- NULL = ทุกบริษัท (Super Admin)
     @alert_channel  NVARCHAR(20)    = NULL,   -- TEAMS | EMAIL
     @alert_status   NVARCHAR(20)    = NULL,   -- SENT | FAILED
     @date_from      DATE            = NULL,
@@ -302,7 +302,7 @@ BEGIN
     FROM smg.trn_alert_log a
     JOIN smg.trn_detection_event e ON a.event_id = e.event_id
     WHERE
-        a.company_code = @company_code
+        (@company_code IS NULL OR a.company_code = @company_code)
         AND (@alert_channel IS NULL OR a.alert_channel = @alert_channel)
         AND (@alert_status  IS NULL OR a.alert_status  = @alert_status)
         AND (@date_from     IS NULL OR CAST(a.sent_at AS DATE) >= @date_from)
@@ -315,11 +315,27 @@ BEGIN
     SELECT COUNT(*) AS total
     FROM smg.trn_alert_log a
     WHERE
-        a.company_code = @company_code
+        (@company_code IS NULL OR a.company_code = @company_code)
         AND (@alert_channel IS NULL OR a.alert_channel = @alert_channel)
         AND (@alert_status  IS NULL OR a.alert_status  = @alert_status)
         AND (@date_from     IS NULL OR CAST(a.sent_at AS DATE) >= @date_from)
         AND (@date_to       IS NULL OR CAST(a.sent_at AS DATE) <= @date_to);
+END;
+GO
+
+
+-- ===========================================================================
+-- smg.sp_get_company_list
+-- Super Admin ใช้โหลด dropdown บริษัท
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE smg.sp_get_company_list
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT company_code, company_name
+    FROM smg.mst_company
+    WHERE is_active = 1
+    ORDER BY company_code;
 END;
 GO
 

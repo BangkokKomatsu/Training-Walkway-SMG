@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -9,9 +9,9 @@ import {
   Shield,
   LogOut,
   X,
-  ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { api } from '../../services/api'
 import clsx from 'clsx'
 
 const NAV = [
@@ -23,78 +23,39 @@ const NAV = [
 ]
 
 function CompanySwitcher({ activeCompanyCode, switchCompany }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(activeCompanyCode || '')
+  const [companies, setCompanies] = useState([])
 
-  function commit() {
-    if (draft.trim()) switchCompany(draft)
-    setEditing(false)
-  }
-
-  if (editing) {
-    return (
-      <div className="px-5 pt-4 pb-2">
-        <div className="text-[10px] font-sans mb-1" style={{ color: 'var(--ink-subtle)' }}>VIEW COMPANY</div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <input
-            autoFocus
-            value={draft}
-            onChange={e => setDraft(e.target.value.toUpperCase())}
-            onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
-            style={{
-              flex: 1,
-              padding: '0.3rem 0.5rem',
-              borderRadius: 6,
-              border: '1px solid var(--primary)',
-              background: 'var(--surface-2)',
-              color: 'var(--ink)',
-              fontSize: '0.75rem',
-              fontFamily: 'var(--font-mono, monospace)',
-              outline: 'none',
-            }}
-          />
-          <button
-            onClick={commit}
-            style={{
-              padding: '0 0.5rem',
-              borderRadius: 6,
-              border: 'none',
-              background: 'var(--primary)',
-              color: '#fff',
-              fontSize: '0.7rem',
-              cursor: 'pointer',
-            }}
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    api.getCompanies().then(setCompanies).catch(() => {})
+  }, [])
 
   return (
     <div className="px-5 pt-4 pb-2">
-      <button
-        onClick={() => { setDraft(activeCompanyCode || ''); setEditing(true) }}
+      <div className="text-[10px] font-sans mb-1" style={{ color: 'var(--ink-subtle)' }}>VIEW COMPANY</div>
+      <select
+        value={activeCompanyCode || ''}
+        onChange={e => switchCompany(e.target.value || null)}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
           width: '100%',
-          padding: '0.375rem 0.625rem',
+          padding: '0.35rem 0.5rem',
           borderRadius: 6,
           border: '1px solid var(--border)',
           background: 'var(--surface-2)',
+          color: activeCompanyCode ? 'var(--primary)' : 'var(--ink-muted)',
+          fontSize: '0.75rem',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontWeight: 500,
           cursor: 'pointer',
-          textAlign: 'left',
+          outline: 'none',
         }}
       >
-        <span className="text-[10px] font-sans flex-shrink-0" style={{ color: 'var(--ink-subtle)' }}>VIEWING</span>
-        <span className="text-xs font-mono font-medium flex-1" style={{ color: 'var(--primary)' }}>
-          {activeCompanyCode || '—'}
-        </span>
-        <ChevronDown size={11} style={{ color: 'var(--ink-subtle)', flexShrink: 0 }} />
-      </button>
+        <option value="">All Companies</option>
+        {companies.map(c => (
+          <option key={c.company_code} value={c.company_code}>
+            {c.company_code} — {c.company_name}
+          </option>
+        ))}
+      </select>
     </div>
   )
 }

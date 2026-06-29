@@ -50,11 +50,14 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(body.error || 'Login failed')
 
     const { token: newToken, user: userData } = body
-    localStorage.setItem(TOKEN_KEY,   newToken)
-    localStorage.setItem(COMPANY_KEY, userData.company_code)
+    // Super Admin: default = ทุกบริษัท (null) — Regular user: บริษัทตัวเอง
+    const initialCompany = userData.is_super_admin ? null : userData.company_code
+    localStorage.setItem(TOKEN_KEY, newToken)
+    if (initialCompany) localStorage.setItem(COMPANY_KEY, initialCompany)
+    else localStorage.removeItem(COMPANY_KEY)
     setToken(newToken)
     setUser(userData)
-    setActiveCompanyCodeState(userData.company_code)
+    setActiveCompanyCodeState(initialCompany)
     return userData
   }, [])
 
@@ -66,12 +69,16 @@ export function AuthProvider({ children }) {
     setActiveCompanyCodeState(null)
   }, [])
 
-  // Super admin only — switch the "active" company without changing the JWT
+  // Super admin only — null = ทุกบริษัท, 'DEMO' = กรองเฉพาะบริษัทนั้น
   const switchCompany = useCallback((code) => {
     if (!user?.is_super_admin) return
-    const cleaned = code.trim().toUpperCase()
-    localStorage.setItem(COMPANY_KEY, cleaned)
-    setActiveCompanyCodeState(cleaned)
+    if (code) {
+      localStorage.setItem(COMPANY_KEY, code)
+      setActiveCompanyCodeState(code)
+    } else {
+      localStorage.removeItem(COMPANY_KEY)
+      setActiveCompanyCodeState(null)
+    }
   }, [user])
 
   return (

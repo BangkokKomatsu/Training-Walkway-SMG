@@ -37,4 +37,5 @@ export const api = {
   getCameras:     (params = {}) => get('/api/cameras',   params),
   getAlerts:      (params = {}) => get('/api/alerts',    params),
   getHealth:      (params = {}) => get('/api/health',    params),
+  getCompanies:   ()            => get('/api/companies'),
 }
