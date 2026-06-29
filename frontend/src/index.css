@@ -116,3 +116,40 @@ body {
 .mono {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
 }
+
+/* ─── Print Layout Configuration ─────────────────── */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide headers, footers, sidebar, buttons, links, and no-print elements */
+  header,
+  footer,
+  aside,
+  button,
+  .no-print,
+  a {
+    display: none !important;
+  }
+
+  /* Expand main document to fill paper width */
+  main,
+  div {
+    background: transparent !important;
+    border-color: #d4d4d8 !important; /* light gray borders */
+    box-shadow: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Avoid page break glitches on images */
+  img, 
+  table, 
+  tr {
+    page-break-inside: avoid !important;
+  }
+}

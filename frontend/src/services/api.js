@@ -61,4 +61,7 @@ export const api = {
   getHealth:      (params = {}) => get('/api/health',    params),
   getCompanies:   ()            => get('/api/companies'),
   closeEvent:     (id, payload) => post(`/api/events/${id}/close`, payload),
+  bulkUpdateEvents:  (payload)  => post('/api/events/bulk-update', payload),
+  getCameraPolygons: (camera_no) => get(`/api/cameras/${camera_no}/polygons`),
+  saveCameraPolygons:(camera_no, payload) => post(`/api/cameras/${camera_no}/polygons`, payload),
 }

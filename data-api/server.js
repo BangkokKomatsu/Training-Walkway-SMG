@@ -318,20 +318,21 @@ app.get('/api/health', requireAuth, async (req, res) => {
 app.post('/api/events/:id/close', requireAuth, async (req, res) => {
   try {
     const { id } = req.params
-    const { resolved_by, resolution_desc, resolution_image } = req.body || {}
+    const { resolved_by, resolution_desc, resolution_image, status } = req.body || {}
 
     const pool = await getPool()
     
-    // Update the event record in SQL Server
+    // Update the event record in SQL Server with either CLOSED or DISMISSED status
     await pool.request()
       .input('event_id', sql.BigInt, parseInt(id))
       .input('company_code', sql.NVarChar(20), req.companyCode)
+      .input('status', sql.NVarChar(20), status || 'CLOSED')
       .input('resolved_by', sql.NVarChar(100), resolved_by || 'system')
       .input('resolution_desc', sql.NVarChar(1000), resolution_desc || '')
       .input('resolution_image', sql.NVarChar(sql.MAX), resolution_image || null)
       .query(`
         UPDATE smg.trn_detection_event
-        SET event_status = 'CLOSED',
+        SET event_status = @status,
             resolved_by = @resolved_by,
             resolved_at = SYSUTCDATETIME(),
             resolution_desc = @resolution_desc,
@@ -339,7 +340,101 @@ app.post('/api/events/:id/close', requireAuth, async (req, res) => {
         WHERE event_id = @event_id AND (@company_code IS NULL OR company_code = @company_code)
       `)
 
-    res.json({ success: true, message: 'Case closed successfully' })
+    res.json({ success: true, message: 'Case status updated successfully' })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/events/bulk-update ───────────────────
+app.post('/api/events/bulk-update', requireAuth, async (req, res) => {
+  try {
+    const { ids, status, resolved_by, resolution_desc } = req.body || {}
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids must be a non-empty array' })
+    }
+
+    const sanitizedIds = ids.map(id => parseInt(id)).filter(id => !isNaN(id))
+    if (sanitizedIds.length === 0) {
+      return res.status(400).json({ error: 'No valid event IDs provided' })
+    }
+
+    const idsString = sanitizedIds.join(',')
+    const pool = await getPool()
+    
+    await pool.request()
+      .input('status', sql.NVarChar(20), status || 'REVIEWED')
+      .input('resolved_by', sql.NVarChar(100), resolved_by || 'system')
+      .input('resolution_desc', sql.NVarChar(1000), resolution_desc || '')
+      .input('company_code', sql.NVarChar(20), req.companyCode)
+      .query(`
+        UPDATE smg.trn_detection_event
+        SET event_status = @status,
+            resolved_by = CASE WHEN @status = 'CLOSED' THEN @resolved_by ELSE resolved_by END,
+            resolved_at = CASE WHEN @status = 'CLOSED' THEN SYSUTCDATETIME() ELSE resolved_at END,
+            resolution_desc = CASE WHEN @status = 'CLOSED' THEN @resolution_desc ELSE resolution_desc END
+        WHERE event_id IN (${idsString})
+          AND (@company_code IS NULL OR company_code = @company_code)
+      `)
+
+    res.json({ success: true, message: `Successfully updated ${sanitizedIds.length} events` })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/cameras/:camera_no/polygons ───────────
+app.get('/api/cameras/:camera_no/polygons', requireAuth, async (req, res) => {
+  try {
+    const { camera_no } = req.params
+    const pool = await getPool()
+    const result = await pool.request()
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('company_code', sql.NVarChar(20), req.companyCode)
+      .query(`
+        SELECT area_id, area_name, polygon_json, is_active
+        FROM smg.mst_detection_area
+        WHERE camera_no = @camera_no AND (@company_code IS NULL OR company_code = @company_code)
+      `)
+    res.json(result.recordset)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/cameras/:camera_no/polygons ──────────
+app.post('/api/cameras/:camera_no/polygons', requireAuth, async (req, res) => {
+  try {
+    const { camera_no } = req.params
+    const { area_name, polygon_json } = req.body || {}
+
+    const pool = await getPool()
+    
+    await pool.request()
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('company_code', sql.NVarChar(20), req.companyCode || 'DEMO')
+      .input('area_name', sql.NVarChar(100), area_name || 'Restricted Area')
+      .input('polygon_json', sql.NVarChar(sql.MAX), polygon_json)
+      .query(`
+        IF EXISTS (
+          SELECT 1 FROM smg.mst_detection_area 
+          WHERE camera_no = @camera_no AND company_code = @company_code
+        )
+        BEGIN
+          UPDATE smg.mst_detection_area
+          SET polygon_json = @polygon_json,
+              area_name = @area_name,
+              is_active = 1
+          WHERE camera_no = @camera_no AND company_code = @company_code
+        END
+        ELSE
+        BEGIN
+          INSERT INTO smg.mst_detection_area (company_code, camera_no, area_name, polygon_json, is_active)
+          VALUES (@company_code, @camera_no, @area_name, @polygon_json, 1)
+        END
+      `)
+
+    res.json({ success: true, message: 'Polygon saved successfully' })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

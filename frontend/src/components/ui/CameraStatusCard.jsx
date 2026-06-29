@@ -4,7 +4,7 @@ import StatusBadge from './StatusBadge'
 import { formatRelative } from '../../utils/format'
 import clsx from 'clsx'
 
-export default function CameraStatusCard({ camera }) {
+export default function CameraStatusCard({ camera, onEditPolygon }) {
   const isOnline = camera.status === 'online'
 
   return (
@@ -56,15 +56,24 @@ export default function CameraStatusCard({ camera }) {
         )}
       </div>
 
-      {/* Timestamp footer */}
-      {camera.last_seen && (
-        <div className="relative z-10 flex items-center gap-1.5 pt-3 border-t border-border/60 text-[10px] text-ink-subtle">
-          <Clock size={11} className="text-ink-subtle" />
-          <span>
-            Heartbeat: <span className="font-mono text-ink font-semibold">{formatRelative(camera.last_seen)}</span>
-          </span>
-        </div>
-      )}
+      {/* Footer controls & heartbeat */}
+      <div className="relative z-10 pt-3 border-t border-border/60 flex flex-col gap-2.5">
+        {camera.last_seen && (
+          <div className="flex items-center gap-1.5 text-[10px] text-ink-subtle">
+            <Clock size={11} className="text-ink-subtle" />
+            <span>
+              Heartbeat: <span className="font-mono text-ink font-semibold">{formatRelative(camera.last_seen)}</span>
+            </span>
+          </div>
+        )}
+
+        <button
+          onClick={() => onEditPolygon && onEditPolygon(camera)}
+          className="w-full py-1.5 px-3 rounded-lg border border-border bg-surface-2 text-[10px] text-ink-muted font-bold hover:text-primary hover:border-primary/50 hover:bg-surface/50 transition-all flex items-center justify-center gap-1 cursor-pointer"
+        >
+          <Camera size={11} /> Draw Restricted Zone
+        </button>
+      </div>
     </div>
   )
 }

@@ -60,8 +60,7 @@ export default function EventDetailPage() {
     }
   }
 
-  const handleCloseCase = async (e) => {
-    e.preventDefault()
+  const handleUpdateStatus = async (statusVal) => {
     if (!closedBy.trim() || !closeReason.trim()) {
       setSubmitError('Please fill out all fields')
       return
@@ -72,11 +71,12 @@ export default function EventDetailPage() {
       await api.closeEvent(id, {
         resolved_by: closedBy.trim(),
         resolution_desc: closeReason.trim(),
-        resolution_image: closeImage || null
+        resolution_image: closeImage || null,
+        status: statusVal
       })
       refetch() // Reload event details from server
     } catch (err) {
-      setSubmitError(err.message || 'Failed to submit case closure')
+      setSubmitError(err.message || 'Failed to update case status')
     } finally {
       setSubmitting(false)
     }
@@ -111,17 +111,28 @@ export default function EventDetailPage() {
   }
 
   const isClosed = ev.event_status === 'CLOSED'
+  const isRejected = ev.event_status === 'DISMISSED'
+  const hasStatusReport = isClosed || isRejected
 
   return (
     <div className="max-w-[1360px] mx-auto space-y-6">
       
-      {/* Navigation Return Link */}
-      <Link
-        to="/events"
-        className="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink transition-colors font-bold uppercase tracking-wider"
-      >
-        <ArrowLeft size={13} /> Back to Event Log
-      </Link>
+      {/* Navigation Return & PDF Print Row */}
+      <div className="flex items-center justify-between no-print">
+        <Link
+          to="/events"
+          className="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink transition-colors font-bold uppercase tracking-wider"
+        >
+          <ArrowLeft size={13} /> Back to Event Log
+        </Link>
+
+        <button
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs font-bold cursor-pointer transition-all shadow-xs hover:border-primary/40 hover:bg-surface-2"
+        >
+          <Camera size={12} /> Print PDF Report
+        </button>
+      </div>
 
       {/* Title & Status Banner */}
       <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border bg-surface/50 dark:bg-surface/30 backdrop-blur-md">
@@ -135,8 +146,8 @@ export default function EventDetailPage() {
         </div>
         <StatusBadge
           size="md"
-          status={isClosed ? 'ok' : ev.alert_failed ? 'error' : 'warn'}
-          label={isClosed ? 'Resolved & Closed' : ev.alert_sent ? 'Teams & Email Sent' : 'Processing'}
+          status={isClosed ? 'ok' : isRejected ? 'error' : 'warn'}
+          label={isClosed ? 'Resolved & Closed' : isRejected ? 'Rejected (False Alarm)' : 'Processing'}
         />
       </div>
 
@@ -145,7 +156,7 @@ export default function EventDetailPage() {
         
         {/* Left: Camera capture view */}
         <div className="lg:col-span-7 space-y-3">
-          <div className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest pl-1">
+          <div className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest pl-1 no-print">
             Camera Capture feed Frame
           </div>
           <ImagePreview
@@ -180,19 +191,26 @@ export default function EventDetailPage() {
           {closeCaseMode && (
             <div className="rounded-xl border border-border bg-surface/40 dark:bg-surface/20 p-5 shadow-xs">
               <div className="flex items-center gap-2 border-b border-border/40 pb-3 mb-4">
-                <FileCheck2 size={16} className={isClosed ? 'text-emerald-500' : 'text-primary'} />
+                <FileCheck2 size={16} className={hasStatusReport ? 'text-emerald-500' : 'text-primary'} />
                 <h3 className="text-xs font-bold text-ink uppercase tracking-wider">
                   Case Resolution System
                 </h3>
               </div>
 
-              {isClosed ? (
-                /* CASE IS CLOSED STATE */
+              {hasStatusReport ? (
+                /* CASE IS RESOLVED / CLOSED STATE */
                 <div className="space-y-4">
-                  <div className="flex items-center gap-1.5 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-                    <CheckCircle size={14} />
-                    <span>TICKET STATUS: RESOLVED & CLOSED</span>
-                  </div>
+                  {isClosed ? (
+                    <div className="flex items-center gap-1.5 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                      <CheckCircle size={14} />
+                      <span>TICKET STATUS: RESOLVED & CLOSED</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold">
+                      <XCircle size={14} />
+                      <span>TICKET STATUS: REJECTED & DISMISSED</span>
+                    </div>
+                  )}
 
                   <div className="text-xs space-y-3">
                     <div>
@@ -216,7 +234,7 @@ export default function EventDetailPage() {
                     </div>
 
                     {ev.resolution_image && (
-                      <div>
+                      <div className="no-print">
                         <span className="text-[10px] text-ink-subtle uppercase tracking-wider font-bold block mb-1">Resolution Verification Image:</span>
                         <div className="relative rounded-lg overflow-hidden border border-border aspect-video bg-surface-2 group">
                           <img
@@ -237,7 +255,7 @@ export default function EventDetailPage() {
                 </div>
               ) : (
                 /* CASE IS OPEN (SHOW SUBMIT FORM) */
-                <form onSubmit={handleCloseCase} className="space-y-4">
+                <form onSubmit={e => e.preventDefault()} className="space-y-4">
                   <div className="flex items-center gap-1.5 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold">
                     <AlertTriangle size={14} />
                     <span>TICKET STATUS: ACTIVE INTENT</span>
@@ -258,13 +276,13 @@ export default function EventDetailPage() {
 
                   {/* Resolution Text */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-ink-muted uppercase">Resolution Explanation:</label>
+                    <label className="text-[10px] font-bold text-ink-muted uppercase">Resolution / Reject Explanation:</label>
                     <textarea
                       required
                       rows={3}
                       value={closeReason}
                       onChange={e => setCloseReason(e.target.value)}
-                      placeholder="Describe the action taken to clear the restricted area (e.g., Guide worker back to safe path, clear blockage...)"
+                      placeholder="Describe the action taken (e.g., Worker guided back to path) or reason for rejection (e.g., False Alarm / Object detection mistake)..."
                       className="w-full px-3 py-2 rounded-lg border border-border bg-surface-2 text-ink text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all shadow-xs resize-none"
                     />
                   </div>
@@ -302,24 +320,27 @@ export default function EventDetailPage() {
                     </div>
                   )}
 
-                  {/* Close Case Submit button */}
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white hover:shadow-lg hover:shadow-emerald-500/10 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitting ? (
-                      <>
-                        <RefreshCw size={12} className="animate-spin" />
-                        <span>Submitting Closure Report...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle size={13} />
-                        <span>Resolve & Close Ticket</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Double Actions Button Layout */}
+                  <div className="grid grid-cols-2 gap-2 mt-4">
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handleUpdateStatus('CLOSED')}
+                      className="py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <CheckCircle size={13} />
+                      <span>Resolve & Close</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => handleUpdateStatus('DISMISSED')}
+                      className="py-2.5 px-3 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <XCircle size={13} />
+                      <span>Reject (False Alarm)</span>
+                    </button>
+                  </div>
                 </form>
               )}
             </div>
@@ -327,7 +348,7 @@ export default function EventDetailPage() {
 
           {/* Webhook logs */}
           {(ev.teams_sent != null || ev.email_sent != null || ev.alert_error) && (
-            <div className="rounded-xl border border-border bg-surface/40 dark:bg-surface/20 p-5 shadow-xs">
+            <div className="rounded-xl border border-border bg-surface/40 dark:bg-surface/20 p-5 shadow-xs no-print">
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider mb-4">Notification Webhook Logs</h3>
               
               <div className="grid grid-cols-2 gap-3 mb-2">
