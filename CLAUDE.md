@@ -36,6 +36,7 @@ src/alert/   → teams, email              sql/            → table + SP + samp
 src/database/→ connection + repository   data-api/       → ตัวกลาง: เรียก SP → คืน JSON
 frontend/    → React+Vite+Tailwind       docs/           → course-modules + admin-backend
 playground/  → ตัวอย่างให้ผู้เรียนลอง     main.py         → entry point เดียว
+Final_WalkWay_Detection_GPU.py → ไฟล์ legacy standalone (ใช้ cvzone, มี cv2.imshow) — ไม่ใช่ production path
 ```
 
 ---
@@ -54,6 +55,17 @@ playground/  → ตัวอย่างให้ผู้เรียนลอ
 5. **ไม่ใช้ Power BI** — เว็บ React คือ dashboard + monitoring
 6. ทุก table/query ข้อมูลบริษัทต้องมี **`company_code`** แยกข้อมูล
 7. Backend **ไม่เป็น REST API** — logic อยู่ใน **Stored Procedure**; `data-api/` เป็นแค่ตัวกลางบางที่เรียก SP → คืน JSON
+8. **Authentication: JWT (Bearer token)** — login ผ่าน `POST /api/auth/login` → ได้ JWT → ส่ง `Authorization: Bearer <token>` ทุก request
+   - password hash = **bcrypt (rounds=10)** จัดการใน Node.js (**ไม่ใช้ SHA-256**)
+   - `smg.mst_user.username` ต้อง **unique ทั้งระบบ** (ไม่ใช่ต่อ company)
+   - **Super Admin** = `company_code = 'BKC'` + `is_super_admin = 1` → เห็นข้อมูลทุกบริษัทผ่าน header `x-company`
+   - Regular user เห็นแค่ `company_code` ของตัวเองจาก JWT (server enforce ฝั่งเดียว)
+9. **Image URL = BKC signed URL** — frontend ไม่ได้อ่านไฟล์ตรงจาก UNC share
+   - `data-api` เรียก `POST https://iapi.bkc.co.th/api/common/image/generate-url` → ได้ `signedUrl` → ส่งกลับเป็น field `image_url` ใน event detail response
+   - `x-api-key: BKC_IMAGE_API_KEY` เก็บใน `data-api/.env` เท่านั้น ห้ามส่งไป browser
+   - `imageFolder` = ตัด prefix `\\SERVER\` ออก + ตัด filename (จาก `image_path` ใน DB)
+   - ถ้าไม่ตั้งค่า `BKC_IMAGE_API_KEY` (training mode หรือ UNC ไม่ accessible) → `image_url: null` → frontend แสดง placeholder
+   - Training: นักเรียนเปลี่ยน `IMAGE_SHARED_DRIVE` เป็น local path เช่น `C:\DetectionImages` — ระบบทำงานปกติ ยกเว้นรูปไม่แสดงใน web
 
 **สองตัวจับเวลา (อย่าสับสน):** `DWELL_SECONDS` = อยู่ในพื้นที่นานแค่ไหนถึงนับ event · `ALERT_COOLDOWN_SECONDS` = แจ้งแล้วเว้นนานแค่ไหนถึงแจ้งซ้ำ
 
@@ -62,12 +74,14 @@ playground/  → ตัวอย่างให้ผู้เรียนลอ
 ## 5. ห้ามทำเด็ดขาด ❌
 
 - ❌ **ฮาร์ดโค้ด secret** (password, token, connection string, camera password, path, webhook URL) → ใช้ `.env` เท่านั้น
-- ❌ **`cv2.imshow()` / เปิดหน้าต่าง GUI** → ดูผลผ่านเว็บแทน (โค้ดเดิมพังเพราะข้อนี้ — คนนอกดูไม่ได้)
+- ✅ **`cv2.imshow()` อนุญาตใน `src/` และ `playground/`** — โปรเจกต์นี้เป็นคอร์สสอน นักเรียนต้องเห็น live view เพื่อดูว่า YOLO ตรวจจับคนได้ยังไง bbox/polygon วาดถูกต้องไหม ก่อนนำไป deploy จริง
+  - ❌ ห้ามใช้ `cv2.imshow()` เฉพาะเมื่อ deploy บน server ที่ไม่มี display (Linux headless/Docker) — ให้เพิ่ม guard `if settings.SHOW_WINDOW:` ก่อน call
 - ❌ **SQL ต่อด้วย f-string / string concat** → ใช้ parameterized query หรือเรียก SP เท่านั้น (กัน SQL injection)
 - ❌ **Teams ผ่าน Office 365 Connector / Incoming Webhook เดิม** → Microsoft ปิดถาวรแล้ว (พ.ค. 2026) ใช้ Power Automate Workflows
 - ❌ **ใช้ premium HTTP action ใน Power Automate flow** → ฝั่ง Python ยิง `requests.post(webhook_url)` ตรง ๆ, flow แค่ trigger + post message
 - ❌ **LINE Notify** → ปิดบริการแล้ว
 - ❌ commit `.env`, `*.log`, `*.pt`, `node_modules/`, `dist/`, รูป detection จริง
+- ⚠️ **`cvzone`** อยู่ใน `requirements.txt` เพื่อรองรับ `Final_WalkWay_Detection_GPU.py` (legacy) เท่านั้น — ห้ามใช้ `cvzone` ใน `src/` หรือ production path
 
 ---
 
@@ -81,11 +95,15 @@ playground/  → ตัวอย่างให้ผู้เรียนลอ
 - GPU/CPU เลือกผ่าน `DEVICE` ใน `.env`
 
 **SQL**
-- schema `ww`, ทุก SP ขึ้นต้น `ww.sp_*`, รองรับ filter `company_code`/`camera_no`/date range/status
+- schema `smg`, ทุก SP ขึ้นต้น `smg.sp_*`, รองรับ filter `company_code`/`camera_no`/date range/status
 - ส่งมอบเป็น script รันเองได้ + มีตัวอย่าง `EXEC`
 
 **Frontend (React+Vite+Tailwind)**
 - เรียกข้อมูลผ่าน `data-api` เท่านั้น (base URL จาก env), ไม่ต่อ DB ตรง
+- Auth state อยู่ใน `frontend/src/context/AuthContext.jsx` → ใช้ `useAuth()` (ไม่ใช้ `useCompany()` อีกต่อไป)
+- JWT เก็บใน `localStorage` key `smg-ww-token`, active company key `smg-ww-company`
+- `api.js` ส่ง `Authorization: Bearer <token>` + `x-company: <code>` header ทุก request อัตโนมัติ
+- pages ไม่ต้องส่ง company_code เป็น param — server อ่านจาก JWT
 - หน้าตา clean / modern / industrial-safety — ดูเป็น product จริง ไม่ generic
 - มี loading state, empty state, จัดการกรณีรูปหาย
 
@@ -101,10 +119,23 @@ python main.py
 # SQL (รันตามลำดับ)
 sql/01_create_schema.sql → 06_sample_exec_commands.sql
 
+# Data API
+cd data-api && npm install && npm run dev
+# สร้าง bcrypt hash สำหรับ password ใหม่:
+npm run gen-hash YourNewPassword
+
 # Frontend
 cd frontend && npm install && npm run dev
 npm run build        # ได้ dist/ → ทีม admin deploy IIS HTTPS เอง
 ```
+
+**Default accounts (sample data):**
+| username | password | role |
+|---|---|---|
+| `bkc_admin` | `BKC@Admin2024` | Super Admin (เห็นทุกบริษัท) |
+| `demo_admin` | `Walkway@2024` | Admin (DEMO) |
+| `demo_view` | `Walkway@2024` | Viewer (DEMO) |
+| `acme_admin` | `Walkway@2024` | Admin (ACME) |
 
 ---
 

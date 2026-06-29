@@ -15,3 +15,5 @@ requests==2.32.3
 
 # Config
 python-dotenv==1.0.1
+
+cvzone==1.6.1

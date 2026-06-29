@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ListChecks } from 'lucide-react'
-import { useCompany } from '../context/CompanyContext'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import FilterPanel from '../components/ui/FilterPanel'
@@ -20,20 +19,18 @@ const FILTERS = [
 const PAGE_SIZE = 50
 
 export default function EventLogPage() {
-  const { companyCode } = useCompany()
   const [filters, setFilters] = useState({})
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
 
   const { data, loading, error, refetch } = useAsync(
     () => api.getEvents({
-      company_code: companyCode,
       ...filters,
       search: search || undefined,
       page,
       page_size: PAGE_SIZE,
     }),
-    [companyCode, filters, search, page]
+    [filters, search, page]
   )
 
   const handleFilterChange = useCallback((key, value) => {

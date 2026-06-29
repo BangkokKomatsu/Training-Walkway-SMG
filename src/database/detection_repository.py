@@ -1,5 +1,5 @@
 """
-ฟังก์ชัน business layer — เรียก ww.sp_* เท่านั้น
+ฟังก์ชัน business layer — เรียก smg.sp_* เท่านั้น
 ห้ามต่อ SQL ด้วย f-string/string concat เด็ดขาด (ป้องกัน SQL Injection)
 
 OUTPUT parameter ของ MSSQL ใช้ pattern: DECLARE @out ... EXEC sp ... @out OUTPUT; SELECT @out
@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 def insert_detection_event(event: dict) -> int:
     """
-    เรียก ww.sp_insert_detection_event และคืน event_id ที่เพิ่งสร้าง
+    เรียก smg.sp_insert_detection_event และคืน event_id ที่เพิ่งสร้าง
     event dict ต้องมี key: company_code, camera_no, camera_name, location_name,
                            confidence, event_type
     """
     sql = """
         DECLARE @event_id BIGINT;
-        EXEC ww.sp_insert_detection_event
+        EXEC smg.sp_insert_detection_event
             @company_code   = ?,
             @camera_no      = ?,
             @camera_name    = ?,
@@ -30,7 +30,7 @@ def insert_detection_event(event: dict) -> int:
             @confidence     = ?,
             @event_type     = ?,
             @image_path     = ?,
-            @image_url      = ?,
+            @image_name     = ?,
             @created_by     = ?,
             @event_id       = @event_id OUTPUT;
         SELECT @event_id;
@@ -44,7 +44,7 @@ def insert_detection_event(event: dict) -> int:
         event["confidence"],
         event["event_type"],
         event.get("image_path"),
-        event.get("image_url"),
+        event.get("image_name"),
         event.get("created_by", "system"),
     ]
 
@@ -67,9 +67,9 @@ def update_alert_status(
     response_code: int | None = None,
     response_msg: str | None = None,
 ) -> None:
-    """เรียก ww.sp_update_alert_status — channel: 'TEAMS' | 'EMAIL', status: 'SENT' | 'FAILED'"""
+    """เรียก smg.sp_update_alert_status — channel: 'TEAMS' | 'EMAIL', status: 'SENT' | 'FAILED'"""
     sql = """
-        EXEC ww.sp_update_alert_status
+        EXEC smg.sp_update_alert_status
             @event_id      = ?,
             @company_code  = ?,
             @alert_channel = ?,
@@ -92,9 +92,9 @@ def insert_system_log(
     log_level: str,
     log_message: str,
 ) -> None:
-    """เรียก ww.sp_insert_system_log — log_level: 'INFO' | 'WARNING' | 'ERROR'"""
+    """เรียก smg.sp_insert_system_log — log_level: 'INFO' | 'WARNING' | 'ERROR'"""
     sql = """
-        EXEC ww.sp_insert_system_log
+        EXEC smg.sp_insert_system_log
             @company_code = ?,
             @camera_no    = ?,
             @log_level    = ?,

@@ -1,26 +1,3 @@
-"""
-โหลดค่ากล้องจาก config/cameras.json
-
-รูปแบบ cameras.json:
-  [
-    {
-      "camera_no": "8",
-      "camera_name": "กล้อง อาคาร 1",
-      "location_name": "อาคาร 1",
-      "company_code": "DEMO",
-      "rtsp_url": "rtsp://{user}:{password}@192.168.0.8:554/Streaming/Channels/102",
-      "enabled": true,
-      "danger_zones": [
-        [[176,364],[284,344],[293,362],[364,338],[268,198]],
-        [[100,100],[200,100],[200,200],[100,200]]
-      ]
-    }
-  ]
-
-ปิดกล้อง: ใส่ "enabled": false → ระบบข้ามกล้องนั้น (ไม่ต้องลบออกจากไฟล์)
-RTSP credentials: ใช้ {user}/{password} ใน URL → แทนค่าจาก .env อัตโนมัติ
-"""
-
 import json
 import logging
 import os

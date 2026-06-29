@@ -39,7 +39,8 @@ def send_teams_alert(event: dict) -> tuple[bool, int, str]:
         "event_type":    event.get("event_type", ""),
         "confidence":    confidence_pct,
         "detected_at":   event.get("detected_at", ""),
-        "image_url":     event.get("image_url", ""),
+        "image_name":    event.get("image_name", ""),
+        "image_path":    event.get("image_path", ""),
         "message": (
             f"⚠️ ตรวจพบคนในพื้นที่อันตราย\n"
             f"บริษัท: {event.get('company_code')}\n"

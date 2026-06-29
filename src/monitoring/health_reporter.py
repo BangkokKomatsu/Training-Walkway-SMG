@@ -5,7 +5,7 @@
   - Storage path เข้าถึงได้
   - สถานะกล้อง (รับมาจาก CameraReader)
 
-บันทึกลง trn_system_log ผ่าน ww.sp_insert_system_log
+บันทึกลง trn_system_log ผ่าน smg.sp_insert_system_log
 """
 
 import logging

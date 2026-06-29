@@ -1,6 +1,5 @@
 import React from 'react'
 import { Activity, Database, HardDrive, Camera, Cpu, Clock } from 'lucide-react'
-import { useCompany } from '../context/CompanyContext'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -39,10 +38,9 @@ function HealthRow({ icon: Icon, label, status, value, sub }) {
 }
 
 export default function SystemHealthPage() {
-  const { companyCode } = useCompany()
   const { data, loading, error, refetch } = useAsync(
-    () => api.getHealth(companyCode),
-    [companyCode]
+    () => api.getHealth(),
+    []
   )
 
   if (loading) return <PageLoading />

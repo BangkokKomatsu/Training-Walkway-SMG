@@ -289,7 +289,7 @@ def _handle_event(
     save_frame = frame.copy()
     _draw_detections(save_frame, all_detections, area_checker)
 
-    image_path, image_url = save_detection_image(
+    image_path, image_name = save_detection_image(
         save_frame, camera_config.company_code, camera_config.camera_no
     )
 
@@ -302,7 +302,7 @@ def _handle_event(
         "confidence":    matched_detection["confidence"],
         "event_type":    "DWELL",
         "image_path":    image_path,
-        "image_url":     image_url,
+        "image_name":    image_name,
         "detected_at":   detected_at,
         "created_by":    "system",
     }

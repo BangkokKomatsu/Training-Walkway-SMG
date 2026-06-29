@@ -1,7 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
-import { CompanyProvider, useCompany } from './context/CompanyContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import AppShell from './components/layout/AppShell'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -12,8 +12,8 @@ import AlertMonitorPage from './pages/AlertMonitorPage'
 import SystemHealthPage from './pages/SystemHealthPage'
 
 function ProtectedRoutes() {
-  const { companyCode } = useCompany()
-  if (!companyCode) return <Navigate to="/login" replace />
+  const { token } = useAuth()
+  if (!token) return <Navigate to="/login" replace />
   return (
     <AppShell>
       <Routes>
@@ -32,14 +32,14 @@ function ProtectedRoutes() {
 export default function App() {
   return (
     <ThemeProvider>
-      <CompanyProvider>
+      <AuthProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </BrowserRouter>
-      </CompanyProvider>
+      </AuthProvider>
     </ThemeProvider>
   )
 }

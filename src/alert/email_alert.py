@@ -35,11 +35,12 @@ def send_email_alert(event: dict) -> tuple[bool, str]:
         f"กล้อง:        {event.get('camera_name', '')} ({event.get('camera_no', '')})",
         f"พื้นที่:       {event.get('location_name', '')}",
         f"ประเภท event: {event.get('event_type', '')}",
-        f"ความมั่นใจ:   {confidence_pct}%",
         f"เวลา:         {event.get('detected_at', '')}",
     ]
-    if event.get("image_url"):
-        body_lines.append(f"ลิงก์รูปภาพ:  {event['image_url']}")
+    if event.get("image_name"):
+        body_lines.append(f"ชื่อไฟล์รูป:  {event['image_name']}")
+    if event.get("image_path"):
+        body_lines.append(f"ที่เก็บรูป:   {event['image_path']}")
 
     msg = MIMEMultipart()
     msg["From"] = settings.SMTP_USER
@@ -118,7 +119,6 @@ def send_email_via_graph(event: dict) -> tuple[bool, str]:
         f"กล้อง: {event.get('camera_name')} ({event.get('camera_no')})\n"
         f"พื้นที่: {event.get('location_name')}\n"
         f"ประเภท: {event.get('event_type')}\n"
-        f"ความมั่นใจ: {confidence_pct}%\n"
         f"เวลา: {event.get('detected_at')}"
     )
     payload = {

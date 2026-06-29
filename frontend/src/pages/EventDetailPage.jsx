@@ -1,7 +1,6 @@
 import React from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Camera, Clock, MapPin, Shield, Bell, HardDrive, Activity } from 'lucide-react'
-import { useCompany } from '../context/CompanyContext'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import ImagePreview from '../components/ui/ImagePreview'
@@ -26,10 +25,9 @@ function DetailRow({ icon: Icon, label, value, mono = false }) {
 
 export default function EventDetailPage() {
   const { id } = useParams()
-  const { companyCode } = useCompany()
   const { data: ev, loading, error, refetch } = useAsync(
-    () => api.getEventDetail(id, companyCode),
-    [id, companyCode]
+    () => api.getEventDetail(id),
+    [id]
   )
 
   if (loading) return <PageLoading />
@@ -66,7 +64,7 @@ export default function EventDetailPage() {
 
       {/* Image */}
       <ImagePreview
-        src={ev.image_path ? `${import.meta.env.VITE_API_BASE_URL}/images/${ev.image_path}` : null}
+        src={ev.image_url || null}
         alt={`Detection event ${ev.event_id}`}
         className="w-full"
       />

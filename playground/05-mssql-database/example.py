@@ -43,7 +43,7 @@ def demo_connection():
 
 
 def demo_insert_event():
-    """ทดสอบ: เรียก ww.sp_insert_detection_event และรับ event_id กลับ"""
+    """ทดสอบ: เรียก smg.sp_insert_detection_event และรับ event_id กลับ"""
     import pyodbc
 
     conn_str = (
@@ -55,7 +55,7 @@ def demo_insert_event():
     # ✅ parameterized เท่านั้น — ห้ามต่อ SQL ด้วย f-string
     sql = """
         DECLARE @event_id BIGINT;
-        EXEC ww.sp_insert_detection_event
+        EXEC smg.sp_insert_detection_event
             @company_code   = ?,
             @camera_no      = ?,
             @camera_name    = ?,
@@ -64,7 +64,7 @@ def demo_insert_event():
             @confidence     = ?,
             @event_type     = ?,
             @image_path     = ?,
-            @image_url      = ?,
+            @image_name     = ?,
             @created_by     = ?,
             @event_id       = @event_id OUTPUT;
         SELECT @event_id;
@@ -78,7 +78,7 @@ def demo_insert_event():
         0.9123,                         # confidence
         "DWELL",                        # event_type
         None,                           # image_path
-        None,                           # image_url
+        None,                           # image_name
         "playground",                   # created_by
     ]
 
@@ -96,7 +96,7 @@ def demo_insert_event():
 
 
 def demo_get_events():
-    """ทดสอบ: เรียก ww.sp_get_detection_events และแสดงผล"""
+    """ทดสอบ: เรียก smg.sp_get_detection_events และแสดงผล"""
     import pyodbc
 
     conn_str = (
@@ -106,7 +106,7 @@ def demo_get_events():
     )
 
     sql = """
-        EXEC ww.sp_get_detection_events
+        EXEC smg.sp_get_detection_events
             @company_code = ?,
             @page_size    = ?
     """

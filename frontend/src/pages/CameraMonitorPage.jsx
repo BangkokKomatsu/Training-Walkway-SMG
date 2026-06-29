@@ -1,19 +1,17 @@
 import React, { useState } from 'react'
 import { Camera, Wifi, WifiOff, Search } from 'lucide-react'
-import { useCompany } from '../context/CompanyContext'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import CameraStatusCard from '../components/ui/CameraStatusCard'
 import { PageLoading, ErrorState, EmptyState } from '../components/ui/LoadingState'
 
 export default function CameraMonitorPage() {
-  const { companyCode } = useCompany()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all') // 'all' | 'online' | 'offline'
 
   const { data: cameras, loading, error, refetch } = useAsync(
-    () => api.getCameras(companyCode),
-    [companyCode]
+    () => api.getCameras(),
+    []
   )
 
   const filtered = (cameras ?? []).filter(c => {

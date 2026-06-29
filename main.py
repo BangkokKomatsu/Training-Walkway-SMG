@@ -1,8 +1,3 @@
-"""
-Entry point เดียวของระบบ Walkway Detection
-รัน: python main.py
-"""
-
 import logging
 
 from config.logging_config import setup_logging

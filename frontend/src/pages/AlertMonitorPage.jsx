@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react'
 import { Bell } from 'lucide-react'
-import { useCompany } from '../context/CompanyContext'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import FilterPanel from '../components/ui/FilterPanel'
@@ -20,13 +19,12 @@ const FILTERS = [
 const PAGE_SIZE = 50
 
 export default function AlertMonitorPage() {
-  const { companyCode } = useCompany()
   const [filters, setFilters] = useState({})
   const [page, setPage] = useState(1)
 
   const { data, loading, error, refetch } = useAsync(
-    () => api.getAlerts({ company_code: companyCode, ...filters, page, page_size: PAGE_SIZE }),
-    [companyCode, filters, page]
+    () => api.getAlerts({ ...filters, page, page_size: PAGE_SIZE }),
+    [filters, page]
   )
 
   const handleFilterChange = useCallback((key, value) => {

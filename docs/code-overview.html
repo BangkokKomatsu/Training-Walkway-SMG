@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Walkway Detection — Code Overview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.6; }
+
+  /* ─── Layout ─── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  /* ─── Header ─── */
+  .hero { text-align: center; padding: 48px 0 40px; border-bottom: 1px solid #1e2535; margin-bottom: 48px; }
+  .hero h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .hero h1 span { color: #38bdf8; }
+  .hero p { color: #94a3b8; font-size: 1rem; }
+  .badge { display: inline-block; background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 4px 14px; font-size: 0.75rem; color: #94a3b8; margin: 4px; }
+
+  /* ─── Section titles ─── */
+  h2 { font-size: 1.25rem; font-weight: 600; color: #f1f5f9; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid #1e293b; display: flex; align-items: center; gap: 10px; }
+  h2 .icon { font-size: 1.1rem; }
+  section { margin-bottom: 56px; }
+
+  /* ─── Flow Diagram ─── */
+  .flow-wrap { overflow-x: auto; padding-bottom: 8px; }
+  .flow { display: flex; align-items: flex-start; gap: 0; min-width: 900px; }
+  .flow-col { display: flex; flex-direction: column; align-items: center; }
+  .flow-arrow { width: 40px; display: flex; align-items: center; justify-content: center; margin-top: 18px; color: #475569; font-size: 1.2rem; flex-shrink: 0; }
+
+  .node { border-radius: 10px; padding: 12px 16px; min-width: 140px; text-align: center; font-size: 0.82rem; font-weight: 600; position: relative; border: 1px solid transparent; }
+  .node .filename { font-size: 0.7rem; font-weight: 400; margin-top: 2px; opacity: 0.75; font-family: monospace; }
+  .node-children { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .node-child { border-radius: 8px; padding: 9px 14px; font-size: 0.78rem; font-weight: 600; min-width: 160px; text-align: center; border: 1px solid transparent; }
+  .node-child .filename { font-size: 0.68rem; font-weight: 400; margin-top: 1px; opacity: 0.75; font-family: monospace; }
+
+  .branch-line { width: 32px; display: flex; align-items: center; justify-content: center; color: #475569; font-size: 0.9rem; flex-shrink: 0; }
+
+  /* Colors */
+  .c-entry  { background: #1e3a5f; border-color: #2563eb; color: #93c5fd; }
+  .c-config  { background: #1a2e1a; border-color: #16a34a; color: #86efac; }
+  .c-detect  { background: #2d1f0e; border-color: #d97706; color: #fcd34d; }
+  .c-camera  { background: #1e1e3f; border-color: #7c3aed; color: #c4b5fd; }
+  .c-yolo    { background: #1f2937; border-color: #f59e0b; color: #fbbf24; }
+  .c-area    { background: #1e2f1e; border-color: #22c55e; color: #4ade80; }
+  .c-storage { background: #1e1e1e; border-color: #6b7280; color: #d1d5db; }
+  .c-db      { background: #1e1030; border-color: #a855f7; color: #d8b4fe; }
+  .c-alert   { background: #2d1515; border-color: #ef4444; color: #fca5a5; }
+  .c-view    { background: #0f2d2d; border-color: #14b8a6; color: #5eead4; }
+
+  /* ─── Cards grid ─── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card { background: #1a1f2e; border: 1px solid #253045; border-radius: 12px; padding: 20px; }
+  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .card-icon { font-size: 1.2rem; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .card h3 { font-size: 0.9rem; font-weight: 600; color: #f1f5f9; }
+  .card .path { font-size: 0.7rem; color: #64748b; font-family: monospace; }
+  .card p { font-size: 0.82rem; color: #94a3b8; margin-bottom: 8px; }
+  .card ul { list-style: none; padding-left: 0; }
+  .card ul li { font-size: 0.79rem; color: #94a3b8; padding: 3px 0; display: flex; align-items: flex-start; gap: 6px; }
+  .card ul li::before { content: "•"; color: #475569; flex-shrink: 0; margin-top: 1px; }
+  .pill { display: inline-block; font-size: 0.65rem; font-family: monospace; padding: 2px 7px; border-radius: 4px; margin: 2px 2px 2px 0; }
+  .pill-blue { background: #1e3a5f; color: #93c5fd; border: 1px solid #1d4ed8; }
+  .pill-green { background: #14290d; color: #86efac; border: 1px solid #15803d; }
+  .pill-yellow { background: #2d200a; color: #fcd34d; border: 1px solid #b45309; }
+  .pill-purple { background: #1e1035; color: #d8b4fe; border: 1px solid #7e22ce; }
+  .pill-red { background: #2d1010; color: #fca5a5; border: 1px solid #b91c1c; }
+  .pill-gray { background: #1a1f2e; color: #94a3b8; border: 1px solid #374151; }
+
+  /* ─── Config Table ─── */
+  .config-block { margin-bottom: 32px; }
+  .config-block h3 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .config-block h3 .tag { font-size: 0.7rem; font-family: monospace; background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 2px 8px; color: #64748b; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  thead tr { background: #1e293b; }
+  thead th { padding: 10px 14px; text-align: left; color: #94a3b8; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  tbody tr { border-bottom: 1px solid #1e2535; }
+  tbody tr:hover { background: #1a1f2e; }
+  td { padding: 10px 14px; color: #cbd5e1; vertical-align: top; }
+  td:first-child { font-family: monospace; font-size: 0.78rem; color: #38bdf8; white-space: nowrap; }
+  td:nth-child(2) { font-family: monospace; font-size: 0.75rem; color: #6b7280; }
+  td:nth-child(3) { color: #94a3b8; }
+  .must { color: #f87171; font-size: 0.65rem; font-weight: 700; background: #2d1010; border: 1px solid #7f1d1d; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+  .opt  { color: #6b7280; font-size: 0.65rem; font-weight: 700; background: #1a1f2e; border: 1px solid #374151; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+
+  /* ─── Diagram: Runtime flow ─── */
+  .runtime { background: #111827; border: 1px solid #1e2535; border-radius: 12px; padding: 24px; font-family: monospace; font-size: 0.8rem; line-height: 2; overflow-x: auto; }
+  .rt-entry { color: #38bdf8; }
+  .rt-config { color: #4ade80; }
+  .rt-detect { color: #fbbf24; }
+  .rt-camera { color: #c4b5fd; }
+  .rt-event  { color: #f87171; }
+  .rt-save   { color: #94a3b8; }
+  .rt-db     { color: #d8b4fe; }
+  .rt-alert  { color: #fb923c; }
+  .rt-view   { color: #5eead4; }
+  .rt-dim    { color: #374151; }
+  .rt-loop   { color: #475569; font-style: italic; }
+
+  /* ─── Step badge ─── */
+  .step { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: #1e293b; border: 1px solid #334155; text-align: center; line-height: 22px; font-size: 0.68rem; font-weight: 700; color: #94a3b8; margin-right: 6px; flex-shrink: 0; font-family: monospace; }
+  .step-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; font-size: 0.83rem; color: #cbd5e1; }
+  .step-row p { margin: 0; }
+  .steps { display: flex; flex-direction: column; gap: 0; }
+
+  /* ─── Scroll hint ─── */
+  .scroll-hint { font-size: 0.7rem; color: #475569; margin-bottom: 8px; }
+
+  /* ─── Visual Flow Diagram ─── */
+  .vflow { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .vf-node { display: flex; align-items: center; gap: 14px; border-radius: 12px; padding: 14px 20px; border: 1px solid transparent; width: 100%; max-width: 860px; }
+  .vf-node-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
+  .vf-node-content { flex: 1; }
+  .vf-node-title { font-weight: 700; font-size: 0.9rem; font-family: monospace; }
+  .vf-node-sub { font-size: 0.72rem; color: #64748b; margin-top: 2px; }
+  .vf-conn { display: flex; flex-direction: column; align-items: center; }
+  .vf-conn-line { width: 2px; height: 24px; }
+  .vf-conn-arrow { font-size: 0.65rem; line-height: 1; color: #475569; }
+  .vf-conn-label { font-size: 0.65rem; color: #475569; background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 2px 10px; margin: 3px 0; white-space: nowrap; }
+  .vf-row { display: flex; gap: 12px; align-items: stretch; width: 100%; max-width: 860px; }
+  .vf-row .vf-node { flex: 1; max-width: none; }
+  .vf-loop { border: 2px dashed #6d28d9; border-radius: 16px; padding: 20px; background: rgba(109,40,217,0.04); width: 100%; max-width: 860px; }
+  .vf-loop-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+  .vf-loop-chain { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+  .vf-event { border: 2px solid #dc2626; border-radius: 16px; padding: 20px; background: rgba(220,38,38,0.04); width: 100%; max-width: 860px; }
+  .vf-event-label { font-size: 0.72rem; color: #ef4444; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+  .vf-mini { border-radius: 10px; padding: 12px 10px; font-size: 0.78rem; font-weight: 600; font-family: monospace; border: 1px solid transparent; display: flex; flex-direction: column; align-items: center; text-align: center; flex: 1; min-width: 100px; }
+  .vf-mini-icon { font-size: 1.3rem; margin-bottom: 5px; }
+  .vf-mini-sub { font-size: 0.62rem; font-family: 'Segoe UI', sans-serif; font-weight: 400; margin-top: 4px; opacity: 0.7; line-height: 1.4; }
+  .vf-chain-arr { color: #374151; font-size: 1.5rem; flex-shrink: 0; align-self: center; }
+  .vf-trigger { background: #1c1000; border: 1px solid #92400e; border-radius: 8px; padding: 10px 18px; font-size: 0.78rem; color: #f59e0b; display: flex; align-items: center; gap: 10px; width: 100%; max-width: 860px; }
+  .vf-note { padding: 10px 14px; border-radius: 8px; font-size: 0.75rem; display: flex; align-items: center; gap: 10px; margin-top: 14px; border: 1px dashed; }
+
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 1.4rem; }
+    .cards { grid-template-columns: 1fr; }
+    table { font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ══════════════════════════════════════════════ HERO -->
+  <div class="hero">
+    <h1>🚶 <span>Walkway Detection System</span> — Code Overview</h1>
+    <p>อธิบายการทำงานของโค้ด, การเชื่อมต่อระหว่างไฟล์, และสิ่งที่ต้องแก้ไขก่อนใช้งานจริง</p>
+    <div style="margin-top:16px">
+      <span class="badge">Python 3.11+</span>
+      <span class="badge">YOLO11</span>
+      <span class="badge">OpenCV</span>
+      <span class="badge">MSSQL</span>
+      <span class="badge">Teams Webhook</span>
+      <span class="badge">SMTP M365</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ SECTION 1: ENTRY POINT -->
+  <section>
+    <h2><span class="icon">▶</span> 1. Entry Point — <code style="color:#38bdf8;font-size:0.9rem">main.py</code></h2>
+    <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:20px">
+      ไฟล์เดียวที่รัน — <code style="color:#38bdf8">python main.py</code> — ทำงาน 3 ขั้นตอนตามลำดับ:
+    </p>
+    <div class="steps">
+      <div class="step-row">
+        <span class="step">1</span>
+        <div>
+          <p><strong style="color:#4ade80">setup_logging()</strong> <span style="color:#475569">←</span> <code style="color:#4ade80;font-size:0.78rem">config/logging_config.py</code></p>
+          <p style="color:#64748b;font-size:0.78rem">ตั้งค่า log format, level, และไฟล์ log — ทำก่อนสุดเพื่อให้ทุก module ใช้ logger ได้</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <span class="step">2</span>
+        <div>
+          <p><strong style="color:#4ade80">settings</strong> <span style="color:#475569">←</span> <code style="color:#4ade80;font-size:0.78rem">config/settings.py</code> <span style="color:#475569">← อ่านจาก</span> <code style="color:#38bdf8;font-size:0.78rem">.env</code></p>
+          <p style="color:#64748b;font-size:0.78rem">โหลดค่า config ทั้งหมด (device, DB, camera, alert) มาไว้ใน object เดียว — ทุก module import ไปใช้</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <span class="step">3</span>
+        <div>
+          <p><strong style="color:#fbbf24">run_detection_service()</strong> <span style="color:#475569">←</span> <code style="color:#fbbf24;font-size:0.78rem">src/detection/detection_service.py</code></p>
+          <p style="color:#64748b;font-size:0.78rem">เริ่ม pipeline ตรวจจับทั้งหมด — ไม่ return จนกว่าจะกด Ctrl+C</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SECTION 2: FLOW DIAGRAM -->
+  <section>
+    <h2><span class="icon">⛓</span> 2. การเชื่อมต่อระหว่างไฟล์ (Runtime Flow)</h2>
+
+    <div class="vflow">
+
+      <!-- ① main.py -->
+      <div class="vf-node" style="background:#1e3a5f;border-color:#2563eb;max-width:480px">
+        <div class="vf-node-icon" style="background:#1d4ed8;color:#bfdbfe">▶</div>
+        <div class="vf-node-content">
+          <div class="vf-node-title" style="color:#93c5fd">main.py</div>
+          <div class="vf-node-sub">python main.py &nbsp;—&nbsp; entry point เดียวของระบบ, ไม่มี logic ตรวจจับอยู่ที่นี่</div>
+        </div>
+      </div>
+
+      <div class="vf-conn">
+        <div class="vf-conn-line" style="background:linear-gradient(to bottom,#2563eb,#16a34a)"></div>
+        <div class="vf-conn-arrow">▼</div>
+      </div>
+
+      <!-- ② config: logging + settings -->
+      <div class="vf-row">
+        <div class="vf-node" style="background:#1a2e1a;border-color:#16a34a">
+          <div class="vf-node-icon" style="background:#15803d;color:#bbf7d0">⚙</div>
+          <div class="vf-node-content">
+            <div class="vf-node-title" style="color:#86efac">logging_config.py</div>
+            <div class="vf-node-sub">ตั้ง log format, level, file output ก่อนทุก module</div>
+          </div>
+        </div>
+        <div class="vf-node" style="background:#1a2e1a;border-color:#16a34a">
+          <div class="vf-node-icon" style="background:#15803d;color:#bbf7d0">📄</div>
+          <div class="vf-node-content">
+            <div class="vf-node-title" style="color:#86efac">settings.py &nbsp;<span style="color:#4ade80;font-size:0.7rem;font-family:monospace">← .env</span></div>
+            <div class="vf-node-sub">โหลด config ทั้งหมด — ทุก module import object นี้ไปใช้</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vf-conn">
+        <div class="vf-conn-line" style="background:linear-gradient(to bottom,#16a34a,#d97706)"></div>
+        <div class="vf-conn-arrow">▼</div>
+      </div>
+
+      <!-- ③ detection_service -->
+      <div class="vf-node" style="background:#2d1f0e;border-color:#d97706">
+        <div class="vf-node-icon" style="background:#b45309;color:#fef3c7">🔍</div>
+        <div class="vf-node-content">
+          <div class="vf-node-title" style="color:#fcd34d">detection_service.py</div>
+          <div class="vf-node-sub">run_detection_service() &nbsp;—&nbsp; orchestrate ทุก module, เปิด thread per camera, วนลูปจนกด Ctrl+C</div>
+        </div>
+      </div>
+
+      <div class="vf-conn">
+        <div class="vf-conn-line" style="background:linear-gradient(to bottom,#d97706,#7c3aed)"></div>
+        <div class="vf-conn-label">โหลด 1 ครั้งก่อนเข้า loop</div>
+        <div class="vf-conn-line" style="background:#7c3aed;height:16px"></div>
+        <div class="vf-conn-arrow" style="color:#a78bfa">▼</div>
+      </div>
+
+      <!-- ④ init row: camera_config + yolo_detector -->
+      <div class="vf-row">
+        <div class="vf-node" style="background:#1e1e3f;border-color:#7c3aed">
+          <div class="vf-node-icon" style="background:#6d28d9;color:#ede9fe">📷</div>
+          <div class="vf-node-content">
+            <div class="vf-node-title" style="color:#c4b5fd">camera_config.py &nbsp;<span style="color:#a78bfa;font-size:0.7rem;font-family:monospace">← cameras.json</span></div>
+            <div class="vf-node-sub">อ่านรายการกล้องทั้งหมด — IP, ชื่อ, danger_zones polygon</div>
+          </div>
+        </div>
+        <div class="vf-node" style="background:#2d200a;border-color:#f59e0b">
+          <div class="vf-node-icon" style="background:#b45309;color:#fef3c7">🤖</div>
+          <div class="vf-node-content">
+            <div class="vf-node-title" style="color:#fbbf24">yolo_detector.py &nbsp;<span style="color:#f59e0b;font-size:0.7rem;font-family:monospace">← yolo11n.pt</span></div>
+            <div class="vf-node-sub">โหลดโมเดล YOLO11 ครั้งเดียว ใช้ร่วมทุกกล้อง (thread-safe)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vf-conn">
+        <div class="vf-conn-line" style="background:linear-gradient(to bottom,#7c3aed,#5b21b6);height:20px"></div>
+        <div class="vf-conn-arrow" style="color:#a78bfa">▼</div>
+      </div>
+
+      <!-- ⑤ CAMERA LOOP BOX -->
+      <div class="vf-loop">
+        <div class="vf-loop-label" style="color:#a78bfa">
+          🔄 &nbsp;Camera Loop &nbsp;—&nbsp; 1 Thread ต่อ 1 กล้อง &nbsp;·&nbsp; วนซ้ำตลอดเวลา
+        </div>
+        <div class="vf-loop-chain">
+          <div class="vf-mini" style="background:#1e1e3f;border-color:#7c3aed;color:#c4b5fd">
+            <div class="vf-mini-icon">📷</div>
+            camera_reader
+            <div class="vf-mini-sub">อ่านเฟรม RTSP<br>reconnect อัตโนมัติ</div>
+          </div>
+          <div class="vf-chain-arr">→</div>
+          <div class="vf-mini" style="background:#2d200a;border-color:#f59e0b;color:#fbbf24">
+            <div class="vf-mini-icon">🤖</div>
+            YOLO detect
+            <div class="vf-mini-sub">person + bicycle<br>ทุกเฟรม</div>
+          </div>
+          <div class="vf-chain-arr">→</div>
+          <div class="vf-mini" style="background:#1e2f1e;border-color:#22c55e;color:#4ade80">
+            <div class="vf-mini-icon">📐</div>
+            area_checker
+            <div class="vf-mini-sub">point-in-polygon<br>danger zone</div>
+          </div>
+          <div class="vf-chain-arr">→</div>
+          <div class="vf-mini" style="background:#0f2d2d;border-color:#14b8a6;color:#5eead4">
+            <div class="vf-mini-icon">🖥</div>
+            cv2.imshow()
+            <div class="vf-mini-sub">live view<br>bbox + polygon</div>
+          </div>
+        </div>
+        <div class="vf-note" style="background:#1a0d30;border-color:#4c1d95;color:#a78bfa">
+          <span>⏱</span>
+          <span>คนอยู่ใน zone ต่อเนื่อง → เริ่มนับ <strong style="color:#c4b5fd">DWELL_SECONDS</strong> &nbsp;|&nbsp; ออกนอก zone → reset &nbsp;|&nbsp; ครบเวลา → EVENT ↓</span>
+        </div>
+      </div>
+
+      <div class="vf-conn">
+        <div class="vf-conn-line" style="background:linear-gradient(to bottom,#6d28d9,#dc2626);height:20px"></div>
+        <div class="vf-trigger">
+          <span style="font-size:1.1rem">⚡</span>
+          <span>คนอยู่ใน danger zone ต่อเนื่องเกิน <strong>DWELL_SECONDS</strong> → <strong style="color:#fbbf24">EVENT TRIGGERED</strong> &nbsp;—&nbsp; เริ่ม pipeline ด้านล่าง</span>
+        </div>
+        <div class="vf-conn-line" style="background:#dc2626;height:16px"></div>
+        <div class="vf-conn-arrow" style="color:#dc2626">▼</div>
+      </div>
+
+      <!-- ⑥ EVENT PIPELINE BOX -->
+      <div class="vf-event">
+        <div class="vf-event-label">
+          ⚡ &nbsp;Event Pipeline &nbsp;—&nbsp; ทำตามลำดับ · ขั้นไหนล้มเหลว → log แต่ไม่ crash
+        </div>
+        <div class="vf-loop-chain">
+          <div class="vf-mini" style="background:#1e1e1e;border-color:#6b7280;color:#d1d5db">
+            <div class="vf-mini-icon">💾</div>
+            image_storage
+            <div class="vf-mini-sub">เซฟ .jpg<br>Shared Drive</div>
+          </div>
+          <div class="vf-chain-arr">→</div>
+          <div class="vf-mini" style="background:#1e1030;border-color:#a855f7;color:#d8b4fe">
+            <div class="vf-mini-icon">🗄</div>
+            detection_repository
+            <div class="vf-mini-sub">INSERT MSSQL<br>ผ่าน SP</div>
+          </div>
+          <div class="vf-chain-arr">→</div>
+          <div class="vf-mini" style="background:#2d1515;border-color:#ef4444;color:#fca5a5">
+            <div class="vf-mini-icon">📢</div>
+            teams_alert
+            <div class="vf-mini-sub">POST<br>Power Automate</div>
+          </div>
+          <div class="vf-chain-arr">→</div>
+          <div class="vf-mini" style="background:#2d1515;border-color:#ef4444;color:#fca5a5">
+            <div class="vf-mini-icon">✉</div>
+            email_alert
+            <div class="vf-mini-sub">SMTP M365<br>แจ้งเตือน</div>
+          </div>
+        </div>
+        <div class="vf-note" style="background:#1a0005;border-color:#7f1d1d;color:#fca5a5">
+          <span>🔕</span>
+          <span>หลัง alert → รอ <strong style="color:#f87171">ALERT_COOLDOWN_SECONDS</strong> ก่อนแจ้งซ้ำ &nbsp;—&nbsp; ป้องกัน spam Teams/Email</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SECTION 3: FOLDERS -->
+  <section>
+    <h2><span class="icon">📁</span> 3. แต่ละ Folder/File ทำอะไร</h2>
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#1e3a5f">▶</div>
+          <div><h3>main.py</h3><div class="path">entry point เดียว</div></div>
+        </div>
+        <p>จุดเริ่มต้นของระบบทั้งหมด รันด้วย <code style="color:#38bdf8">python main.py</code></p>
+        <ul>
+          <li>เรียก setup_logging() → settings → run_detection_service()</li>
+          <li>ไม่มี logic ตรวจจับอยู่ที่นี่เลย — แค่ orchestrate</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#1a2e1a">⚙</div>
+          <div><h3>config/</h3><div class="path">settings.py · logging_config.py</div></div>
+        </div>
+        <p>โหลดค่า config จาก <code style="color:#38bdf8">.env</code> และตั้งค่า logger</p>
+        <ul>
+          <li><span class="pill pill-blue">settings.py</span> อ่าน .env → Settings object ส่งต่อทุก module</li>
+          <li><span class="pill pill-green">logging_config.py</span> ตั้ง log level, format, output</li>
+          <li>ทุกไฟล์ใน src/ ต้อง <code>from config.settings import settings</code></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#1e1e3f">📷</div>
+          <div><h3>src/camera/</h3><div class="path">camera_reader.py · camera_config.py</div></div>
+        </div>
+        <p>จัดการกล้องทั้งหมด</p>
+        <ul>
+          <li><span class="pill pill-purple">camera_config.py</span> อ่าน cameras.json → list ของ CameraConfig</li>
+          <li><span class="pill pill-purple">camera_reader.py</span> เปิด RTSP stream ใน thread แยก, reconnect อัตโนมัติ</li>
+          <li>ดึงเฟรมล่าสุดด้วย get_latest_frame() — ไม่ block main thread</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#2d1f0e">🔍</div>
+          <div><h3>src/detection/</h3><div class="path">yolo_detector.py · area_checker.py · detection_service.py</div></div>
+        </div>
+        <p>หัวใจของระบบ — ตรวจจับและตัดสิน event</p>
+        <ul>
+          <li><span class="pill pill-yellow">yolo_detector.py</span> โหลด yolo11n.pt, ตรวจจับ person + bicycle</li>
+          <li><span class="pill pill-yellow">area_checker.py</span> เช็ค point-in-polygon (danger_zones)</li>
+          <li><span class="pill pill-yellow">detection_service.py</span> รวมทุกอย่าง: dwell timer, cooldown, event trigger, แสดง live view</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#1e1e1e">💾</div>
+          <div><h3>src/storage/</h3><div class="path">image_storage.py</div></div>
+        </div>
+        <p>เซฟรูปภาพ event ลง shared drive</p>
+        <ul>
+          <li>สร้างโฟลเดอร์อัตโนมัติ: <code style="color:#6b7280">SHARED_DRIVE/walkway-detection/{company}/{camera}/{date}/</code></li>
+          <li>ชื่อไฟล์: <code style="color:#6b7280">detection_DEMO_1_20260629_143021.jpg</code></li>
+          <li>คืน path เต็ม + URL relative สำหรับ frontend</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#1e1030">🗄</div>
+          <div><h3>src/database/</h3><div class="path">mssql_connection.py · detection_repository.py</div></div>
+        </div>
+        <p>ต่อ MSSQL และ INSERT/UPDATE ผ่าน Stored Procedure เท่านั้น</p>
+        <ul>
+          <li><span class="pill pill-purple">mssql_connection.py</span> สร้าง pyodbc connection จาก .env</li>
+          <li><span class="pill pill-purple">detection_repository.py</span> เรียก smg.sp_insert_detection_event, smg.sp_update_alert_status</li>
+          <li>ไม่มี SQL inline เด็ดขาด — ป้องกัน injection</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#2d1515">🔔</div>
+          <div><h3>src/alert/</h3><div class="path">teams_alert.py · email_alert.py</div></div>
+        </div>
+        <p>ส่งการแจ้งเตือน</p>
+        <ul>
+          <li><span class="pill pill-red">teams_alert.py</span> POST JSON → Power Automate webhook → Teams channel</li>
+          <li><span class="pill pill-red">email_alert.py</span> SMTP M365 (app password) — มีภาคผนวก Graph API ด้วย</li>
+          <li>ถ้าไม่ตั้งค่า webhook/SMTP → ข้ามการส่ง (ไม่ crash)</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#0f2d2d">📊</div>
+          <div><h3>src/monitoring/</h3><div class="path">health_reporter.py</div></div>
+        </div>
+        <p>รายงานสุขภาพระบบ — log สถานะระบบลง MSSQL เป็นระยะ</p>
+        <ul>
+          <li>เรียก smg.sp_insert_system_log (INFO / WARNING / ERROR)</li>
+          <li>Frontend อ่าน log เหล่านี้ผ่าน data-api เพื่อแสดงสถานะ</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#1a2e1a">🛠</div>
+          <div><h3>src/utils/</h3><div class="path">helpers.py · logger.py</div></div>
+        </div>
+        <p>ฟังก์ชันช่วยเหลือที่ใช้ร่วมกัน</p>
+        <ul>
+          <li><span class="pill pill-green">helpers.py</span> get_bbox_bottom_center(), is_boxes_close(), draw_label()</li>
+          <li><span class="pill pill-green">logger.py</span> shortcut สำหรับ getLogger</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:#1a1f2e">🎮</div>
+          <div><h3>playground/</h3><div class="path">01 → 06</div></div>
+        </div>
+        <p>ตัวอย่างโค้ดสำหรับผู้เรียน — แต่ละบทฝึกแยกกัน</p>
+        <ul>
+          <li>01 Python basic · 02 OpenCV + กล้อง · 03 YOLO detection</li>
+          <li>04 Area polygon · 05 MSSQL · 06 Teams + Email</li>
+          <li>รันแต่ละไฟล์แยก ไม่ขึ้นกัน main.py</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SECTION 4: DWELL LOGIC -->
+  <section>
+    <h2><span class="icon">⏱</span> 4. Logic ตัดสิน Event (สำคัญ!)</h2>
+    <div class="cards" style="grid-template-columns: 1fr 1fr;">
+      <div class="card">
+        <h3 style="color:#fbbf24;margin-bottom:12px">2 ตัวจับเวลา — อย่าสับสน</h3>
+        <div class="step-row" style="padding:8px 0;border-bottom:1px solid #1e2535">
+          <span class="step" style="background:#2d200a;border-color:#b45309;color:#fbbf24">⏲</span>
+          <div>
+            <p style="color:#fbbf24;font-weight:600">DWELL_SECONDS <span style="color:#6b7280;font-weight:400">(default: 5 วิ)</span></p>
+            <p style="color:#94a3b8;font-size:0.78rem">คนต้องอยู่ใน zone ต่อเนื่องนานเท่านี้ถึงนับว่าเกิด event — ถ้าออกก่อนถึงเวลา → reset</p>
+          </div>
+        </div>
+        <div class="step-row" style="padding:8px 0">
+          <span class="step" style="background:#2d1010;border-color:#b91c1c;color:#f87171">🔕</span>
+          <div>
+            <p style="color:#f87171;font-weight:600">ALERT_COOLDOWN_SECONDS <span style="color:#6b7280;font-weight:400">(default: 120 วิ)</span></p>
+            <p style="color:#94a3b8;font-size:0.78rem">แจ้งเตือนแล้ว ต้องรอนานเท่านี้ถึงจะแจ้งซ้ำ (กัน spam Teams/Email)</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="color:#4ade80;margin-bottom:12px">กฎพิเศษ: คนใกล้จักรยาน = ปลอดภัย</h3>
+        <ul>
+          <li>ถ้า person bbox อยู่ใกล้ bicycle bbox ภายใน <strong style="color:#fff">70 px</strong> → ถือว่ากำลังขี่จักรยาน</li>
+          <li>ไม่นับเวลา dwell แม้จะอยู่ใน danger zone</li>
+          <li>จุดอ้างอิงคน = <strong style="color:#fff">จุดกึ่งกลางขอบล่าง</strong> ของ bounding box (ไม่ใช่จุดกลาง)</li>
+          <li>ใช้เพราะขาคนอยู่ด้านล่าง — แม่นยำกว่าใช้ center</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SECTION 5: CONFIG -->
+  <section>
+    <h2><span class="icon">🔧</span> 5. สิ่งที่แต่ละคนต้องแก้ไขก่อนใช้งาน</h2>
+
+    <!-- .env -->
+    <div class="config-block">
+      <h3>ไฟล์ <span class="tag">.env</span> (สร้างจาก .env.example — ห้าม commit!)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>ค่าตัวอย่าง</th>
+            <th>คำอธิบาย</th>
+            <th style="text-align:center">จำเป็น?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>DEVICE</td>
+            <td>cpu</td>
+            <td>ใช้ <strong>cpu</strong> หรือ <strong>cuda</strong> (ถ้ามี GPU NVIDIA) — cuda เร็วกว่ามาก</td>
+            <td style="text-align:center"><span class="opt">optional</span></td>
+          </tr>
+          <tr>
+            <td>COMPANY_CODE</td>
+            <td>ACME</td>
+            <td>รหัสบริษัท — ใช้แยกข้อมูลใน DB และชื่อโฟลเดอร์รูป</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>CAMERA_RTSP_USER</td>
+            <td>admin</td>
+            <td>username กล้อง CCTV (ใช้แทน {user} ใน rtsp_url ใน cameras.json)</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>CAMERA_RTSP_PASSWORD</td>
+            <td>P@ssw0rd</td>
+            <td>password กล้อง CCTV (ห้ามฮาร์ดโค้ดใน cameras.json)</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>YOLO_MODEL_PATH</td>
+            <td>Models/yolo11n.pt</td>
+            <td>path ไปยังไฟล์โมเดล YOLO11 (ดาวน์โหลดจาก ultralytics)</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>CONF_THRESHOLD</td>
+            <td>0.5</td>
+            <td>ความมั่นใจขั้นต่ำ (0.0–1.0) ถ้าต่ำเกินจะ false positive เยอะ</td>
+            <td style="text-align:center"><span class="opt">optional</span></td>
+          </tr>
+          <tr>
+            <td>DWELL_SECONDS</td>
+            <td>5</td>
+            <td>อยู่ใน zone ต่อเนื่องกี่วินาทีถึง alert (แนะนำ 3–10)</td>
+            <td style="text-align:center"><span class="opt">optional</span></td>
+          </tr>
+          <tr>
+            <td>ALERT_COOLDOWN_SECONDS</td>
+            <td>120</td>
+            <td>แจ้งแล้วต้องรอกี่วินาทีถึงแจ้งซ้ำ (แนะนำ 60–300)</td>
+            <td style="text-align:center"><span class="opt">optional</span></td>
+          </tr>
+          <tr>
+            <td>DB_SERVER</td>
+            <td>192.168.0.10</td>
+            <td>IP หรือ hostname ของ MSSQL Server</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>DB_NAME</td>
+            <td>WalkwayDB</td>
+            <td>ชื่อ database</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>DB_USER</td>
+            <td>ww_user</td>
+            <td>SQL Server login username</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>DB_PASSWORD</td>
+            <td>••••••••</td>
+            <td>SQL Server login password</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>IMAGE_SHARED_DRIVE</td>
+            <td>\\\\server\\walkway</td>
+            <td>path ของ shared drive สำหรับเซฟรูป (UNC path หรือ local path)</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>TEAMS_WEBHOOK_URL</td>
+            <td>https://prod-xx.../...</td>
+            <td>Power Automate Workflow webhook URL (ดู §E ใน MASTER_CONTEXT)</td>
+            <td style="text-align:center"><span class="opt">optional</span></td>
+          </tr>
+          <tr>
+            <td>SMTP_HOST</td>
+            <td>smtp.office365.com</td>
+            <td>SMTP server (M365 ใช้ค่านี้)</td>
+            <td style="text-align:center"><span class="opt">ถ้าใช้ email</span></td>
+          </tr>
+          <tr>
+            <td>SMTP_PORT</td>
+            <td>587</td>
+            <td>port SMTP (M365 = 587 พร้อม STARTTLS)</td>
+            <td style="text-align:center"><span class="opt">ถ้าใช้ email</span></td>
+          </tr>
+          <tr>
+            <td>SMTP_USER</td>
+            <td>alert@company.com</td>
+            <td>อีเมลผู้ส่ง (M365 account)</td>
+            <td style="text-align:center"><span class="opt">ถ้าใช้ email</span></td>
+          </tr>
+          <tr>
+            <td>SMTP_PASSWORD</td>
+            <td>••••••••</td>
+            <td>App Password ของ M365 (ไม่ใช่ password login ปกติ)</td>
+            <td style="text-align:center"><span class="opt">ถ้าใช้ email</span></td>
+          </tr>
+          <tr>
+            <td>ALERT_EMAIL_TO</td>
+            <td>safety@company.com</td>
+            <td>อีเมลผู้รับการแจ้งเตือน</td>
+            <td style="text-align:center"><span class="opt">ถ้าใช้ email</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- cameras.json -->
+    <div class="config-block">
+      <h3>ไฟล์ <span class="tag">config/cameras.json</span> (แก้ไขได้เลย — 1 กล้อง = 1 object ใน array)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>ค่าตัวอย่าง</th>
+            <th>คำอธิบาย</th>
+            <th style="text-align:center">จำเป็น?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>camera_no</td>
+            <td>"1"</td>
+            <td>รหัสกล้อง — ใช้ตั้งชื่อโฟลเดอร์รูปและ log</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>camera_name</td>
+            <td>"กล้อง อาคาร 1"</td>
+            <td>ชื่อที่แสดงใน Teams/Email และ frontend</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>location_name</td>
+            <td>"อาคาร 1 ทางเดิน A"</td>
+            <td>ชื่อพื้นที่ที่แสดงในการแจ้งเตือน</td>
+            <td style="text-align:center"><span class="opt">optional</span></td>
+          </tr>
+          <tr>
+            <td>company_code</td>
+            <td>"DEMO"</td>
+            <td>รหัสบริษัท (ควรตรงกับ COMPANY_CODE ใน .env)</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>enabled</td>
+            <td>true / false</td>
+            <td>ปิด/เปิดกล้องนี้ชั่วคราวโดยไม่ต้องลบออก</td>
+            <td style="text-align:center"><span class="opt">optional</span></td>
+          </tr>
+          <tr>
+            <td>rtsp_url</td>
+            <td>"rtsp://{user}:{password}@192.168.0.1:554/..."</td>
+            <td>URL กล้อง — ใส่ <code>{user}</code> และ <code>{password}</code> แทน username/password จริง (ระบบเติมจาก .env อัตโนมัติ)</td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+          <tr>
+            <td>danger_zones</td>
+            <td>[ [[x1,y1],[x2,y2],...] ]</td>
+            <td>list ของ polygon พื้นที่อันตราย — พิกัด pixel บนเฟรมขนาด 500×400 px<br><span style="color:#64748b;font-size:0.75rem">1 กล้องมีได้หลาย zone เช่น กล้อง 28 มี 3 zones</span></td>
+            <td style="text-align:center"><span class="must">ต้องใส่</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tip box -->
+    <div style="background:#0f2d1a;border:1px solid #166534;border-radius:10px;padding:20px;margin-top:8px">
+      <h3 style="color:#4ade80;margin-bottom:10px;font-size:0.9rem">💡 ขั้นตอนแก้ไขสำหรับผู้ใช้งานจริง</h3>
+      <div class="steps">
+        <div class="step-row"><span class="step">1</span><p>Copy <code style="color:#38bdf8">.env.example</code> → <code style="color:#38bdf8">.env</code> แล้วใส่ค่า <span class="must">ต้องใส่</span> ทุกตัว</p></div>
+        <div class="step-row"><span class="step">2</span><p>แก้ <code style="color:#38bdf8">config/cameras.json</code> — ใส่ IP กล้อง, ชื่อ, และวาด danger_zones ให้ถูกต้องกับกล้องจริง</p></div>
+        <div class="step-row"><span class="step">3</span><p>ดาวน์โหลด <code style="color:#38bdf8">yolo11n.pt</code> จาก <a href="https://docs.ultralytics.com/models/yolo11" style="color:#38bdf8">docs.ultralytics.com</a> วางใน <code>Models/</code></p></div>
+        <div class="step-row"><span class="step">4</span><p>รัน SQL scripts ตามลำดับ <code style="color:#38bdf8">sql/01_create_schema.sql</code> → <code style="color:#38bdf8">06_sample_exec_commands.sql</code></p></div>
+        <div class="step-row"><span class="step">5</span><p>รัน <code style="color:#38bdf8">pip install -r requirements.txt</code> แล้ว <code style="color:#38bdf8">python main.py</code></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ FOOTER -->
+  <div style="text-align:center;padding:32px 0;color:#374151;font-size:0.75rem;border-top:1px solid #1e2535">
+    Walkway Detection System — Training Course · อ้างอิง YOLO11: <a href="https://docs.ultralytics.com/models/yolo11" style="color:#475569">docs.ultralytics.com/models/yolo11</a>
+  </div>
+
+</div>
+</body>
+</html>

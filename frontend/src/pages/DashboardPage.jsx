@@ -4,7 +4,6 @@ import {
   Activity, Camera, Bell, AlertTriangle, CheckCircle,
   Clock, ChevronRight, Shield,
 } from 'lucide-react'
-import { useCompany } from '../context/CompanyContext'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import DashboardCard from '../components/ui/DashboardCard'
@@ -13,14 +12,13 @@ import { PageLoading, ErrorState } from '../components/ui/LoadingState'
 import { formatDateTime, formatConfidence } from '../utils/format'
 
 export default function DashboardPage() {
-  const { companyCode } = useCompany()
   const { data, loading, error, refetch } = useAsync(
-    () => api.getDashboard(companyCode),
-    [companyCode]
+    () => api.getDashboard(),
+    []
   )
   const { data: recentData, loading: recentLoading } = useAsync(
-    () => api.getEvents({ company_code: companyCode, page: 1, page_size: 8 }),
-    [companyCode]
+    () => api.getEvents({ page: 1, page_size: 8 }),
+    []
   )
 
   if (loading) return <PageLoading />
