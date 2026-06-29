@@ -255,7 +255,7 @@ from config.settings import settings
 
 # ตั้งค่า
 detector = YoloDetector(settings.YOLO_MODEL_PATH, settings.DEVICE, settings.CONF_THRESHOLD)
-area_checker = AreaChecker(settings.danger_zone_polygon)
+area_checker = AreaChecker(cam_config.danger_zones)  # list ของ polygon จาก cameras.json
 tracker = CameraEventTracker(settings.DWELL_SECONDS, settings.ALERT_COOLDOWN_SECONDS)
 
 # loop หลัก

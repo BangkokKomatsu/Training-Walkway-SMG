@@ -3,7 +3,7 @@
 สาธิต: ใช้ YoloDetector ตรวจจับคน (person) จากภาพนิ่งหรือวิดีโอ
 
 รัน: python playground/03-yolo-detection/example.py [path/to/image.jpg]
-ถ้าไม่ระบุไฟล์ภาพ จะลองเปิดกล้อง/วิดีโอจาก .env (CAMERA_RTSP_URL) แล้วจับ 1 เฟรมมาทดสอบ
+ถ้าไม่ระบุไฟล์ภาพ จะลองเปิดกล้องตัวแรกจาก cameras.json แล้วจับ 1 เฟรมมาทดสอบ
 
 📖 อ่านเพิ่มเติม: https://docs.ultralytics.com/modes/predict
 """
@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import cv2  # noqa: E402
 
 from config.settings import settings  # noqa: E402
+from src.camera.camera_config import load_camera_configs  # noqa: E402
 from src.camera.camera_reader import CameraReader  # noqa: E402
 from src.detection.yolo_detector import YoloDetector  # noqa: E402
 
@@ -37,8 +38,10 @@ def _get_test_frame(image_path: str | None):
             raise FileNotFoundError(f"เปิดไฟล์ภาพไม่ได้: {image_path}")
         return frame
 
-    logger.info("ไม่ได้ระบุไฟล์ภาพ - จะลองจับเฟรมจากกล้อง/วิดีโอใน .env")
-    camera = CameraReader(settings.CAMERA_RTSP_URL or "0").start()
+    logger.info("ไม่ได้ระบุไฟล์ภาพ - จะลองจับเฟรมจากกล้องตัวแรกใน cameras.json")
+    cameras = load_camera_configs()
+    source = cameras[0].source if cameras else "0"
+    camera = CameraReader(source).start()
     try:
         for _ in range(20):
             frame = camera.get_latest_frame()

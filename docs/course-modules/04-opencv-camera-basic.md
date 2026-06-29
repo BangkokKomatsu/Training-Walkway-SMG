@@ -237,17 +237,11 @@ class CameraConfig:
 
 
 def load_camera_configs() -> list[CameraConfig]:
-    """คืนรายการกล้องทั้งหมด (Phase 1: กล้องเดียวจาก .env)"""
-    return [
-        CameraConfig(
-            camera_no=settings.CAMERA_NO,
-            camera_name=settings.CAMERA_NAME,
-            location_name=settings.LOCATION_NAME or settings.CAMERA_NAME,
-            company_code=settings.COMPANY_CODE,
-            source=settings.CAMERA_RTSP_URL,
-            danger_zone=settings.danger_zone_polygon,
-        )
-    ]
+    """โหลดรายการกล้องทั้งหมดจาก cameras.json"""
+    config_path = settings.CAMERAS_CONFIG_PATH
+    with open(config_path, encoding="utf-8") as f:
+        raw_list = json.load(f)
+    # ... แปลงเป็น CameraConfig (ดูโค้ดเต็มใน src/camera/camera_config.py)
 ```
 ### 5.4 วิธีใช้ใน Detection Loop
 

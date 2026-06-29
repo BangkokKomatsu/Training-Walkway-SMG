@@ -2,6 +2,7 @@
 ตรวจสอบว่าจุดอ้างอิงของคน (จุดกึ่งกลางขอบล่างของ bounding box)
 อยู่ใน polygon พื้นที่อันตรายหรือไม่ (ใช้ cv2.pointPolygonTest)
 
+รองรับหลาย polygon ต่อกล้อง — ถ้าจุดอยู่ใน polygon ใด polygon หนึ่ง ถือว่าอยู่ในพื้นที่อันตราย
 มีฟังก์ชันวาด polygon ลงเฟรม สำหรับเซฟภาพ debug/หลักฐาน event (ห้ามใช้ cv2.imshow)
 """
 
@@ -10,19 +11,25 @@ import numpy as np
 
 
 class AreaChecker:
-    """เช็คว่าจุดอ้างอิงของคนอยู่ในพื้นที่อันตราย (polygon) หรือไม่"""
+    """เช็คว่าจุดอ้างอิงของคนอยู่ในพื้นที่อันตราย (polygons) หรือไม่"""
 
-    def __init__(self, polygon: list[tuple[int, int]]):
-        self.polygon = np.array(polygon, dtype=np.int32)
+    def __init__(self, danger_zones: list[list[tuple[int, int]]]):
+        """
+        danger_zones: list ของ polygon แต่ละอัน = list ของจุด [(x,y), ...]
+        ตัวอย่าง: [[(100,100),(500,100),(500,400),(100,400)], [(200,50),(300,50),(300,150)]]
+        """
+        self.polygons = [np.array(zone, dtype=np.int32) for zone in danger_zones]
 
     def is_in_danger_zone(self, point: tuple[float, float]) -> bool:
-        """point-in-polygon: True ถ้าจุดอยู่ในหรือบนขอบของ polygon"""
-        result = cv2.pointPolygonTest(
-            self.polygon, (float(point[0]), float(point[1])), False
-        )
-        return result >= 0
+        """True ถ้าจุดอยู่ใน polygon ใด polygon หนึ่ง"""
+        pt = (float(point[0]), float(point[1]))
+        for polygon in self.polygons:
+            if cv2.pointPolygonTest(polygon, pt, False) >= 0:
+                return True
+        return False
 
-    def draw_polygon(self, frame, color: tuple[int, int, int] = (0, 0, 255), thickness: int = 2):
-        """วาดเส้น polygon พื้นที่อันตรายลงเฟรม (สำหรับเซฟภาพ debug)"""
-        cv2.polylines(frame, [self.polygon], isClosed=True, color=color, thickness=thickness)
+    def draw_polygons(self, frame, color: tuple[int, int, int] = (0, 0, 255), thickness: int = 2):
+        """วาดเส้น polygon พื้นที่อันตรายทุกเส้นลงเฟรม"""
+        for polygon in self.polygons:
+            cv2.polylines(frame, [polygon], isClosed=True, color=color, thickness=thickness)
         return frame

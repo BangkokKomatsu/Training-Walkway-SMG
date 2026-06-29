@@ -4,7 +4,7 @@
 
 วิธีใช้:
     from config.settings import settings
-    print(settings.CAMERA_RTSP_URL)
+    print(settings.DEVICE)
 """
 
 import os
@@ -23,20 +23,13 @@ class Settings:
     COMPANY_CODE: str = os.getenv("COMPANY_CODE", "DEMO")
 
     # ---- Camera ----
-    CAMERA_RTSP_URL: str = os.getenv("CAMERA_RTSP_URL", "")
-    CAMERA_NO: str = os.getenv("CAMERA_NO", "1")
-    CAMERA_NAME: str = os.getenv("CAMERA_NAME", "Camera-1")
-    LOCATION_NAME: str = os.getenv("LOCATION_NAME", "")
+    CAMERAS_CONFIG_PATH: str = os.getenv("CAMERAS_CONFIG_PATH", "config/cameras.json")
+    CAMERA_RTSP_USER: str = os.getenv("CAMERA_RTSP_USER", "admin")
+    CAMERA_RTSP_PASSWORD: str = os.getenv("CAMERA_RTSP_PASSWORD", "")
 
     # ---- Detection (YOLO) ----
     YOLO_MODEL_PATH: str = os.getenv("YOLO_MODEL_PATH", "Models/yolo11n.pt")
     CONF_THRESHOLD: float = float(os.getenv("CONF_THRESHOLD", "0.5"))
-
-    # ---- Walkway Danger Zone (polygon) ----
-    # รูปแบบ: "x1,y1;x2,y2;x3,y3;..." (พิกัดพิกเซลบนภาพจากกล้อง)
-    DANGER_ZONE_POLYGON_RAW: str = os.getenv(
-        "DANGER_ZONE_POLYGON", "100,100;540,100;540,380;100,380"
-    )
 
     # ---- Event Logic ----
     DWELL_SECONDS: int = int(os.getenv("DWELL_SECONDS", "5"))
@@ -61,15 +54,6 @@ class Settings:
     SMTP_USER: str = os.getenv("SMTP_USER", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     ALERT_EMAIL_TO: str = os.getenv("ALERT_EMAIL_TO", "")
-
-    @property
-    def danger_zone_polygon(self) -> list[tuple[int, int]]:
-        """แปลง DANGER_ZONE_POLYGON_RAW ('x1,y1;x2,y2;...') เป็น list ของจุด [(x1, y1), (x2, y2), ...]"""
-        points = []
-        for pair in self.DANGER_ZONE_POLYGON_RAW.split(";"):
-            x_str, y_str = pair.split(",")
-            points.append((int(x_str.strip()), int(y_str.strip())))
-        return points
 
 
 # instance เดียวให้ทั้งโปรเจกต์ import ไปใช้

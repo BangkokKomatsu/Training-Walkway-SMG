@@ -16,9 +16,8 @@ def main() -> None:
 
     logger.info("=== Walkway Detection System ===")
     logger.info(
-        "Company: %s | Camera: %s | Device: %s",
+        "Company: %s | Device: %s",
         settings.COMPANY_CODE,
-        settings.CAMERA_NO,
         settings.DEVICE,
     )
 

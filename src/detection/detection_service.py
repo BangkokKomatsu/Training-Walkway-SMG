@@ -8,11 +8,16 @@ Detection Service - หัวใจของระบบ
   3. อยู่ต่อเนื่อง > DWELL_SECONDS -> เกิด event -> trigger alert
   4. ออกนอกพื้นที่ -> reset ตัวจับเวลา
 
-Phase 3: เกิด event → เซฟรูปลง shared drive → insert MSSQL (SP) → ส่ง Teams + Email → update status
+logic เพิ่มเติม:
+  - person อยู่ใกล้ bicycle (< 70px) → ถือว่าปลอดภัย (กำลังขี่จักรยาน) ไม่นับเวลา
+  - bbox สีเขียว = ปลอดภัย (นอกพื้นที่อันตราย), สีแดง = ในพื้นที่อันตราย
+  - วาด label ชื่อ class + confidence บน bbox ทุกอัน
+
+รองรับหลายกล้องพร้อมกัน — แต่ละกล้องรันใน thread แยก, ใช้ YOLO model เดียวกัน (thread-safe)
 """
 
 import logging
-import os
+import threading
 import time
 from datetime import datetime
 
@@ -23,12 +28,16 @@ from src.camera.camera_config import CameraConfig, load_camera_configs
 from src.camera.camera_reader import CameraReader
 from src.detection.area_checker import AreaChecker
 from src.detection.yolo_detector import YoloDetector
-from src.utils.helpers import get_bbox_bottom_center
+from src.utils.helpers import get_bbox_bottom_center, is_boxes_close, draw_label
 
 logger = logging.getLogger(__name__)
 
 LOOP_DELAY_SECONDS = 0.03
 NO_FRAME_RETRY_SECONDS = 0.1
+
+COLOR_SAFE = (0, 255, 0)      # เขียว — นอกพื้นที่อันตราย
+COLOR_DANGER = (0, 0, 255)    # แดง — ในพื้นที่อันตราย
+BICYCLE_PROXIMITY_PX = 70     # ระยะห่างที่ถือว่า person อยู่ใกล้ bicycle (pixel)
 
 
 class CameraEventTracker:
@@ -47,18 +56,15 @@ class CameraEventTracker:
         now = time.monotonic()
 
         if not person_in_zone:
-            # ขั้น 4: ออกนอกพื้นที่ -> reset
             self._enter_time = None
             self._event_active = False
             return False
 
-        # ขั้น 2: อยู่ในพื้นที่ -> เริ่มจับเวลาถ้ายังไม่เริ่ม
         if self._enter_time is None:
             self._enter_time = now
 
         dwell = now - self._enter_time
 
-        # ขั้น 3: อยู่ต่อเนื่อง > DWELL_SECONDS -> เกิด event
         if dwell > self.dwell_seconds and not self._event_active:
             self._event_active = True
 
@@ -74,64 +80,191 @@ class CameraEventTracker:
 
 
 def run_detection_service() -> None:
-    """เริ่มต้น pipeline ตรวจจับสำหรับกล้องที่ตั้งค่าไว้"""
+    """เริ่มต้น pipeline ตรวจจับ — รองรับหลายกล้องพร้อมกัน"""
     camera_configs = load_camera_configs()
-    camera_config = camera_configs[0]
 
-    logger.info(
-        "เริ่ม detection service: camera_no=%s, company_code=%s, source=%s",
-        camera_config.camera_no,
-        camera_config.company_code,
-        camera_config.source,
-    )
+    if not camera_configs:
+        logger.error("ไม่พบ config กล้อง — ตรวจสอบ cameras.json หรือ .env")
+        return
 
     detector = YoloDetector(
         model_path=settings.YOLO_MODEL_PATH,
         device=settings.DEVICE,
         conf_threshold=settings.CONF_THRESHOLD,
     )
-    area_checker = AreaChecker(camera_config.danger_zone)
-    tracker = CameraEventTracker(settings.DWELL_SECONDS, settings.ALERT_COOLDOWN_SECONDS)
 
-    camera = CameraReader(camera_config.source).start()
+    if len(camera_configs) == 1:
+        logger.info("โหมดกล้องเดียว: %s", camera_configs[0].camera_no)
+        _camera_loop(detector, camera_configs[0], stop_event=None)
+    else:
+        logger.info("โหมดหลายกล้อง: %d ตัว", len(camera_configs))
+        _run_multi_camera(detector, camera_configs)
+
+
+def _run_multi_camera(detector: YoloDetector, cam_configs: list[CameraConfig]) -> None:
+    """รัน detection loop สำหรับหลายกล้องพร้อมกัน ด้วย threading"""
+    stop_event = threading.Event()
+    threads: list[threading.Thread] = []
+
+    for cam_config in cam_configs:
+        t = threading.Thread(
+            target=_camera_loop,
+            args=(detector, cam_config, stop_event),
+            name=f"cam-{cam_config.camera_no}",
+            daemon=True,
+        )
+        threads.append(t)
+        t.start()
+        logger.info("เริ่ม thread กล้อง %s", cam_config.camera_no)
 
     try:
         while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        logger.info("ได้รับคำสั่งหยุดการทำงาน (Ctrl+C) — กำลังหยุดทุกกล้อง")
+        stop_event.set()
+
+    for t in threads:
+        t.join(timeout=5)
+
+
+def _camera_loop(
+    detector: YoloDetector,
+    cam_config: CameraConfig,
+    stop_event: threading.Event | None,
+) -> None:
+    """detection loop ของกล้อง 1 ตัว — ใช้ได้ทั้งแบบเดี่ยวและใน thread"""
+    tag = f"[cam-{cam_config.camera_no}]"
+
+    logger.info(
+        "%s เริ่ม detection: company=%s, camera_no=%s, danger_zones=%d เส้น",
+        tag, cam_config.company_code, cam_config.camera_no, len(cam_config.danger_zones),
+    )
+
+    area_checker = AreaChecker(cam_config.danger_zones)
+    tracker = CameraEventTracker(settings.DWELL_SECONDS, settings.ALERT_COOLDOWN_SECONDS)
+    camera = CameraReader(cam_config.source).start()
+
+    try:
+        while True:
+            if stop_event is not None and stop_event.is_set():
+                break
+
             frame = camera.get_latest_frame()
             if frame is None:
                 time.sleep(NO_FRAME_RETRY_SECONDS)
                 continue
 
-            detections = detector.detect_persons(frame)
-            matched = _get_person_in_zone(detections, area_checker)
+            frame = cv2.resize(frame, (500, 400), interpolation=cv2.INTER_AREA)
+
+            # ตรวจจับ person + bicycle
+            all_detections = detector.detect(frame)
+            persons = [d for d in all_detections if d["class_name"] == "person"]
+            bicycles = [d for d in all_detections if d["class_name"] == "bicycle"]
+
+            # วาด polygon + bbox สี + label ลงเฟรมสำหรับแสดงผล
+            display_frame = frame.copy()
+            _draw_detections(display_frame, all_detections, area_checker)
+
+            # หา person ที่อยู่ในพื้นที่อันตราย + ไม่ได้อยู่ใกล้ bicycle
+            matched = _get_unsafe_person(persons, bicycles, area_checker)
 
             if tracker.update(matched is not None) and matched is not None:
                 logger.warning(
-                    "EVENT TRIGGERED: camera_no=%s อยู่ในพื้นที่อันตรายต่อเนื่องเกิน %d วินาที",
-                    camera_config.camera_no,
-                    settings.DWELL_SECONDS,
+                    "%s EVENT TRIGGERED: อยู่ในพื้นที่อันตรายต่อเนื่องเกิน %d วินาที",
+                    tag, settings.DWELL_SECONDS,
                 )
-                _handle_event(frame, matched, detections, area_checker, camera_config)
+                _handle_event(frame, matched, all_detections, area_checker, cam_config)
+
+            # แสดงภาพ live stream (กด q เพื่อหยุดกล้องนี้)
+            window_name = f"Camera {cam_config.camera_no} - {cam_config.camera_name}"
+            cv2.imshow(window_name, display_frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                logger.info("%s ผู้ใช้กด q — หยุดกล้องนี้", tag)
+                break
 
             time.sleep(LOOP_DELAY_SECONDS)
     except KeyboardInterrupt:
-        logger.info("ได้รับคำสั่งหยุดการทำงาน (Ctrl+C)")
+        logger.info("%s ได้รับ Ctrl+C", tag)
     finally:
         camera.stop()
+        try:
+            cv2.destroyWindow(f"Camera {cam_config.camera_no} - {cam_config.camera_name}")
+        except cv2.error:
+            pass
+        logger.info("%s หยุดทำงาน", tag)
 
 
 # ---------------------------------------------------------------------------
-# internal helpers
+# detection logic
 # ---------------------------------------------------------------------------
 
-def _get_person_in_zone(detections: list[dict], area_checker: AreaChecker) -> dict | None:
-    """คืน detection dict ของคนแรกที่อยู่ในพื้นที่อันตราย หรือ None ถ้าไม่มี"""
-    for detection in detections:
-        reference_point = get_bbox_bottom_center(detection["bbox"])
-        if area_checker.is_in_danger_zone(reference_point):
-            return detection
+def _get_unsafe_person(
+    persons: list[dict],
+    bicycles: list[dict],
+    area_checker: AreaChecker,
+) -> dict | None:
+    """
+    คืน detection ของคนแรกที่ "ไม่ปลอดภัย" — อยู่ในพื้นที่อันตราย + ไม่ได้อยู่ใกล้ bicycle
+    คืน None ถ้าทุกคนปลอดภัย (อยู่นอกพื้นที่ หรือ อยู่ใกล้ bicycle)
+    """
+    for person in persons:
+        ref_point = get_bbox_bottom_center(person["bbox"])
+
+        if not area_checker.is_in_danger_zone(ref_point):
+            continue
+
+        # person อยู่ในพื้นที่อันตราย — เช็คว่าอยู่ใกล้ bicycle ไหม
+        near_bicycle = any(
+            is_boxes_close(person["bbox"], b["bbox"], BICYCLE_PROXIMITY_PX)
+            for b in bicycles
+        )
+        if near_bicycle:
+            continue
+
+        return person
+
     return None
 
+
+def _get_detection_color(detection: dict, area_checker: AreaChecker, bicycles: list[dict]) -> tuple:
+    """คืนสี bbox ของ detection: แดง (อันตราย) หรือ เขียว (ปลอดภัย)"""
+    if detection["class_name"] == "bicycle":
+        return COLOR_SAFE
+
+    ref_point = get_bbox_bottom_center(detection["bbox"])
+    if not area_checker.is_in_danger_zone(ref_point):
+        return COLOR_SAFE
+
+    near_bicycle = any(
+        is_boxes_close(detection["bbox"], b["bbox"], BICYCLE_PROXIMITY_PX)
+        for b in bicycles
+    )
+    if near_bicycle:
+        return COLOR_SAFE
+
+    return COLOR_DANGER
+
+
+def _draw_detections(frame, detections: list[dict], area_checker: AreaChecker) -> None:
+    """วาด polygon + bounding box สีตามพื้นที่ + label บน frame"""
+    area_checker.draw_polygons(frame)
+
+    bicycles = [d for d in detections if d["class_name"] == "bicycle"]
+
+    for det in detections:
+        x1, y1, x2, y2 = det["bbox"]
+        color = _get_detection_color(det, area_checker, bicycles)
+        conf_pct = round(det["confidence"] * 100)
+        label = f"{det['class_name']} {conf_pct}%"
+
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        draw_label(frame, label, x1, y1, color)
+
+
+# ---------------------------------------------------------------------------
+# event handling
+# ---------------------------------------------------------------------------
 
 def _handle_event(
     frame,
@@ -152,14 +285,10 @@ def _handle_event(
 
     detected_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # 1. วาด polygon + bbox บนเฟรมก่อนเซฟ
+    # วาด polygon + bbox สี + label ลงเฟรมก่อนเซฟ
     save_frame = frame.copy()
-    area_checker.draw_polygon(save_frame)
-    for det in all_detections:
-        x1, y1, x2, y2 = det["bbox"]
-        cv2.rectangle(save_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    _draw_detections(save_frame, all_detections, area_checker)
 
-    # 2. เซฟรูปลง shared drive
     image_path, image_url = save_detection_image(
         save_frame, camera_config.company_code, camera_config.camera_no
     )
@@ -178,7 +307,6 @@ def _handle_event(
         "created_by":    "system",
     }
 
-    # 3. insert event ลง MSSQL ผ่าน SP
     event_id = None
     try:
         event_id = insert_detection_event(event)
@@ -186,9 +314,8 @@ def _handle_event(
         logger.info("insert_detection_event สำเร็จ event_id=%s", event_id)
     except Exception as exc:
         logger.error("insert_detection_event ล้มเหลว — ข้ามการส่ง alert: %s", exc)
-        return  # ไม่มี event_id ไม่ส่ง alert
+        return
 
-    # 4. ส่ง Teams
     teams_ok, teams_code, teams_msg = False, 0, "not sent"
     try:
         teams_ok, teams_code, teams_msg = send_teams_alert(event)
@@ -205,7 +332,6 @@ def _handle_event(
     except Exception as exc:
         logger.error("update_alert_status TEAMS ล้มเหลว: %s", exc)
 
-    # 5. ส่ง Email
     email_ok, email_msg = False, "not sent"
     try:
         email_ok, email_msg = send_email_alert(event)

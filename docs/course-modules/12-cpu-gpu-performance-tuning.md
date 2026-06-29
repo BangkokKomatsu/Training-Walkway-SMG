@@ -237,7 +237,7 @@ def crop_to_roi(frame, polygon_points, margin=50):
     return roi, (x_min, y_min)   # คืน roi + offset สำหรับ scale bbox กลับ
 
 # ใช้งาน
-roi_frame, (offset_x, offset_y) = crop_to_roi(frame, settings.danger_zone_polygon)
+roi_frame, (offset_x, offset_y) = crop_to_roi(frame, cam_config.danger_zones[0])
 detections = detector.detect_persons(roi_frame)
 
 # แปลง bbox จาก ROI coordinates กลับเป็น full frame

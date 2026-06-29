@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from config.settings import settings  # noqa: E402
+from src.camera.camera_config import load_camera_configs  # noqa: E402
 from src.detection.area_checker import AreaChecker  # noqa: E402
 from src.detection.detection_service import CameraEventTracker  # noqa: E402
 
@@ -29,8 +29,11 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    polygon = settings.danger_zone_polygon
-    area_checker = AreaChecker(polygon)
+    cameras = load_camera_configs()
+    polygon = cameras[0].danger_zones[0] if cameras and cameras[0].danger_zones else [
+        (100, 100), (540, 100), (540, 380), (100, 380)
+    ]
+    area_checker = AreaChecker([polygon])
     logger.info("พื้นที่อันตราย (polygon): %s", polygon)
 
     # ใช้ dwell/cooldown สั้น ๆ เพื่อให้ทดสอบเร็ว (ของจริงใช้ค่าจาก .env)

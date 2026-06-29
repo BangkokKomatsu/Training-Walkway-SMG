@@ -1,7 +1,8 @@
 """
-ตัวตรวจจับคน (person) ด้วย YOLO pre-trained model (yolo11n.pt)
+ตัวตรวจจับคน (person) และจักรยาน (bicycle) ด้วย YOLO pre-trained model (yolo11n.pt)
 
-ตามข้อล็อก §4.1 ของ CLAUDE.md: จับเฉพาะ class "person" (class id = 0 ใน COCO)
+ทั้ง person (class 0) และ bicycle (class 1) อยู่ใน COCO dataset ที่ yolo11n.pt ใช้อยู่แล้ว
+ไม่ต้องเทรนโมเดลเพิ่ม
 
 📖 อ่านเพิ่มเติม:
 - YOLO11 Overview: https://docs.ultralytics.com/models/yolo11
@@ -17,11 +18,12 @@ from ultralytics import YOLO
 
 logger = logging.getLogger(__name__)
 
-PERSON_CLASS_ID = 0  # class "person" ใน COCO dataset (yolo11n.pt ใช้ COCO classes)
+PERSON_CLASS_ID = 0
+BICYCLE_CLASS_ID = 1
 
 
 class YoloDetector:
-    """โหลดโมเดล YOLO และตรวจจับคนในแต่ละเฟรม"""
+    """โหลดโมเดล YOLO และตรวจจับคน+จักรยานในแต่ละเฟรม"""
 
     def __init__(self, model_path: str, device: str = "cpu", conf_threshold: float = 0.5):
         self.device = device
@@ -38,17 +40,16 @@ class YoloDetector:
         dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         self.model.predict(dummy_frame, device=self.device, verbose=False)
 
-    def detect_persons(self, frame, imgsz: int = 640) -> list[dict]:
+    def detect(self, frame, imgsz: int = 640) -> list[dict]:
         """
-        ตรวจจับคนในเฟรม คืนค่า list ของ dict:
-            {"bbox": (x1, y1, x2, y2), "confidence": float}
-        กรองเฉพาะ class person และ confidence >= conf_threshold
+        ตรวจจับ person + bicycle ในเฟรม คืนค่า list ของ dict:
+            {"bbox": (x1, y1, x2, y2), "confidence": float, "class_name": str}
         """
         results = self.model.predict(
             frame,
             device=self.device,
             conf=self.conf_threshold,
-            classes=[PERSON_CLASS_ID],
+            classes=[PERSON_CLASS_ID, BICYCLE_CLASS_ID],
             imgsz=imgsz,
             verbose=False,
         )
@@ -58,9 +59,18 @@ class YoloDetector:
             for box in result.boxes:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 confidence = float(box.conf[0])
+                class_id = int(box.cls[0])
+                class_name = "person" if class_id == PERSON_CLASS_ID else "bicycle"
+
                 detections.append({
                     "bbox": (int(x1), int(y1), int(x2), int(y2)),
                     "confidence": confidence,
+                    "class_name": class_name,
                 })
 
         return detections
+
+    def detect_persons(self, frame, imgsz: int = 640) -> list[dict]:
+        """ตรวจจับเฉพาะ person (backward-compatible กับโค้ดเดิม)"""
+        all_detections = self.detect(frame, imgsz)
+        return [d for d in all_detections if d["class_name"] == "person"]

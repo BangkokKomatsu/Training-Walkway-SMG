@@ -170,9 +170,10 @@ except Exception as e:
 ```python
 import time
 from src.camera.camera_reader import CameraReader
-from config.settings import settings
+from src.camera.camera_config import load_camera_configs
 
-cam = CameraReader(settings.CAMERA_RTSP_URL).start()
+cameras = load_camera_configs()
+cam = CameraReader(cameras[0].source).start()
 time.sleep(3)
 frame = cam.get_latest_frame()
 if frame is not None:
