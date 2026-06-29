@@ -30,6 +30,28 @@ async function get(path, params = {}) {
   return res.json()
 }
 
+async function post(path, body = {}) {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify(body),
+  })
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(COMPANY_KEY)
+    window.location.href = '/login'
+    return
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 export const api = {
   getDashboard:   (params = {}) => get('/api/dashboard', params),
   getEvents:      (params = {}) => get('/api/events',    params),
@@ -38,4 +60,5 @@ export const api = {
   getAlerts:      (params = {}) => get('/api/alerts',    params),
   getHealth:      (params = {}) => get('/api/health',    params),
   getCompanies:   ()            => get('/api/companies'),
+  closeEvent:     (id, payload) => post(`/api/events/${id}/close`, payload),
 }

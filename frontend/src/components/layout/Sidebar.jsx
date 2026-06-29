@@ -9,6 +9,9 @@ import {
   Shield,
   LogOut,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Building
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../services/api'
@@ -22,32 +25,33 @@ const NAV = [
   { to: '/health',    icon: Activity,         label: 'System Health' },
 ]
 
-function CompanySwitcher({ activeCompanyCode, switchCompany }) {
+function CompanySwitcher({ activeCompanyCode, switchCompany, collapsed }) {
   const [companies, setCompanies] = useState([])
 
   useEffect(() => {
     api.getCompanies().then(setCompanies).catch(() => {})
   }, [])
 
+  if (collapsed) {
+    return (
+      <div className="flex justify-center py-2" title="Switch Company">
+        <div className="w-8 h-8 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-[10px] font-mono font-bold text-primary">
+          {activeCompanyCode || 'ALL'}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="px-5 pt-4 pb-2">
-      <div className="text-[10px] font-sans mb-1" style={{ color: 'var(--ink-subtle)' }}>VIEW COMPANY</div>
+    <div className="px-4 pt-3 pb-2 transition-all">
+      <div className="text-[10px] font-semibold mb-1 text-ink-subtle tracking-wider flex items-center gap-1">
+        <Building size={10} />
+        VIEW COMPANY
+      </div>
       <select
         value={activeCompanyCode || ''}
         onChange={e => switchCompany(e.target.value || null)}
-        style={{
-          width: '100%',
-          padding: '0.35rem 0.5rem',
-          borderRadius: 6,
-          border: '1px solid var(--border)',
-          background: 'var(--surface-2)',
-          color: activeCompanyCode ? 'var(--primary)' : 'var(--ink-muted)',
-          fontSize: '0.75rem',
-          fontFamily: 'var(--font-mono, monospace)',
-          fontWeight: 500,
-          cursor: 'pointer',
-          outline: 'none',
-        }}
+        className="w-full px-2 py-1.5 rounded-md border border-border bg-surface-2 text-ink text-xs font-mono font-medium cursor-pointer outline-none focus:border-primary transition-all"
       >
         <option value="">All Companies</option>
         {companies.map(c => (
@@ -60,7 +64,7 @@ function CompanySwitcher({ activeCompanyCode, switchCompany }) {
   )
 }
 
-export default function Sidebar({ open, onClose }) {
+export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggleCollapse }) {
   const { user, activeCompanyCode, logout, switchCompany } = useAuth()
   const navigate = useNavigate()
 
@@ -72,121 +76,129 @@ export default function Sidebar({ open, onClose }) {
   return (
     <aside
       className={clsx(
-        'fixed top-0 left-0 h-full w-60 flex flex-col transition-transform duration-[220ms]',
-        'border-r lg:translate-x-0 lg:relative lg:flex-shrink-0',
-        open ? 'translate-x-0' : '-translate-x-full'
+        'fixed lg:relative lg:flex-shrink-0 top-0 left-0 h-full flex flex-col transition-all duration-300 ease-in-out border-r border-border bg-surface/90 backdrop-blur-md',
+        mobileOpen ? 'translate-x-0 w-60 z-50' : '-translate-x-full lg:translate-x-0 z-30',
+        collapsed ? 'lg:w-16' : 'lg:w-60'
       )}
-      style={{
-        background: 'var(--surface)',
-        borderColor: 'var(--border)',
-        zIndex: 'var(--z-sidebar)',
-        transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-      }}
     >
-      {/* Logo / brand */}
-      <div
-        className="flex items-center justify-between px-5 h-14 border-b flex-shrink-0"
-        style={{ borderColor: 'var(--border)' }}
-      >
-        <div className="flex items-center gap-2.5">
-          <Shield size={18} style={{ color: 'var(--primary)' }} />
-          <span className="text-sm font-semibold tracking-tight" style={{ color: 'var(--ink)' }}>
-            WalkWay Monitor
-          </span>
+      {/* Brand logo bar */}
+      <div className="flex items-center justify-between px-4 h-14 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/25">
+            <Shield size={16} className="text-white" />
+          </div>
+          {(!collapsed || mobileOpen) && (
+            <span className="text-sm font-bold tracking-tight text-ink whitespace-nowrap animate-fade-in">
+              WalkWay Monitor
+            </span>
+          )}
         </div>
+        
+        {/* Mobile close button */}
         <button
-          className="lg:hidden p-1 rounded"
-          onClick={onClose}
+          className="lg:hidden p-1 rounded-md text-ink-muted hover:bg-surface-2"
+          onClick={onCloseMobile}
           aria-label="Close sidebar"
-          style={{ color: 'var(--ink-muted)' }}
         >
           <X size={16} />
         </button>
+
+        {/* Desktop collapse toggle button */}
+        {(!mobileOpen) && (
+          <button
+            onClick={onToggleCollapse}
+            className="hidden lg:flex items-center justify-center w-6 h-6 rounded-md border border-border bg-surface-2 text-ink-muted hover:text-ink absolute -right-3 top-4 shadow-sm z-40 hover:bg-surface"
+          >
+            {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+          </button>
+        )}
       </div>
 
-      {/* User info */}
-      <div className="px-5 pt-4 pb-1">
-        <div className="flex items-center gap-2">
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              color: '#fff',
-              flexShrink: 0,
-            }}
-          >
+      {/* User profile section */}
+      <div className="p-3 border-b border-border flex-shrink-0">
+        <div className={clsx("flex items-center gap-2", collapsed && !mobileOpen ? "justify-center" : "px-1")}>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-blue-400 flex items-center justify-center font-bold text-white text-xs shadow-md flex-shrink-0">
             {(user?.username?.[0] ?? '?').toUpperCase()}
           </div>
-          <div style={{ minWidth: 0 }}>
-            <p className="text-xs font-medium truncate" style={{ color: 'var(--ink)' }}>
-              {user?.full_name || user?.username || '—'}
-            </p>
-            <p className="text-[10px] truncate" style={{ color: 'var(--ink-subtle)' }}>
-              {user?.is_super_admin ? 'Super Admin' : (user?.role_name || 'viewer')}
-            </p>
-          </div>
+          {(!collapsed || mobileOpen) && (
+            <div className="min-w-0 animate-fade-in">
+              <p className="text-xs font-bold text-ink truncate leading-tight">
+                {user?.full_name || user?.username || '—'}
+              </p>
+              <span className="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 bg-primary/10 text-primary rounded-full font-semibold border border-primary/20">
+                {user?.is_super_admin ? 'Super Admin' : (user?.role_name || 'viewer')}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Company badge / switcher */}
+      {/* Company Switcher / Details */}
       {user?.is_super_admin ? (
-        <CompanySwitcher activeCompanyCode={activeCompanyCode} switchCompany={switchCompany} />
+        <CompanySwitcher
+          activeCompanyCode={activeCompanyCode}
+          switchCompany={switchCompany}
+          collapsed={collapsed && !mobileOpen}
+        />
       ) : (
         activeCompanyCode && (
-          <div className="px-5 pt-2 pb-2">
+          <div className={clsx("p-3", collapsed && !mobileOpen ? "flex justify-center" : "")}>
             <div
-              className="flex items-center gap-2 px-3 py-1.5 rounded text-xs font-mono"
-              style={{
-                background: 'var(--surface-2)',
-                color: 'var(--primary)',
-                border: '1px solid var(--border)',
-              }}
+              className={clsx(
+                "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-mono border border-border bg-surface-2 text-primary",
+                collapsed && !mobileOpen ? "w-8 h-8 justify-center p-0" : "w-full"
+              )}
+              title={`Active Company: ${activeCompanyCode}`}
             >
-              <span className="text-[10px] font-sans" style={{ color: 'var(--ink-subtle)' }}>COMPANY</span>
-              <span className="font-medium">{activeCompanyCode}</span>
+              {collapsed && !mobileOpen ? (
+                <span className="font-bold">{activeCompanyCode.slice(0, 3)}</span>
+              ) : (
+                <>
+                  <span className="text-[9px] text-ink-subtle font-sans font-normal">COMP:</span>
+                  <span className="font-semibold">{activeCompanyCode}</span>
+                </>
+              )}
             </div>
           </div>
         )
       )}
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+      {/* Navigation menu */}
+      <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
         {NAV.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
-            onClick={onClose}
+            onClick={onCloseMobile}
+            title={collapsed && !mobileOpen ? label : undefined}
             className={({ isActive }) =>
               clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors duration-[120ms]',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200',
                 isActive
-                  ? 'bg-[var(--primary)] text-[var(--primary-fg)]'
-                  : 'text-[var(--ink-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)]'
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
+                collapsed && !mobileOpen ? 'justify-center px-0' : ''
               )
             }
           >
-            <Icon size={16} />
-            {label}
+            <Icon size={16} className="flex-shrink-0" />
+            {(!collapsed || mobileOpen) && <span className="animate-fade-in">{label}</span>}
           </NavLink>
         ))}
       </nav>
 
-      {/* Sign out */}
-      <div className="px-3 pb-5 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+      {/* Sign out bar */}
+      <div className="p-2 border-t border-border flex-shrink-0">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded text-sm font-medium transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
-          style={{ color: 'var(--ink-muted)' }}
+          title={collapsed && !mobileOpen ? "Sign Out" : undefined}
+          className={clsx(
+            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-xs font-semibold text-ink-muted hover:bg-red-500/10 hover:text-red-500 transition-all duration-200",
+            collapsed && !mobileOpen ? "justify-center px-0" : ""
+          )}
         >
-          <LogOut size={16} />
-          Sign Out
+          <LogOut size={16} className="flex-shrink-0" />
+          {(!collapsed || mobileOpen) && <span>Sign Out</span>}
         </button>
       </div>
     </aside>

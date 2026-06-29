@@ -1,87 +1,74 @@
 import React from 'react'
 import { Search, Filter } from 'lucide-react'
+import clsx from 'clsx'
 
-const inputStyle = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-  color: 'var(--ink)',
-  borderRadius: '6px',
-  height: '34px',
-  padding: '0 10px',
-  fontSize: '13px',
-  outline: 'none',
-  transition: 'border-color 120ms',
-}
-
-// Generic filter panel — pass filters config + values + onChange
-// filters: [{ key, label, type: 'text'|'date'|'select', options: [{value, label}] }]
 export default function FilterPanel({ filters = [], values = {}, onChange, onSearch, searchValue = '', onSearchChange }) {
   return (
     <div
-      className="flex flex-wrap items-center gap-2 p-3 rounded-lg border mb-4"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-border bg-surface/50 dark:bg-surface/30 backdrop-blur-md mb-6 shadow-sm"
     >
-      <Filter size={14} style={{ color: 'var(--ink-muted)', flexShrink: 0 }} aria-hidden />
+      <div className="flex items-center gap-1.5 text-xs font-bold text-ink-muted mr-1">
+        <Filter size={14} className="text-ink-subtle" aria-hidden />
+        <span>FILTERS</span>
+      </div>
 
-      {/* Search */}
+      {/* Search Field */}
       {onSearchChange !== undefined && (
-        <div className="relative">
+        <div className="relative flex-1 sm:flex-initial">
           <Search
             size={13}
-            style={{
-              position: 'absolute', left: 9, top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--ink-subtle)', pointerEvents: 'none',
-            }}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle pointer-events-none"
           />
           <input
             type="search"
-            placeholder="Search…"
+            placeholder="Search events/cameras..."
             value={searchValue}
             onChange={e => onSearchChange(e.target.value)}
-            style={{ ...inputStyle, paddingLeft: 28, width: 180 }}
-            onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-            onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+            className="w-full sm:w-56 pl-9 pr-3 py-1.5 text-xs rounded-lg border border-border bg-surface-2 text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all shadow-xs"
           />
         </div>
       )}
 
-      {/* Dynamic filters */}
-      {filters.map(f => {
-        if (f.type === 'select') {
-          return (
-            <select
-              key={f.key}
-              value={values[f.key] ?? ''}
-              onChange={e => onChange(f.key, e.target.value)}
-              aria-label={f.label}
-              style={{ ...inputStyle, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}
-              onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-              onBlur={e => (e.target.style.borderColor = 'var(--border)')}
-            >
-              <option value="">{f.label}: All</option>
-              {f.options?.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          )
-        }
-        if (f.type === 'date') {
-          return (
-            <input
-              key={f.key}
-              type="date"
-              value={values[f.key] ?? ''}
-              onChange={e => onChange(f.key, e.target.value)}
-              aria-label={f.label}
-              style={{ ...inputStyle, width: 148 }}
-              onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-              onBlur={e => (e.target.style.borderColor = 'var(--border)')}
-            />
-          )
-        }
-        return null
-      })}
+      {/* Dynamic Filters Grid */}
+      <div className="flex flex-wrap items-center gap-2 flex-1 sm:flex-initial">
+        {filters.map(f => {
+          if (f.type === 'select') {
+            return (
+              <div key={f.key} className="relative">
+                <select
+                  value={values[f.key] ?? ''}
+                  onChange={e => onChange(f.key, e.target.value)}
+                  aria-label={f.label}
+                  className="pl-3 pr-8 py-1.5 text-xs rounded-lg border border-border bg-surface-2 text-ink cursor-pointer outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all shadow-xs appearance-none min-w-[120px]"
+                >
+                  <option value="">{f.label}: All</option>
+                  {f.options?.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-ink-subtle text-[10px]">
+                  ▼
+                </div>
+              </div>
+            )
+          }
+          if (f.type === 'date') {
+            return (
+              <div key={f.key} className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-ink-subtle uppercase">{f.label}:</span>
+                <input
+                  type="date"
+                  value={values[f.key] ?? ''}
+                  onChange={e => onChange(f.key, e.target.value)}
+                  aria-label={f.label}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-border bg-surface-2 text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all shadow-xs"
+                />
+              </div>
+            )
+          }
+          return null
+        })}
+      </div>
     </div>
   )
 }

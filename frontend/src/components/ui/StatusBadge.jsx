@@ -1,35 +1,45 @@
 import React from 'react'
-import { CheckCircle, XCircle, AlertTriangle, Circle } from 'lucide-react'
+import { CheckCircle, XCircle, AlertTriangle, HelpCircle } from 'lucide-react'
 import clsx from 'clsx'
 
 const VARIANTS = {
-  ok:      { icon: CheckCircle,  color: 'var(--status-ok)',   bg: 'var(--status-ok)',   label: 'Online' },
-  warn:    { icon: AlertTriangle, color: 'var(--status-warn)', bg: 'var(--status-warn)', label: 'Warning' },
-  error:   { icon: XCircle,      color: 'var(--status-err)',  bg: 'var(--status-err)',  label: 'Failed' },
-  offline: { icon: Circle,       color: 'var(--status-off)',  bg: 'var(--status-off)',  label: 'Offline' },
+  ok: {
+    icon: CheckCircle,
+    styles: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+    label: 'Online'
+  },
+  warn: {
+    icon: AlertTriangle,
+    styles: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400',
+    label: 'Warning'
+  },
+  error: {
+    icon: XCircle,
+    styles: 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400',
+    label: 'Failed'
+  },
+  offline: {
+    icon: HelpCircle,
+    styles: 'bg-zinc-500/10 border-zinc-500/20 text-zinc-500 dark:text-zinc-400',
+    label: 'Offline'
+  }
 }
 
-// status: 'ok' | 'warn' | 'error' | 'offline'
-// label: override the default label
 export default function StatusBadge({ status = 'offline', label, size = 'sm' }) {
-  const v = VARIANTS[status] ?? VARIANTS.offline
-  const Icon = v.icon
+  const activeVariant = VARIANTS[status] || VARIANTS.offline
+  const Icon = activeVariant.icon
   const iconSize = size === 'sm' ? 10 : 12
 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1 rounded font-medium',
-        size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
+        'inline-flex items-center gap-1 rounded-md font-bold border transition-all duration-150',
+        size === 'sm' ? 'px-2 py-0.5 text-[10px] tracking-wide' : 'px-2.5 py-1 text-[11px] tracking-wider',
+        activeVariant.styles
       )}
-      style={{
-        background: `color-mix(in oklch, ${v.bg} 15%, transparent)`,
-        color: v.color,
-        border: `1px solid color-mix(in oklch, ${v.bg} 30%, transparent)`,
-      }}
     >
       <Icon size={iconSize} strokeWidth={2.5} aria-hidden />
-      {label ?? v.label}
+      <span>{label || activeVariant.label}</span>
     </span>
   )
 }

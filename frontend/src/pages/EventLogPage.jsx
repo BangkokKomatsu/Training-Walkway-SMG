@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { ListChecks } from 'lucide-react'
+import { ListChecks, AlertCircle, RefreshCw } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import FilterPanel from '../components/ui/FilterPanel'
 import StatusBadge from '../components/ui/StatusBadge'
-import { PageLoading, ErrorState, EmptyState } from '../components/ui/LoadingState'
+import { SkeletonTable } from '../components/ui/LoadingState'
 import { formatDateTime, formatConfidence } from '../utils/format'
 
 const FILTERS = [
@@ -48,7 +48,9 @@ export default function EventLogPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
-    <div className="space-y-0 max-w-6xl">
+    <div className="space-y-4 w-full max-w-[1360px] mx-auto">
+      
+      {/* Filters block */}
       <FilterPanel
         filters={FILTERS}
         values={filters}
@@ -57,79 +59,91 @@ export default function EventLogPage() {
         onSearchChange={handleSearch}
       />
 
-      <div
-        className="rounded-lg border overflow-hidden"
-        style={{ borderColor: 'var(--border)' }}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <span className="text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>
-            {total > 0 ? `${total.toLocaleString()} events` : 'Events'}
-          </span>
+      {/* Main logs box */}
+      <div className="border border-border rounded-xl bg-surface/40 overflow-hidden shadow-xs">
+        
+        {/* Table Header Section */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface-2/40">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-ink uppercase tracking-wider">
+              Recorded Safety Events
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface text-ink-muted border border-border">
+              {total.toLocaleString()} total
+            </span>
+          </div>
           {loading && (
-            <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: 'var(--ink-subtle)', borderTopColor: 'transparent' }} />
+            <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           )}
         </div>
 
         {error ? (
-          <ErrorState message={error} onRetry={refetch} />
+          <div className="p-12 text-center max-w-sm mx-auto">
+            <AlertCircle size={28} className="text-rose-500 mx-auto mb-2" />
+            <p className="text-sm font-bold text-ink mb-3">{error}</p>
+            <button
+              onClick={refetch}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs font-semibold"
+            >
+              <RefreshCw size={12} /> Retry
+            </button>
+          </div>
         ) : loading && !events.length ? (
-          <PageLoading />
+          <SkeletonTable rows={10} cols={7} />
         ) : !events.length ? (
-          <EmptyState message="No events found — adjust filters or date range" icon={ListChecks} />
+          <div className="p-12 text-center">
+            <ListChecks size={28} className="text-ink-subtle mx-auto mb-2" />
+            <p className="text-xs font-semibold text-ink-muted">No safety events found matching the filters</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse min-w-[700px]">
+            <table className="w-full text-xs text-left border-collapse min-w-[800px]">
               <thead>
-                <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                  {['ID', 'Time', 'Camera', 'Company', 'Area', 'Conf.', 'Alert', ''].map(h => (
-                    <th key={h} className="text-left px-4 py-2.5 text-xs font-medium"
-                      style={{ color: 'var(--ink-muted)' }}>
-                      {h}
-                    </th>
-                  ))}
+                <tr className="bg-surface-2/30 border-b border-border text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
+                  <th className="px-5 py-3">Event ID</th>
+                  <th className="px-5 py-3">Timestamp</th>
+                  <th className="px-5 py-3">Camera</th>
+                  <th className="px-5 py-3">Company</th>
+                  <th className="px-5 py-3">Area Name</th>
+                  <th className="px-5 py-3">AI Confidence</th>
+                  <th className="px-5 py-3">Delivery Status</th>
+                  <th className="px-5 py-3 text-right">View Detail</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/60">
                 {events.map((ev, i) => (
                   <tr
                     key={ev.event_id ?? i}
-                    className="transition-colors duration-[80ms] hover:bg-[var(--surface-2)]"
-                    style={{ borderBottom: '1px solid var(--border)' }}
+                    className="hover:bg-surface-2/40 transition-colors duration-150"
                   >
-                    <td className="px-4 py-2.5 font-mono text-xs" style={{ color: 'var(--ink-subtle)' }}>
+                    <td className="px-5 py-3 font-mono font-bold text-ink-subtle">
                       #{ev.event_id}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--ink-muted)' }}>
+                    <td className="px-5 py-3 font-mono text-ink-muted">
                       {formatDateTime(ev.detected_at)}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs" style={{ color: 'var(--ink)' }}>
+                    <td className="px-5 py-3 font-mono font-bold text-ink">
                       {ev.camera_no}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs" style={{ color: 'var(--ink-subtle)' }}>
+                    <td className="px-5 py-3 font-mono text-ink-subtle">
                       {ev.company_code}
                     </td>
-                    <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                    <td className="px-5 py-3 text-ink-muted font-medium">
                       {ev.area_name ?? '—'}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs" style={{ color: 'var(--ink)' }}>
+                    <td className="px-5 py-3 font-mono text-ink">
                       {formatConfidence(ev.confidence)}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-5 py-3">
                       <StatusBadge
                         status={ev.alert_sent ? 'ok' : ev.alert_failed ? 'error' : 'warn'}
                         label={ev.alert_sent ? 'Sent' : ev.alert_failed ? 'Failed' : 'Pending'}
                       />
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-5 py-3 text-right">
                       <Link
                         to={`/events/${ev.event_id}`}
-                        className="text-xs transition-colors duration-[120ms]"
-                        style={{ color: 'var(--accent)' }}
+                        className="inline-flex items-center justify-center px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all font-semibold"
                       >
                         Detail →
                       </Link>
@@ -141,29 +155,24 @@ export default function EventLogPage() {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Pagination Bar */}
         {totalPages > 1 && (
-          <div
-            className="flex items-center justify-between px-4 py-3 border-t"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-              Page {page} of {totalPages}
+          <div className="flex items-center justify-between px-5 py-3.5 border-t border-border bg-surface-2/20">
+            <span className="text-[11px] text-ink-muted font-medium">
+              Showing page <strong className="text-ink font-bold font-mono">{page}</strong> of <strong className="text-ink font-bold font-mono">{totalPages}</strong>
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1 text-xs rounded border transition-colors disabled:opacity-40"
-                style={{ borderColor: 'var(--border)', color: 'var(--ink-muted)', background: 'var(--surface-2)' }}
+                className="px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
               >
-                Prev
+                Previous
               </button>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1 text-xs rounded border transition-colors disabled:opacity-40"
-                style={{ borderColor: 'var(--border)', color: 'var(--ink-muted)', background: 'var(--surface-2)' }}
+                className="px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
               >
                 Next
               </button>

@@ -1,9 +1,9 @@
 import React from 'react'
-import { Activity, Database, HardDrive, Camera, Cpu, Clock } from 'lucide-react'
+import { Activity, Database, HardDrive, Camera, Cpu, Clock, Terminal, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import StatusBadge from '../components/ui/StatusBadge'
-import { PageLoading, ErrorState } from '../components/ui/LoadingState'
+import { SkeletonHealth } from '../components/ui/LoadingState'
 import { formatDateTime, formatRelative } from '../utils/format'
 
 function HealthRow({ icon: Icon, label, status, value, sub }) {
@@ -15,19 +15,17 @@ function HealthRow({ icon: Icon, label, status, value, sub }) {
 
   return (
     <div
-      className="flex items-center gap-4 px-5 py-4 border-b"
-      style={{ borderColor: 'var(--border)' }}
+      className="flex items-center gap-4 px-5 py-4 border-b border-border last:border-b-0 hover:bg-surface-2/15 transition-colors duration-150"
     >
       <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: 'var(--surface-2)' }}
+        className="w-9 h-9 rounded-xl flex items-center justify-center bg-surface-2 border border-border/40 text-ink-muted flex-shrink-0"
       >
-        <Icon size={15} style={{ color: 'var(--ink-muted)' }} />
+        <Icon size={16} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>{label}</p>
+        <p className="text-xs font-bold text-ink">{label}</p>
         {(value || sub) && (
-          <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-[10px] font-mono text-ink-muted mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
             {value}{sub ? ` · ${sub}` : ''}
           </p>
         )}
@@ -43,8 +41,29 @@ export default function SystemHealthPage() {
     []
   )
 
-  if (loading) return <PageLoading />
-  if (error)   return <ErrorState message={error} onRetry={refetch} />
+  if (loading) {
+    return (
+      <div className="space-y-4 max-w-2xl animate-pulse">
+        <div className="h-4 w-32 bg-border rounded-md" />
+        <SkeletonHealth />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="py-20 text-center max-w-sm mx-auto">
+        <AlertTriangle size={28} className="text-rose-500 mx-auto mb-2" />
+        <p className="text-sm font-bold text-ink mb-3">{error}</p>
+        <button
+          onClick={refetch}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs font-semibold"
+        >
+          <RefreshCw size={12} /> Retry check
+        </button>
+      </div>
+    )
+  }
 
   const items = Array.isArray(data) ? data : []
 
@@ -56,73 +75,76 @@ export default function SystemHealthPage() {
   const cameras = getItem('cameras')
 
   return (
-    <div className="space-y-5 max-w-2xl">
-      {/* Last updated */}
-      <div className="flex items-center gap-2">
-        <Clock size={13} style={{ color: 'var(--ink-subtle)' }} />
-        <span className="text-xs font-mono" style={{ color: 'var(--ink-subtle)' }}>
-          Checked {items[0]?.checked_at ? formatRelative(items[0].checked_at) : '—'}
+    <div className="space-y-5 w-full max-w-[1360px] mx-auto">
+      
+      {/* Last checked ribbon */}
+      <div className="flex items-center gap-1.5 pl-1 text-[11px] font-bold text-ink-subtle uppercase tracking-wider">
+        <Clock size={13} className="text-ink-subtle" />
+        <span>
+          Diagnostic check: <span className="font-mono text-ink font-bold">{items[0]?.checked_at ? formatRelative(items[0].checked_at) : '—'}</span>
         </span>
       </div>
 
-      <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+      {/* Health Components Rack */}
+      <div className="rounded-xl border border-border bg-surface/40 dark:bg-surface/20 overflow-hidden shadow-xs">
         <div
-          className="px-5 py-3 border-b text-xs font-medium"
-          style={{ borderColor: 'var(--border)', color: 'var(--ink-muted)', background: 'var(--surface-2)' }}
+          className="px-5 py-3.5 border-b border-border text-[10px] font-bold text-ink-subtle uppercase tracking-wider bg-surface-2/40"
         >
-          System Components
+          Server Diagnostic Nodes
         </div>
 
         <HealthRow
           icon={Cpu}
           label="Python Detection Service"
           status={python.status ?? 'unknown'}
-          value={python.last_run ? `Last run: ${formatDateTime(python.last_run)}` : undefined}
+          value={python.last_run ? `Last Loop: ${formatDateTime(python.last_run)}` : undefined}
           sub={python.version}
         />
         <HealthRow
           icon={Database}
-          label="MSSQL Database"
+          label="MSSQL Database Connection"
           status={db.status ?? 'unknown'}
           value={db.server}
-          sub={db.latency_ms ? `${db.latency_ms}ms` : undefined}
+          sub={db.latency_ms ? `${db.latency_ms}ms latency` : undefined}
         />
         <HealthRow
           icon={HardDrive}
-          label="Image Storage"
+          label="Image Storage Drive"
           status={storage.status ?? 'unknown'}
           value={storage.path}
           sub={storage.free_gb ? `${storage.free_gb} GB free` : undefined}
         />
         <HealthRow
           icon={Camera}
-          label="Camera Connections"
+          label="CCTV Camera Connection Nodes"
           status={cameras.status ?? 'unknown'}
-          value={cameras.online_count != null ? `${cameras.online_count}/${cameras.total_count} online` : undefined}
+          value={cameras.online_count != null ? `${cameras.online_count}/${cameras.total_count} streams active` : undefined}
         />
         <HealthRow
           icon={Activity}
-          label="Alert Delivery (last 24h)"
+          label="Alert Webhook Delivery (Last 24 Hours)"
           status={items.find(i => i.component === 'alerts')?.status ?? 'unknown'}
           value={items.find(i => i.component === 'alerts')?.summary}
         />
       </div>
 
-      {/* Raw details */}
+      {/* Raw Health JSON Terminal */}
       {items.length > 0 && (
-        <details className="text-xs">
+        <details className="group border border-border/80 rounded-xl overflow-hidden bg-zinc-950">
           <summary
-            className="cursor-pointer px-3 py-2 rounded-lg select-none"
-            style={{ color: 'var(--ink-muted)', background: 'var(--surface-2)' }}
+            className="cursor-pointer px-4 py-3 flex items-center justify-between text-[11px] font-bold tracking-wider text-zinc-400 uppercase select-none list-none bg-zinc-900/60"
           >
-            Raw health data ({items.length} components)
+            <div className="flex items-center gap-2">
+              <Terminal size={12} className="text-primary" />
+              <span>Diagnostic Raw JSON Payload</span>
+            </div>
+            <span className="text-zinc-500 font-mono text-[9px] group-open:rotate-180 transition-transform">
+              ▼
+            </span>
           </summary>
-          <pre
-            className="mt-2 p-4 rounded-lg text-xs overflow-x-auto font-mono"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-muted)' }}
-          >
-            {JSON.stringify(items, null, 2)}
-          </pre>
+          <div className="p-4 border-t border-zinc-900 text-[10px] overflow-x-auto font-mono text-zinc-300 leading-relaxed max-h-72">
+            <pre>{JSON.stringify(items, null, 2)}</pre>
+          </div>
         </details>
       )}
     </div>

@@ -76,7 +76,7 @@
 
 /* ─── Base ────────────────────────────────────────── */
 html {
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: 'Roboto', system-ui, sans-serif;
   background-color: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;

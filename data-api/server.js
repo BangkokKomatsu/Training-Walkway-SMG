@@ -314,7 +314,107 @@ app.get('/api/health', requireAuth, async (req, res) => {
   res.json(items)
 })
 
+// ─── POST /api/events/:id/close ──────────────────────
+app.post('/api/events/:id/close', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { resolved_by, resolution_desc, resolution_image } = req.body || {}
+
+    const pool = await getPool()
+    
+    // Update the event record in SQL Server
+    await pool.request()
+      .input('event_id', sql.BigInt, parseInt(id))
+      .input('company_code', sql.NVarChar(20), req.companyCode)
+      .input('resolved_by', sql.NVarChar(100), resolved_by || 'system')
+      .input('resolution_desc', sql.NVarChar(1000), resolution_desc || '')
+      .input('resolution_image', sql.NVarChar(sql.MAX), resolution_image || null)
+      .query(`
+        UPDATE smg.trn_detection_event
+        SET event_status = 'CLOSED',
+            resolved_by = @resolved_by,
+            resolved_at = SYSUTCDATETIME(),
+            resolution_desc = @resolution_desc,
+            resolution_image = @resolution_image
+        WHERE event_id = @event_id AND (@company_code IS NULL OR company_code = @company_code)
+      `)
+
+    res.json({ success: true, message: 'Case closed successfully' })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── Database Migrations (Run on startup) ─────────────
+async function runMigrations() {
+  try {
+    const pool = await getPool()
+    console.log('Running database schema migrations for Case Closing...')
+    
+    // Check which columns exist in trn_detection_event
+    const checkCols = await pool.request().query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = 'smg' 
+        AND TABLE_NAME = 'trn_detection_event' 
+        AND COLUMN_NAME IN ('resolved_by', 'resolved_at', 'resolution_desc', 'resolution_image')
+    `)
+    const existing = checkCols.recordset.map(r => r.COLUMN_NAME)
+    
+    if (!existing.includes('resolved_by')) {
+      await pool.request().query(`ALTER TABLE smg.trn_detection_event ADD resolved_by NVARCHAR(100) NULL`)
+      console.log('Migration: Added column resolved_by')
+    }
+    if (!existing.includes('resolved_at')) {
+      await pool.request().query(`ALTER TABLE smg.trn_detection_event ADD resolved_at DATETIME2 NULL`)
+      console.log('Migration: Added column resolved_at')
+    }
+    if (!existing.includes('resolution_desc')) {
+      await pool.request().query(`ALTER TABLE smg.trn_detection_event ADD resolution_desc NVARCHAR(1000) NULL`)
+      console.log('Migration: Added column resolution_desc')
+    }
+    if (!existing.includes('resolution_image')) {
+      await pool.request().query(`ALTER TABLE smg.trn_detection_event ADD resolution_image NVARCHAR(MAX) NULL`)
+      console.log('Migration: Added column resolution_image')
+    }
+
+    // Compile modified sp_get_detection_event_detail to select resolution info
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_get_detection_event_detail
+          @event_id       BIGINT,
+          @company_code   NVARCHAR(20)    = NULL
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+
+          -- event หลัก
+          SELECT
+              e.event_id, e.company_code, e.camera_no, e.camera_name, e.location_name,
+              e.detected_class, e.confidence, e.event_type, e.event_status,
+              e.detected_at, e.image_path, e.image_name,
+              e.alert_teams_status, e.alert_email_status,
+              e.created_at, e.created_by,
+              e.resolved_by, e.resolved_at, e.resolution_desc, e.resolution_image
+          FROM smg.trn_detection_event e
+          WHERE e.event_id = @event_id AND (@company_code IS NULL OR e.company_code = @company_code);
+
+          -- ประวัติ alert
+          SELECT
+              log_id, alert_channel, alert_status,
+              response_code, response_msg, sent_at
+          FROM smg.trn_alert_log
+          WHERE event_id = @event_id
+          ORDER BY sent_at;
+      END;
+    `)
+    console.log('Migration: Stored procedure sp_get_detection_event_detail updated successfully')
+  } catch (err) {
+    console.error('Migration failed:', err.message)
+  }
+}
+
 // ─── Start ────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`data-api running on http://localhost:${PORT}`)
+  await runMigrations()
 })
