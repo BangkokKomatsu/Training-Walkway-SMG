@@ -19,7 +19,7 @@
 ## ส่วนที่ 2 — สิ่งที่ต้องเตรียม
 
 - ผ่าน Module 01–06
-- MSSQL Server และ database ที่ admin ได้ตั้งค่าไว้แล้ว (schema `ww` + SP ทั้งหมด)
+- MSSQL Server และ database ที่ admin ได้ตั้งค่าไว้แล้ว (schema `smg` + SP ทั้งหมด)
 - ค่า DB config ใน `.env` (DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD)
 - ติดตั้ง **ODBC Driver 17 for SQL Server** บนเครื่อง
 
@@ -49,10 +49,10 @@ SP คือ "ฟังก์ชัน SQL" ที่บันทึกไว้
 
 ```sql
 -- บริษัท ABC เห็นเฉพาะข้อมูลตัวเอง
-SELECT * FROM ww.trn_detection_event WHERE company_code = 'ABC'
+SELECT * FROM smg.trn_detection_event WHERE company_code = 'ABC'
 
 -- บริษัท XYZ ก็เห็นเฉพาะของตัวเอง
-SELECT * FROM ww.trn_detection_event WHERE company_code = 'XYZ'
+SELECT * FROM smg.trn_detection_event WHERE company_code = 'XYZ'
 ```
 ### ทำไม Parameterized Query จึงสำคัญ?
 
@@ -61,18 +61,18 @@ SELECT * FROM ww.trn_detection_event WHERE company_code = 'XYZ'
 ถ้าสร้าง SQL ด้วยการ concat string:
 ```python
 # ❌ อันตราย — SQL Injection
-company = "'; DROP TABLE ww.trn_detection_event; --"
-sql = f"SELECT * FROM ww.trn_detection_event WHERE company_code = '{company}'"
+company = "'; DROP TABLE smg.trn_detection_event; --"
+sql = f"SELECT * FROM smg.trn_detection_event WHERE company_code = '{company}'"
 # SQL จะกลายเป็น:
-# SELECT * FROM ww.trn_detection_event WHERE company_code = '';
-# DROP TABLE ww.trn_detection_event; --'
+# SELECT * FROM smg.trn_detection_event WHERE company_code = '';
+# DROP TABLE smg.trn_detection_event; --'
 # → ลบ table ทั้งหมด!
 ```
 **แก้ด้วย Parameterized Query:**
 ```python
 # ✅ ปลอดภัย
 cursor.execute(
-    "SELECT * FROM ww.trn_detection_event WHERE company_code = ?",
+    "SELECT * FROM smg.trn_detection_event WHERE company_code = ?",
     [company]   # ? placeholder — DB จัดการ escape ให้
 )
 ```
@@ -89,15 +89,15 @@ detection_repository.insert_detection_event(event_dict)
         ↓
 get_connection()  ← เชื่อมต่อ MSSQL (retry 3 ครั้ง)
         ↓
-EXEC ww.sp_insert_detection_event @param1=?, @param2=?, ...
+EXEC smg.sp_insert_detection_event @param1=?, @param2=?, ...
         ↓
-SP บันทึกลง table ww.trn_detection_event
+SP บันทึกลง table smg.trn_detection_event
         ↓
 SP คืน @event_id OUTPUT → Python ได้ event_id
         ↓
 update_alert_status(event_id, "TEAMS", "SENT")
         ↓
-EXEC ww.sp_update_alert_status
+EXEC smg.sp_update_alert_status
 ```
 ---
 
@@ -182,17 +182,17 @@ logger = logging.getLogger(__name__)
 
 def insert_detection_event(event: dict) -> int:
     """
-    เรียก ww.sp_insert_detection_event
+    เรียก smg.sp_insert_detection_event
     คืน event_id ที่เพิ่งสร้าง
 
     event dict ต้องมี key:
         company_code, camera_no, camera_name, location_name,
         detected_class, confidence, event_type,
-        image_path, image_url, created_by
+        image_path, image_name, created_by
     """
     sql = """
         DECLARE @event_id BIGINT;
-        EXEC ww.sp_insert_detection_event
+        EXEC smg.sp_insert_detection_event
             @company_code   = ?,
             @camera_no      = ?,
             @camera_name    = ?,
@@ -201,7 +201,7 @@ def insert_detection_event(event: dict) -> int:
             @confidence     = ?,
             @event_type     = ?,
             @image_path     = ?,
-            @image_url      = ?,
+            @image_name     = ?,
             @created_by     = ?,
             @event_id       = @event_id OUTPUT;
         SELECT @event_id;
@@ -215,7 +215,7 @@ def insert_detection_event(event: dict) -> int:
         event["confidence"],
         event["event_type"],
         event.get("image_path"),
-        event.get("image_url"),
+        event.get("image_name"),
         event.get("created_by", "system"),
     ]
 
@@ -244,7 +244,7 @@ def update_alert_status(
     response_msg: str | None = None,
 ) -> None:
     sql = """
-        EXEC ww.sp_update_alert_status
+        EXEC smg.sp_update_alert_status
             @event_id      = ?,
             @company_code  = ?,
             @alert_channel = ?,
@@ -299,7 +299,7 @@ event = {
     "confidence": 0.87,
     "event_type": "DWELL",
     "image_path": "/shared/walkway-detection/DEMO/camera-1/20260101/detection_DEMO_1_20260101_100000.jpg",
-    "image_url": "/images/DEMO/camera-1/20260101/detection_DEMO_1_20260101_100000.jpg",
+    "image_name": "detection_DEMO_1_20260101_100000.jpg",
     "created_by": "system",
 }
 

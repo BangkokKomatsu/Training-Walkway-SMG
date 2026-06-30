@@ -175,7 +175,18 @@ frontend/
 โค้ดจาก [frontend/src/services/api.js](../../frontend/src/services/api.js):
 
 ```javascript
-const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+const BASE      = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+const TOKEN_KEY  = 'smg-ww-token'
+const COMPANY_KEY = 'smg-ww-company'
+
+function authHeaders() {
+  const token   = localStorage.getItem(TOKEN_KEY)
+  const company = localStorage.getItem(COMPANY_KEY)
+  const h = {}
+  if (token)   h['Authorization'] = `Bearer ${token}`
+  if (company) h['x-company']     = company
+  return h
+}
 
 async function get(path, params = {}) {
   const url = new URL(`${BASE}${path}`)
@@ -183,14 +194,13 @@ async function get(path, params = {}) {
     if (v != null && v !== '') url.searchParams.set(k, v)
   })
   
-  // แนบ JWT Token ไปกับ Request
-  const token = localStorage.getItem('token');
-  const headers = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url.toString(), { headers: authHeaders() })
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(COMPANY_KEY)
+    window.location.href = '/login'
+    return
   }
-
-  const res = await fetch(url.toString(), { headers })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error || `HTTP ${res.status}`)
@@ -198,14 +208,16 @@ async function get(path, params = {}) {
   return res.json()
 }
 
+// ... มีฟังก์ชัน post() ใน source จริง ...
+
 export const api = {
-  login:          (credentials)     => fetch(`${BASE}/api/auth`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) }).then(res => res.json()),
-  getDashboard:   (companyCode)     => get('/api/dashboard',    { company_code: companyCode }),
-  getEvents:      (params)          => get('/api/events',       params),
-  getEventDetail: (id, companyCode) => get(`/api/events/${id}`, { company_code: companyCode }),
-  getCameras:     (companyCode)     => get('/api/cameras',      { company_code: companyCode }),
-  getAlerts:      (params)          => get('/api/alerts',       params),
-  getHealth:      (companyCode)     => get('/api/health',       { company_code: companyCode }),
+  getDashboard:   (params = {}) => get('/api/dashboard', params),
+  getEvents:      (params = {}) => get('/api/events',    params),
+  getEventDetail: (id)          => get(`/api/events/${id}`),
+  getCameras:     (params = {}) => get('/api/cameras',   params),
+  getAlerts:      (params = {}) => get('/api/alerts',    params),
+  getHealth:      (params = {}) => get('/api/health',    params),
+  // API ใหม่ๆ เช่น กล้องและ polygon ถูกเพิ่มเข้ามาที่นี่
 }
 ```
 ### 5.5 `App.jsx` — Routing

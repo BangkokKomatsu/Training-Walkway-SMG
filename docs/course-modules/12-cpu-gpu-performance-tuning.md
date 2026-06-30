@@ -1,4 +1,4 @@
-﻿# Module 12 — CPU/GPU Performance Tuning
+# Module 12 — CPU/GPU Performance Tuning
 
 > **ระดับ:** กลาง-สูง | **เวลาโดยประมาณ:** 60–90 นาที
 
@@ -93,7 +93,7 @@ model.predict(frame, verbose=False)
 times = []
 for _ in range(10):
     t0 = time.perf_counter()
-    results = model.predict(frame, conf=0.5, classes=[0], verbose=False)
+    results = model.predict(frame, conf=0.5, classes=[0, 1], verbose=False)
     t1 = time.perf_counter()
     times.append((t1 - t0) * 1000)
 
@@ -140,7 +140,7 @@ while True:
         time.sleep(0.01)
         continue   # ข้ามเฟรมนี้
 
-    detections = detector.detect_persons(frame)
+    detections = detector.detect(frame)
     # ...
 ```
 **Trade-off:** ประหยัด CPU มาก แต่ latency ตรวจจับเพิ่มขึ้น (max 3 เฟรม × 33ms = ~100ms)  
@@ -158,8 +158,8 @@ while True:
     t0 = time.perf_counter()
 
     frame = camera.get_latest_frame()
-    if frame:
-        detections = detector.detect_persons(frame)
+    if frame is not None:
+        detections = detector.detect(frame)
         # process...
 
     elapsed = time.perf_counter() - t0
@@ -187,7 +187,7 @@ def preprocess_frame(frame, target_width=640):
 
 # ใช้งาน
 resized_frame, scale = preprocess_frame(frame, target_width=640)
-detections = detector.detect_persons(resized_frame)
+detections = detector.detect(resized_frame)
 
 # scale bbox กลับมาพิกัดเดิม
 for det in detections:
@@ -238,7 +238,7 @@ def crop_to_roi(frame, polygon_points, margin=50):
 
 # ใช้งาน
 roi_frame, (offset_x, offset_y) = crop_to_roi(frame, cam_config.danger_zones[0])
-detections = detector.detect_persons(roi_frame)
+detections = detector.detect(roi_frame)
 
 # แปลง bbox จาก ROI coordinates กลับเป็น full frame
 for det in detections:
@@ -302,7 +302,7 @@ for det in detections:
 ```python
 import time
 t0 = time.perf_counter()
-detections = detector.detect_persons(frame, imgsz=640)
+detections = detector.detect(frame, imgsz=640)
 print(f"Detect time: {(time.perf_counter()-t0)*1000:.0f} ms")
 ```
 ถ้า > 200ms บน CPU → ลด `imgsz` หรือเพิ่ม skip frame

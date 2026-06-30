@@ -249,9 +249,10 @@ npm start
 
 ### รูปภาพไม่ขึ้น (ไม่ใช่ "ไม่พบรูป")
 
-**สาเหตุ:** data-api ไม่ได้ serve static files จาก shared drive
+**สาเหตุ:** Backend (data-api) ไม่สามารถอ่านไฟล์จาก Shared Drive ได้ หรือ API Route ไม่ถูกต้อง
 
-ตรวจสอบ data-api configuration ว่า route `/images/` ชี้ไปที่ `IMAGE_SHARED_DRIVE` ถูกต้อง
+ตรวจสอบ data-api configuration และลองทดสอบ API ภาพโดยตรงที่ `/api/events/{event_id}/image`
+ตรวจสอบสิทธิ์การเข้าถึงโฟลเดอร์ของ data-api ว่าสามารถเข้าถึง UNC path ได้หรือไม่
 
 ---
 

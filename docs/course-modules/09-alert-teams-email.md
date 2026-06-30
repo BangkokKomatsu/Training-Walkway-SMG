@@ -1,4 +1,4 @@
-﻿# Module 09 — แจ้งเตือน Teams และ Email
+# Module 09 — แจ้งเตือน Teams และ Email
 
 > **ระดับ:** กลาง | **เวลาโดยประมาณ:** 90–120 นาที
 
@@ -151,7 +151,8 @@ def send_teams_alert(event: dict) -> tuple[bool, int, str]:
         "event_type":    event.get("event_type", ""),
         "confidence":    confidence_pct,
         "detected_at":   event.get("detected_at", ""),
-        "image_url":     event.get("image_url", ""),
+        "image_name":    event.get("image_name", ""),
+        "image_path":    event.get("image_path", ""),
         "message": (
             f"⚠️ ตรวจพบคนในพื้นที่อันตราย\n"
             f"บริษัท: {event.get('company_code')}\n"
@@ -188,7 +189,8 @@ event = {
     "event_type": "DWELL",
     "confidence": 0.87,
     "detected_at": "2026-01-01 10:00:00",
-    "image_url": "/images/DEMO/camera-1/20260101/test.jpg",
+    "image_name": "test.jpg",
+    "image_path": "\\\\10.145.250.26\\...\\test.jpg",
 }
 
 from src.alert.teams_alert import send_teams_alert
@@ -247,8 +249,10 @@ def send_email_alert(event: dict) -> tuple[bool, str]:
         f"ความมั่นใจ:   {confidence_pct}%",
         f"เวลา:         {event.get('detected_at', '')}",
     ]
-    if event.get("image_url"):
-        body_lines.append(f"ลิงก์รูปภาพ:  {event['image_url']}")
+    if event.get("image_name"):
+        body_lines.append(f"ชื่อไฟล์รูป:  {event['image_name']}")
+    if event.get("image_path"):
+        body_lines.append(f"ที่เก็บรูป:   {event['image_path']}")
 
     msg = MIMEMultipart()
     msg["From"] = settings.SMTP_USER
