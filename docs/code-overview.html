@@ -361,7 +361,7 @@
 
   <!-- ══════════════════════════════════════════════ SECTION 3: FOLDERS -->
   <section>
-    <h2><span class="icon">📁</span> 3. โครงสร้าง Folder และส่วนประกอบ</h2>
+    <h2><span class="icon">📁</span> 3. โครงสร้าง Folder และส่วนประกอบ (Python Code)</h2>
     <div class="cards">
 
       <div class="card">
@@ -371,72 +371,68 @@
         </div>
         <p>หัวใจของระบบ AI ตรวจจับคนและพื้นที่</p>
         <ul>
-          <li><span class="pill pill-yellow">yolo_detector.py</span> โหลด YOLO11</li>
-          <li><span class="pill pill-yellow">area_checker.py</span> เช็ค point-in-polygon</li>
-          <li><span class="pill pill-yellow">detection_service.py</span> Orchestrate การทำงานทั้งหมด, นับ Dwell time, และ trigger event</li>
+          <li><a href="../src/detection/yolo_detector.py" target="_blank" style="text-decoration:none;"><span class="pill pill-yellow clickable-node">yolo_detector.py</span></a> โหลด YOLO11</li>
+          <li><a href="../src/detection/area_checker.py" target="_blank" style="text-decoration:none;"><span class="pill pill-yellow clickable-node">area_checker.py</span></a> เช็ค point-in-polygon</li>
+          <li><a href="../src/detection/detection_service.py" target="_blank" style="text-decoration:none;"><span class="pill pill-yellow clickable-node">detection_service.py</span></a> Orchestrate การทำงานทั้งหมด, นับ Dwell time, และ trigger event</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-icon" style="background:#1e1e3f">📷</div>
-          <div><h3>src/camera/</h3><div class="path">camera_reader.py · camera_config.py</div></div>
+          <div><h3>src/camera/</h3><div class="path">Camera RTSP Management</div></div>
         </div>
         <p>จัดการกล้องทั้งหมดและดึงการตั้งค่า</p>
         <ul>
-          <li><span class="pill pill-purple">camera_config.py</span> อ่าน Config จาก `cameras.json` (หรือ <b>MSSQL Database</b> หากตั้งค่าไว้)</li>
-          <li><span class="pill pill-purple">camera_reader.py</span> เปิด RTSP stream ใน thread แยก, reconnect อัตโนมัติ</li>
+          <li><a href="../src/camera/camera_config.py" target="_blank" style="text-decoration:none;"><span class="pill pill-purple clickable-node">camera_config.py</span></a> อ่าน Config กล้อง</li>
+          <li><a href="../src/camera/camera_reader.py" target="_blank" style="text-decoration:none;"><span class="pill pill-purple clickable-node">camera_reader.py</span></a> เปิด RTSP stream ใน thread แยก, reconnect อัตโนมัติ</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-icon" style="background:#1e1030">🗄</div>
-          <div><h3>sql/</h3><div class="path">Stored Procedures (01-06)</div></div>
+          <div><h3>src/database/</h3><div class="path">Database Connection</div></div>
         </div>
-        <p>โครงสร้าง Database Schema และ Stored Procedures</p>
+        <p>เชื่อมต่อ MSSQL Server</p>
         <ul>
-          <li><span class="pill pill-purple">04_create_stored_procedures.sql</span> SPs ทั้งหมดรวมถึง:</li>
-          <li>`sp_insert_detection_event`, `sp_update_camera_status`</li>
-          <li>ช่วยป้องกัน SQL Injection และเพิ่มประสิทธิภาพ</li>
+          <li><a href="../src/database/mssql_connection.py" target="_blank" style="text-decoration:none;"><span class="pill pill-blue clickable-node">mssql_connection.py</span></a> ระบบ Connection Pool</li>
+          <li><a href="../src/database/detection_repository.py" target="_blank" style="text-decoration:none;"><span class="pill pill-blue clickable-node">detection_repository.py</span></a> เรียก Stored Procedure เพื่อบันทึกข้อมูล</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-icon" style="background:#2d1f0e">🌐</div>
-          <div><h3>data-api/</h3><div class="path">Node.js Express Server</div></div>
+          <div class="card-icon" style="background:#2d1515">📢</div>
+          <div><h3>src/alert/</h3><div class="path">Notification System</div></div>
         </div>
-        <p>Backend API ให้บริการข้อมูลแก่ Frontend</p>
+        <p>ระบบแจ้งเตือนไปยังภายนอก</p>
         <ul>
-          <li><span class="pill pill-yellow">server.js</span> รัน API server</li>
-          <li>มีระบบ <b>JWT Authentication</b> (`/api/auth`)</li>
-          <li>เชื่อมต่อกับ MSSQL ดึงข้อมูลให้ Dashboard และ Camera Monitor</li>
+          <li><a href="../src/alert/teams_alert.py" target="_blank" style="text-decoration:none;"><span class="pill pill-red clickable-node">teams_alert.py</span></a> ส่งแจ้งเตือนผ่าน Teams Webhook</li>
+          <li><a href="../src/alert/email_alert.py" target="_blank" style="text-decoration:none;"><span class="pill pill-red clickable-node">email_alert.py</span></a> ส่งแจ้งเตือนผ่าน Email (SMTP)</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-icon" style="background:#0f2d2d">🖥️</div>
-          <div><h3>frontend/</h3><div class="path">React Vite + Tailwind</div></div>
+          <div class="card-icon" style="background:#1a2e1a">💾</div>
+          <div><h3>src/storage/</h3><div class="path">File Storage</div></div>
         </div>
-        <p>หน้าเว็บ UI สำหรับผู้ใช้งาน</p>
+        <p>จัดการบันทึกไฟล์ภาพหลักฐาน</p>
         <ul>
-          <li><span class="pill pill-blue">DashboardPage.jsx</span> สรุปสถิติ, กราฟ, ประวัติเหตุการณ์</li>
-          <li><span class="pill pill-blue">CameraMonitorPage.jsx</span> หน้าแสดงสถานะกล้องปัจจุบัน</li>
-          <li>ทุกหน้ามีการเรียก API พร้อมกับ <b>Bearer Token (JWT)</b></li>
+          <li><a href="../src/storage/image_storage.py" target="_blank" style="text-decoration:none;"><span class="pill pill-green clickable-node">image_storage.py</span></a> บันทึกรูปลง Shared Drive</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-icon" style="background:#1a1f2e">🎮</div>
-          <div><h3>playground/</h3><div class="path">01 → 07</div></div>
+          <div class="card-icon" style="background:#0f2d2d">⚙️</div>
+          <div><h3>config/</h3><div class="path">Configuration</div></div>
         </div>
-        <p>ตัวอย่างโค้ดสำหรับผู้เรียน — แต่ละบทฝึกแยกกัน</p>
+        <p>จัดการการตั้งค่าของโปรแกรม</p>
         <ul>
-          <li>01-06: Python/AI/DB/Alert</li>
-          <li>07-frontend-ui: ตัวอย่างการต่อ JWT และเรียก API</li>
+          <li><a href="../config/settings.py" target="_blank" style="text-decoration:none;"><span class="pill pill-gray clickable-node">settings.py</span></a> โหลด .env เป็นตัวแปร Pydantic</li>
+          <li><a href="../config/logging_config.py" target="_blank" style="text-decoration:none;"><span class="pill pill-gray clickable-node">logging_config.py</span></a> กำหนดรูปแบบ Log</li>
         </ul>
       </div>
 

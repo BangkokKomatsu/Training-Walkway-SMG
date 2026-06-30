@@ -9,15 +9,15 @@
 ## ระบบนี้ทำอะไร
 
 อ่านวิดีโอจากกล้อง CCTV → ใช้ YOLO ตรวจจับ "คน" → เช็คว่าคนเดินเข้า **พื้นที่อันตราย (polygon)** หรือไม่ →
-ถ้าอยู่ในพื้นที่นั้น **ต่อเนื่องเกิน 5 วินาที** → ตัดสินว่าเกิด **event** →
+ถ้าอยู่ในพื้นที่นั้น **ต่อเนื่องเกินกว่าเวลาที่กำหนด (Dwell Time)** → ตัดสินว่าเกิด **event** →
 เซฟภาพไว้ที่ shared drive + บันทึกลงฐานข้อมูล MSSQL → แจ้งเตือนผ่าน Microsoft Teams และ Email →
 ทุกคนดูผลย้อนหลัง/สถานะกล้องได้ผ่านเว็บ React (ไม่ต้องเปิดหน้าต่างที่เครื่อง server)
 
 ## Data Flow
 
-```
+```text
 CCTV (RTSP) → Python + OpenCV → YOLO (person detection)
-  → Area Checker (polygon + dwell time 5 วิ)
+  → Area Checker (polygon + dwell time)
   → Event Logic (+ cooldown กันแจ้งซ้ำ)
   → เซฟรูป Shared Drive
   → Insert Event ลง MSSQL (ผ่าน Stored Procedure)
@@ -31,8 +31,10 @@ CCTV (RTSP) → Python + OpenCV → YOLO (person detection)
 
 ## โครงสร้างโปรเจกต์
 
-```
-config/         → โหลดค่าจาก .env, ตั้งค่า logging
+ระบบถูกออกแบบในลักษณะ Clean Architecture แยกส่วนชัดเจน (ดูรายละเอียดที่ `PROJECT_STRUCTURE.md`)
+
+```text
+config/         → โหลดค่าจาก .env, ตั้งค่า cameras.json, logging
 src/camera/     → อ่านวิดีโอจากกล้อง RTSP + reconnect
 src/detection/  → YOLO, ตรวจ polygon, ตัดสิน event
 src/alert/      → แจ้งเตือน Teams / Email
@@ -41,21 +43,20 @@ src/storage/    → เซฟภาพลง shared drive
 src/monitoring/ → รายงานสถานะสุขภาพระบบ
 src/utils/      → logger และฟังก์ชันช่วยทั่วไป
 sql/            → SQL script สร้าง schema/table/SP (ฝั่ง admin)
-data-api/       → ตัวกลางบาง: รับ request → เรียก SP → คืน JSON
+data-api/       → Backend Node.js API (ใช้ JWT Auth) สำหรับ Frontend
 frontend/       → เว็บ React + Vite + Tailwind สำหรับ monitor ผล
 docs/           → เอกสารคอร์ส (course-modules) และเอกสาร admin (admin-backend)
-playground/     → ที่ฝึกของผู้เรียน (01-07)
-assets/         → รูปตัวอย่าง (ไม่มีข้อมูลจริง)
-main.py         → จุดเริ่มต้นโปรแกรมทั้งหมด
+playground/     → ที่ฝึกของผู้เรียน (01-07) สำหรับฝึกเขียนโค้ด
+main.py         → จุดเริ่มต้นโปรแกรม Detection ฝั่ง Python
 ```
 
 ## เริ่มต้นใช้งาน (มือใหม่ทำตามได้)
 
 ### สิ่งที่ต้องมีก่อน
 - Python 3.10+ และ pip
-- กล้อง CCTV ที่รองรับ RTSP (หรือไฟล์วิดีโอตัวอย่างสำหรับฝึก)
-- MSSQL Server/Express (สำหรับเฟสที่เชื่อม database)
-- Node.js 18+ (สำหรับเฟส frontend/data-api)
+- กล้อง CCTV ที่รองรับ RTSP (หรือใช้ไฟล์วิดีโอทดสอบ)
+- MSSQL Server/Express (สำหรับระบบฐานข้อมูล)
+- Node.js 18+ (สำหรับ API และ Frontend)
 
 ### ขั้นตอน
 1. **Clone โปรเจกต์** แล้วเข้าโฟลเดอร์นี้
@@ -72,32 +73,38 @@ main.py         → จุดเริ่มต้นโปรแกรมทั
    ```bash
    copy .env.example .env
    ```
-   แล้วแก้ค่าในไฟล์ `.env` ให้ตรงกับของจริง (กล้อง, database, webhook, ฯลฯ)
-   **ห้าม commit ไฟล์ `.env` ขึ้น Git**
-5. **รันโปรแกรม:**
+   จากนั้นแก้ไขค่าในไฟล์ `.env` ให้ตรงกับระบบจริง (เช่น ค่า MSSQL, Teams Webhook, รหัสอีเมล)
+   **ห้าม commit ไฟล์ `.env` ขึ้น Git เด็ดขาด**
+5. **ตั้งค่ากล้องใน `config/cameras.json`:**
+   ไฟล์นี้ใช้สำหรับตั้งค่ารายชื่อกล้องและกำหนด **พื้นที่อันตราย (Danger Zone)** คุณสามารถเปิดไฟล์นี้ขึ้นมาแก้ไขได้เลย:
+   - `camera_no`: รหัสกล้อง (เช่น `CAM-01`)
+   - `source`: RTSP URL หรือพาธวิดีโอ (เช่น `rtsp://admin:pass@ip/stream` หรือ `0` สำหรับกล้องเว็บแคม)
+   - `danger_zones`: กำหนดพิกัดโพลิกอน (Polygon) บนหน้าจอของพื้นที่อันตราย เช่น `[[100, 200], [500, 200], [500, 600], [100, 600]]` (หากคนเข้าไปในโซนนี้จะนับเวลาเพื่อเกิด Event)
+   
+6. **รันโปรแกรมระบบตรวจจับ (Python):**
+   เปิด Terminal และพิมพ์คำสั่งนี้เพื่อเริ่มระบบวิเคราะห์วิดีโอ (ทำงานเบื้องหลัง):
    ```bash
    python main.py
    ```
-6. (เฟสถัดไป) ตั้งค่าฐานข้อมูล ดู `sql/` และรันเว็บ frontend ดู `frontend/` + `data-api/`
+   
+7. **รันระบบ Backend (Data API) และ Frontend (Web Dashboard):**
+   ในระบบของเรา Data API (Node.js) จะทำหน้าที่เป็นตัวกลางในการดึงข้อมูลจาก SQL มาแสดงให้หน้าเว็บอย่างปลอดภัย:
+   - **ตั้งค่าฐานข้อมูล (ถ้ายังไม่ทำ):** รันสคริปต์ในโฟลเดอร์ `sql/` เรียงตามลำดับ 01-04
+   - **เปิดการทำงาน Data API:**
+     เปิด Terminal ใหม่ > พิมพ์ `cd data-api` > `npm install` > `npm run dev` (API จะรันที่พอร์ต 3001)
+     *หมายเหตุ: ข้อมูลใน API จะถูกปกป้องด้วย JWT Authentication เสมอ*
+   - **เปิดการทำงาน Frontend Dashboard:**
+     เปิด Terminal ใหม่ > พิมพ์ `cd frontend` > `npm install` > `npm run dev`
+     เมื่อรันเสร็จแล้ว คุณสามารถเข้าดูระบบผ่าน Browser ที่ http://localhost:5173
 
-## คอร์สเรียน (เรียงตามเฟส)
+## คอร์สเรียนและคู่มือ
 
-โปรเจกต์นี้สร้างทีละเฟส อ้างอิงไฟล์ต่อไปนี้ (อ่าน `00_MASTER_CONTEXT.md` ก่อนเสมอ):
-
-| เฟส | เนื้อหา | ไฟล์อ้างอิง |
-|----|---------|------------|
-| 0 | Scaffold โครงสร้างโปรเจกต์ | `PHASE_0_scaffold.md` |
-| 1 | Python core: กล้อง + YOLO + พื้นที่อันตราย + ตัดสิน event | `PHASE_1_python_core.md` |
-| 2 | SQL/Stored Procedure (ฝั่ง admin) | `PHASE_2_backend_sql.md` |
-| 3 | เชื่อมต่อ DB + เซฟรูป + แจ้งเตือน Teams/Email | `PHASE_3_integration.md` |
-| 4 | เว็บ React + data-api | `PHASE_4_frontend.md` |
-| 5 | เอกสารคอร์สสำหรับผู้เรียน | `PHASE_5_course_docs.md` |
-
-เนื้อหาคอร์สแบบเต็มสำหรับผู้เรียนอยู่ที่ [`docs/course-modules/`](docs/course-modules/)
-เอกสารฝั่ง admin (ดูแลระบบเอง) อยู่ที่ [`docs/admin-backend/`](docs/admin-backend/)
+ระบบนี้มาพร้อมกับเอกสารบทเรียนและแบบฝึกหัดสำหรับ OJT (On-the-Job Training):
+- **สำหรับผู้เรียน:** เปิดดูที่ [`docs/course-modules/`](docs/course-modules/) ซึ่งมีบทเรียน 13 โมดูลและแบบฝึกหัดใน `playground/`
+- **สำหรับผู้ดูแลระบบ:** เปิดดูที่ [`docs/admin-backend/`](docs/admin-backend/) สำหรับการจัดการฐานข้อมูลและ API
+- **ดูภาพรวมโค้ดแบบแผนภาพ:** เปิดไฟล์ [`docs/code-overview.html`](docs/code-overview.html) ในเว็บบราวเซอร์ของคุณ
 
 ## กฎสำคัญที่ต้องรู้ก่อนแก้โค้ด
 
 ดู [`CLAUDE.md`](CLAUDE.md) สำหรับกฎประจำโปรเจกต์ทั้งหมด (ห้ามฮาร์ดโค้ด secret, ห้ามใช้ `cv2.imshow()`,
 ใช้ parameterized SQL เท่านั้น, Teams ต้องผ่าน Power Automate Workflows ฟรี ฯลฯ)
-# Training-Walkway-SMG

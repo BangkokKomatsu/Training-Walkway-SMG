@@ -1,62 +1,47 @@
 # Project Structure — Training-WalkWay-SMG
 
-โครงสร้างไฟล์/โฟลเดอร์ปัจจุบันของ repo นี้ (อัปเดตล่าสุดตามสภาพไฟล์จริง)
-ดูคำอธิบายภาพรวมของแต่ละโฟลเดอร์ได้ที่ [CLAUDE.md](CLAUDE.md) §3 และรายละเอียดทั้งระบบที่ [00_MASTER_CONTEXT.md](00_MASTER_CONTEXT.md)
+โครงสร้างไฟล์/โฟลเดอร์ของระบบตรวจจับคนเดินเข้าพื้นที่อันตรายด้วย AI แบบสมบูรณ์ (Production-Ready + Training Course)
+โปรเจกต์นี้ถูกออกแบบตามหลัก Clean Architecture โดยแบ่งการทำงานแต่ละส่วนแยกจากกันอย่างชัดเจน
 
-```
+```text
 Training-WalkWay-SMG/
 ├── 00_MASTER_CONTEXT.md          # บริบท/สถาปัตยกรรมรวมของทั้งระบบ
-├── CLAUDE.md                      # กฎประจำโปรเจกต์สำหรับ AI agent
-├── PHASE_0_scaffold.md            # แผนงานเฟส 0: scaffold โปรเจกต์
-├── PHASE_1_python_core.md         # แผนงานเฟส 1: python core (camera/detection/alert/storage)
-├── PHASE_2_backend_sql.md         # แผนงานเฟส 2: SQL schema + stored procedures
-├── PHASE_3_integration.md         # แผนงานเฟส 3: เชื่อม python + db + alert
-├── PHASE_4_frontend.md            # แผนงานเฟส 4: data-api + frontend
-├── PHASE_5_course_docs.md         # แผนงานเฟส 5: เอกสารคอร์ส/playground
-├── README.md                      # README หลักของโปรเจกต์
-├── main.py                        # entry point เดียวของระบบ python
-├── requirements.txt               # python dependencies
-├── .env.example                   # ตัวอย่างไฟล์ config (ห้าม commit .env จริง)
+├── CLAUDE.md                      # กฎประจำโปรเจกต์
+├── README.md                      # อธิบายการเริ่มต้นใช้งานระบบ
+├── PROJECT_STRUCTURE.md           # ไฟล์อธิบายโครงสร้าง (ไฟล์นี้)
+├── main.py                        # จุดเริ่มต้นของระบบ Python ตรวจจับ AI
+├── requirements.txt               # รายการ Dependencies สำหรับ Python
+├── .env.example                   # ตัวอย่างไฟล์ตั้งค่า (นำไปสร้างเป็น .env)
 ├── .gitignore
-├── AI Walkway Detection OJT Program (1).pdf
-├── AI Walkway Detection OJT Program (2).pdf
 │
-├── config/                        # โหลด .env + ตั้งค่า logging
-│   ├── __init__.py
+├── config/                        # จัดการการตั้งค่า .env, logging และกล้อง
+│   ├── cameras.json               # ค่าพิกัดพื้นที่อันตราย (Polygon) และ RTSP ของกล้อง
 │   ├── logging_config.py
 │   └── settings.py
 │
-├── src/                           # source code หลัก (แยกตามหน้าที่)
-│   ├── __init__.py
-│   ├── camera/                    # อ่าน RTSP + reconnect
-│   │   ├── __init__.py
+├── src/                           # Source Code หลัก (ระบบ Detection)
+│   ├── camera/                    # ระบบดึงภาพจาก RTSP Stream
 │   │   ├── camera_config.py
 │   │   └── camera_reader.py
-│   ├── detection/                 # YOLO, area checker, detection service
-│   │   ├── __init__.py
-│   │   ├── area_checker.py
-│   │   ├── detection_service.py
-│   │   └── yolo_detector.py
-│   ├── alert/                     # แจ้งเตือน Teams/Email
-│   │   ├── __init__.py
-│   │   ├── email_alert.py
-│   │   └── teams_alert.py
-│   ├── storage/                   # เซฟรูปลง shared drive
-│   │   ├── __init__.py
-│   │   └── image_storage.py
-│   ├── database/                  # connection + repository (เรียก SP)
-│   │   ├── __init__.py
+│   ├── detection/                 # ระบบ AI ประมวลผลภาพ
+│   │   ├── area_checker.py        # คำนวณ Point in Polygon
+│   │   ├── detection_service.py   # ระบบควบคุม Flow หลักและจับเวลา Dwell
+│   │   └── yolo_detector.py       # โหลดและรัน YOLO11 Model
+│   ├── alert/                     # ระบบแจ้งเตือนไปยังภายนอก
+│   │   ├── email_alert.py         # ส่งผ่าน SMTP
+│   │   └── teams_alert.py         # ส่งผ่าน Webhook
+│   ├── storage/                   # ระบบจัดเก็บหลักฐาน
+│   │   └── image_storage.py       # บันทึกรูปลง Shared Drive
+│   ├── database/                  # ระบบบันทึกข้อมูล (SQL Server)
 │   │   ├── detection_repository.py
 │   │   └── mssql_connection.py
-│   ├── monitoring/                # health report
-│   │   ├── __init__.py
+│   ├── monitoring/                # ระบบตรวจสอบสุขภาพการทำงาน
 │   │   └── health_reporter.py
-│   └── utils/                     # logger, helpers
-│       ├── __init__.py
+│   └── utils/                     # เครื่องมือช่วยเหลือทั่วไป
 │       ├── helpers.py
 │       └── logger.py
 │
-├── sql/                           # SQL schema + stored procedures (admin)
+├── sql/                           # ไฟล์สำหรับผู้ดูแลระบบ Database (Admin)
 │   ├── 01_create_schema.sql
 │   ├── 02_create_tables.sql
 │   ├── 03_create_indexes.sql
@@ -64,19 +49,40 @@ Training-WalkWay-SMG/
 │   ├── 05_insert_sample_data.sql
 │   └── 06_sample_exec_commands.sql
 │
-├── data-api/                      # ตัวกลาง: เรียก SP → คืน JSON ให้ frontend
+├── data-api/                      # Backend API (Node.js) ให้บริการ Frontend
+│   ├── server.js                  # ระบบ API ให้บริการและ JWT Authentication
 │   └── README.md
 │
-├── frontend/                      # React + Vite + Tailwind (dashboard/monitoring)
+├── frontend/                      # Web Dashboard (React + Vite + Tailwind)
+│   ├── src/                       # หน้าต่างแสดงผล (Dashboard, Event, Monitoring)
 │   └── README.md
 │
-├── docs/                          # เอกสารคอร์ส + เอกสาร admin
-│   ├── course-modules/            # เนื้อหาสำหรับผู้เรียน (Phase 5)
-│   │   └── README.md
-│   └── admin-backend/             # เอกสารสำหรับ admin (sql, data-api)
-│       └── README.md
+├── docs/                          # เอกสารคู่มือของโปรเจกต์
+│   ├── course-modules/            # บทเรียนสำหรับผู้ใช้งานและผู้ฝึกอบรม (13 บท)
+│   ├── admin-backend/             # คู่มือสำหรับ Admin และ Database
+│   └── code-overview.html         # หน้าเว็บแสดงแผนภาพและโฟลว์การทำงาน
 │
-├── playground/                    # พื้นที่ทดลองโค้ดให้ผู้เรียน (มีแค่ README ในแต่ละโฟลเดอร์)
+├── playground/                    # พื้นที่ทดลองเขียนโค้ดและเรียนรู้แบบ Sandbox
+│   ├── 01-python-basic/
+│   ├── 02-opencv-camera/
+│   ├── 03-yolo-detection/
+│   ├── 04-area-detection/
+│   ├── 05-mssql-database/
+│   ├── 06-alerts-teams-email/
+│   └── 07-frontend-ui/
+│
+├── assets/
+│   └── sample-images/             # รูปตัวอย่างประกอบบทเรียน
+│
+└── Models/                        # โฟลเดอร์เก็บโมเดล AI (ต้องดาวน์โหลด/ใส่เอง)
+    └── yolo11n.pt
+```
+
+## สถานะปัจจุบัน
+
+- โครงสร้างและโค้ดของระบบพัฒนาเสร็จสมบูรณ์ร้อยเปอร์เซ็นต์
+- บทเรียน, แบบฝึกหัดใน `playground/`, และคู่มือที่จำเป็นใน `docs/` ถูกเขียนอธิบายอย่างครบถ้วน
+- พร้อมสำหรับการนำไป Deploy หรือใช้ฝึกอบรมบุคลากร (OJT) ต่อได้ทันที)
 │   ├── 01-python-basic/           # variable, type, list/dict, if/else, loop, function, class, import, try/except, logging
 │   │   └── README.md
 │   ├── 02-opencv-camera/          # อ่าน RTSP/วิดีโอด้วย OpenCV
