@@ -68,6 +68,13 @@ CREATE TABLE smg.mst_camera (
     rtsp_url        NVARCHAR(500)   NOT NULL,   -- เก็บจาก .env จริง ตรงนี้เป็น reference
     is_active       BIT             NOT NULL DEFAULT 1,
     created_at      DATETIME2       NOT NULL DEFAULT SYSUTCDATETIME(),
+    ip_address      NVARCHAR(50)    NULL,
+    rtsp_port       INT             NOT NULL DEFAULT 554,
+    username        NVARCHAR(100)   NULL,
+    password        NVARCHAR(100)   NULL,
+    channel         INT             NOT NULL DEFAULT 1,
+    brand           NVARCHAR(50)    NULL,
+    stream_type     NVARCHAR(20)    NOT NULL DEFAULT 'sub',
     CONSTRAINT PK_mst_camera PRIMARY KEY (company_code, camera_no),
     CONSTRAINT FK_mst_camera_company FOREIGN KEY (company_code) REFERENCES smg.mst_company(company_code)
 );

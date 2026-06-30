@@ -23,6 +23,7 @@ class Settings:
     COMPANY_CODE: str = os.getenv("COMPANY_CODE", "DEMO")
 
     # ---- Camera ----
+    CAMERA_CONFIG_SOURCE: str = os.getenv("CAMERA_CONFIG_SOURCE", "json")  # 'json' หรือ 'db'
     CAMERAS_CONFIG_PATH: str = os.getenv("CAMERAS_CONFIG_PATH", "config/cameras.json")
     CAMERA_RTSP_USER: str = os.getenv("CAMERA_RTSP_USER", "admin")
     CAMERA_RTSP_PASSWORD: str = os.getenv("CAMERA_RTSP_PASSWORD", "")

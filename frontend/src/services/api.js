@@ -64,4 +64,7 @@ export const api = {
   bulkUpdateEvents:  (payload)  => post('/api/events/bulk-update', payload),
   getCameraPolygons: (camera_no) => get(`/api/cameras/${camera_no}/polygons`),
   saveCameraPolygons:(camera_no, payload) => post(`/api/cameras/${camera_no}/polygons`, payload),
+  createCamera:      (payload)  => post('/api/cameras', payload),
+  updateCamera:      (camera_no, payload) => post(`/api/cameras/${camera_no}/update`, payload),
+  deleteCamera:      (camera_no) => post(`/api/cameras/${camera_no}/delete`),
 }

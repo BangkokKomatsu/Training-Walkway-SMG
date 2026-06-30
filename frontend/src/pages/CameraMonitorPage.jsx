@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Camera, Wifi, WifiOff, Search, RefreshCw, AlertTriangle, X, Undo, Eraser, Save } from 'lucide-react'
+import { Camera, Wifi, WifiOff, Search, RefreshCw, AlertTriangle, X, Undo, Eraser, Save, Plus, Edit } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import CameraStatusCard from '../components/ui/CameraStatusCard'
@@ -13,6 +13,92 @@ export default function CameraMonitorPage() {
     () => api.getCameras(),
     []
   )
+
+  // Camera CRUD states
+  const [formOpen, setFormOpen] = useState(false)
+  const [formMode, setFormMode] = useState('add') // 'add' | 'edit'
+  const [formData, setFormData] = useState({
+    camera_no: '',
+    camera_name: '',
+    location_name: '',
+    brand: 'hikvision',
+    ip_address: '',
+    rtsp_port: 554,
+    username: '',
+    password: '',
+    channel: 1,
+    stream_type: 'sub',
+    custom_rtsp_url: '',
+    is_active: true
+  })
+  const [formSaving, setFormSaving] = useState(false)
+
+  const handleAddClick = () => {
+    setFormMode('add')
+    setFormData({
+      camera_no: '',
+      camera_name: '',
+      location_name: '',
+      brand: 'hikvision',
+      ip_address: '',
+      rtsp_port: 554,
+      username: '',
+      password: '',
+      channel: 1,
+      stream_type: 'sub',
+      custom_rtsp_url: '',
+      is_active: true
+    })
+    setFormOpen(true)
+  }
+
+  const handleEditClick = (cam) => {
+    setFormMode('edit')
+    setFormData({
+      camera_no: cam.camera_no || '',
+      camera_name: cam.camera_name || '',
+      location_name: cam.location_name || '',
+      brand: cam.brand || 'hikvision',
+      ip_address: cam.ip_address || '',
+      rtsp_port: cam.rtsp_port ?? 554,
+      username: cam.username || '',
+      password: cam.password || '',
+      channel: cam.channel ?? 1,
+      stream_type: cam.stream_type || 'sub',
+      custom_rtsp_url: (cam.brand?.toLowerCase() === 'generic' ? cam.rtsp_url : ''),
+      is_active: cam.is_active ?? true
+    })
+    setFormOpen(true)
+  }
+
+  const handleDeleteClick = async (cam) => {
+    if (window.confirm(`Are you sure you want to delete camera ${cam.camera_no} (${cam.camera_name || ''})?`)) {
+      try {
+        await api.deleteCamera(cam.camera_no)
+        refetch()
+      } catch (err) {
+        alert(err.message || 'Failed to delete camera')
+      }
+    }
+  }
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault()
+    setFormSaving(true)
+    try {
+      if (formMode === 'add') {
+        await api.createCamera(formData)
+      } else {
+        await api.updateCamera(formData.camera_no, formData)
+      }
+      setFormOpen(false)
+      refetch()
+    } catch (err) {
+      alert(err.message || 'Failed to save camera')
+    } finally {
+      setFormSaving(false)
+    }
+  }
 
   // Polygon editor states
   const [selectedCam, setSelectedCam] = useState(null)
@@ -161,6 +247,15 @@ export default function CameraMonitorPage() {
               className="pl-9 pr-3 py-1.5 text-xs rounded-lg border border-border bg-surface-2 text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all w-52"
             />
           </div>
+
+          {/* Add Camera Button */}
+          <button
+            onClick={handleAddClick}
+            className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:shadow-lg hover:shadow-primary/25 hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>Add Camera</span>
+          </button>
         </div>
       </div>
 
@@ -187,9 +282,11 @@ export default function CameraMonitorPage() {
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {filtered.map(cam => (
             <CameraStatusCard
-              key={cam.camera_no}
+              key={`${cam.company_code}_${cam.camera_no}`}
               camera={cam}
               onEditPolygon={setSelectedCam}
+              onEditCamera={handleEditClick}
+              onDeleteCamera={handleDeleteClick}
             />
           ))}
         </div>
@@ -363,6 +460,228 @@ export default function CameraMonitorPage() {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Sleek Camera Configuration Form Modal */}
+      {formOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
+          <div className="relative w-full max-w-[650px] rounded-2xl border border-border bg-surface shadow-2xl overflow-hidden flex flex-col p-6 space-y-6">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div>
+                <h4 className="text-sm font-bold text-ink uppercase tracking-wider">
+                  {formMode === 'add' ? 'Add New Camera' : 'Edit Camera Configuration'}
+                </h4>
+                <p className="text-[10px] text-ink-subtle">Configure connection credentials and details</p>
+              </div>
+              <button
+                onClick={() => setFormOpen(false)}
+                className="p-1.5 rounded-lg border border-border hover:bg-surface-2 text-ink-muted hover:text-ink transition-all cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Modal Body / Form */}
+            <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Camera ID / Code */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Camera Code / No (e.g. CAM-04):</label>
+                  <input
+                    type="text"
+                    required
+                    disabled={formMode === 'edit'}
+                    value={formData.camera_no}
+                    onChange={e => setFormData({ ...formData, camera_no: e.target.value.toUpperCase() })}
+                    placeholder="CAM-04"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 disabled:opacity-50 transition-all font-mono"
+                  />
+                </div>
+
+                {/* Camera Name */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Camera Name:</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.camera_name}
+                    onChange={e => setFormData({ ...formData, camera_name: e.target.value })}
+                    placeholder="กล้องอาคาร 3 ทางเข้า"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                  />
+                </div>
+
+                {/* Location / Site */}
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Install Location:</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.location_name}
+                    onChange={e => setFormData({ ...formData, location_name: e.target.value })}
+                    placeholder="อาคาร 3 ทางเดิน A ฝั่งเหนือ"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                  />
+                </div>
+
+                {/* Brand */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Brand / Manufacturer:</label>
+                  <select
+                    value={formData.brand}
+                    onChange={e => setFormData({ ...formData, brand: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-surface-2 text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer transition-all font-semibold"
+                  >
+                    <option value="hikvision">Hikvision</option>
+                    <option value="dahua">Dahua</option>
+                    <option value="panasonic">Panasonic</option>
+                    <option value="generic">Generic / Other</option>
+                  </select>
+                </div>
+
+                {/* Stream Type */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Stream Type:</label>
+                  <select
+                    value={formData.stream_type}
+                    onChange={e => setFormData({ ...formData, stream_type: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-surface-2 text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer transition-all font-semibold"
+                  >
+                    <option value="sub">Sub Stream (Recommended for Detection)</option>
+                    <option value="main">Main Stream (High Quality)</option>
+                  </select>
+                </div>
+
+                {/* Only render fields if NOT Generic, or if Generic we can let them type custom rtsp URL */}
+                {formData.brand !== 'generic' ? (
+                  <>
+                    {/* IP Address */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-ink-subtle uppercase">IP Address:</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.ip_address}
+                        onChange={e => setFormData({ ...formData, ip_address: e.target.value })}
+                        placeholder="192.168.1.100"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                      />
+                    </div>
+
+                    {/* RTSP Port */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-ink-subtle uppercase">RTSP Port (Default 554):</label>
+                      <input
+                        type="number"
+                        required
+                        value={formData.rtsp_port}
+                        onChange={e => setFormData({ ...formData, rtsp_port: parseInt(e.target.value) || 554 })}
+                        placeholder="554"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                      />
+                    </div>
+
+                    {/* Username */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-ink-subtle uppercase">Username:</label>
+                      <input
+                        type="text"
+                        value={formData.username}
+                        onChange={e => setFormData({ ...formData, username: e.target.value })}
+                        placeholder="admin"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                      />
+                    </div>
+
+                    {/* Password */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-ink-subtle uppercase">Password:</label>
+                      <input
+                        type="password"
+                        value={formData.password}
+                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="••••••••"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                      />
+                    </div>
+
+                    {/* Channel */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-ink-subtle uppercase">Channel Number (1, 2, 3...):</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={formData.channel}
+                        onChange={e => setFormData({ ...formData, channel: parseInt(e.target.value) || 1 })}
+                        placeholder="1"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col gap-1.5 md:col-span-2">
+                    <label className="text-[10px] font-bold text-ink-subtle uppercase">Custom RTSP URL:</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.custom_rtsp_url}
+                      onChange={e => setFormData({ ...formData, custom_rtsp_url: e.target.value })}
+                      placeholder="rtsp://admin:password@192.168.1.100:554/live/path"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                    />
+                  </div>
+                )}
+
+                {/* Enabled Status Switch */}
+                <div className="flex items-center gap-3 pt-4 md:col-span-2">
+                  <input
+                    type="checkbox"
+                    id="camera_is_active"
+                    checked={formData.is_active}
+                    onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="w-4 h-4 text-primary bg-surface border-border rounded-sm focus:ring-primary cursor-pointer"
+                  />
+                  <label htmlFor="camera_is_active" className="text-xs font-bold text-ink select-none cursor-pointer">
+                    Enable camera detection pipeline (Active)
+                  </label>
+                </div>
+
+              </div>
+
+              {/* Form Buttons */}
+              <div className="flex justify-end gap-3 pt-6 border-t border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(false)}
+                  className="px-4 py-2 border border-border hover:bg-surface-2 text-ink-muted hover:text-ink rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={formSaving}
+                  className="px-5 py-2 bg-primary text-white hover:brightness-110 active:scale-[0.98] rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-primary/10 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                >
+                  {formSaving ? (
+                    <>
+                      <RefreshCw size={12} className="animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={13} />
+                      <span>Save Camera</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

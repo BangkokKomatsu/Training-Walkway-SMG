@@ -213,7 +213,201 @@ app.get('/api/cameras', requireAuth, async (req, res) => {
       { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
       { name: 'camera_no',   type: sql.NVarChar(20), value: camera_no || null },
     ])
-    res.json(result.recordset)
+    const mapped = (result.recordset || []).map(c => ({
+      ...c,
+      status: c.is_active ? 'online' : 'offline',
+      location: c.location_name
+    }))
+    res.json(mapped)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── Helper: Generate RTSP URL based on brand connections ──────────────────
+function generateRtspUrl({ brand, ip_address, rtsp_port, username, password, channel, stream_type, custom_rtsp_url }) {
+  if (brand?.toLowerCase() === 'generic' && custom_rtsp_url) {
+    return custom_rtsp_url;
+  }
+  
+  const port = rtsp_port || 554;
+  const userPass = (username && password) ? `${username}:${password}@` : '';
+  const chan = channel || 1;
+  const isSub = stream_type === 'sub';
+
+  switch (brand?.toLowerCase()) {
+    case 'hikvision':
+      const streamIdx = isSub ? '02' : '01';
+      return `rtsp://${userPass}${ip_address}:${port}/Streaming/Channels/${chan}${streamIdx}`;
+    case 'dahua':
+      const subtype = isSub ? '1' : '0';
+      return `rtsp://${userPass}${ip_address}:${port}/cam/realmonitor?channel=${chan}&subtype=${subtype}`;
+    case 'panasonic':
+      const streamNum = isSub ? '2' : '1';
+      return `rtsp://${userPass}${ip_address}:${port}/MediaInput/h264/stream_${streamNum}`;
+    default:
+      return `rtsp://${userPass}${ip_address}:${port}/live`;
+  }
+}
+
+// ─── POST /api/cameras (Create) ───────────────────────
+app.post('/api/cameras', requireAuth, async (req, res) => {
+  try {
+    const { 
+      camera_no, 
+      camera_name, 
+      location_name, 
+      ip_address, 
+      rtsp_port, 
+      username, 
+      password, 
+      channel, 
+      brand, 
+      stream_type,
+      custom_rtsp_url,
+      is_active
+    } = req.body || {}
+
+    if (!camera_no || !camera_name || !location_name) {
+      return res.status(400).json({ error: 'camera_no, camera_name, and location_name are required' })
+    }
+
+    const company_code = req.companyCode || 'DEMO'
+
+    // Generate RTSP URL
+    const generated_rtsp = generateRtspUrl({
+      brand, ip_address, rtsp_port, username, password, channel, stream_type, custom_rtsp_url
+    })
+
+    const pool = await getPool()
+
+    // Check if camera already exists
+    const checkExist = await pool.request()
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('company_code', sql.NVarChar(20), company_code)
+      .query('SELECT 1 FROM smg.mst_camera WHERE camera_no = @camera_no AND company_code = @company_code')
+
+    if (checkExist.recordset.length > 0) {
+      return res.status(400).json({ error: `Camera number ${camera_no} already exists for this company` })
+    }
+
+    await pool.request()
+      .input('company_code', sql.NVarChar(20), company_code)
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('camera_name', sql.NVarChar(100), camera_name)
+      .input('location_name', sql.NVarChar(200), location_name)
+      .input('rtsp_url', sql.NVarChar(500), generated_rtsp)
+      .input('ip_address', sql.NVarChar(50), ip_address || null)
+      .input('rtsp_port', sql.Int, rtsp_port || 554)
+      .input('username', sql.NVarChar(100), username || null)
+      .input('password', sql.NVarChar(100), password || null)
+      .input('channel', sql.Int, channel || 1)
+      .input('brand', sql.NVarChar(50), brand || null)
+      .input('stream_type', sql.NVarChar(20), stream_type || 'sub')
+      .input('is_active', sql.Bit, is_active !== false ? 1 : 0)
+      .query(`
+        INSERT INTO smg.mst_camera 
+          (company_code, camera_no, camera_name, location_name, rtsp_url, is_active, 
+           ip_address, rtsp_port, username, password, channel, brand, stream_type)
+        VALUES 
+          (@company_code, @camera_no, @camera_name, @location_name, @rtsp_url, @is_active, 
+           @ip_address, @rtsp_port, @username, @password, @channel, @brand, @stream_type)
+      `)
+
+    res.status(201).json({ success: true, message: 'Camera created successfully', rtsp_url: generated_rtsp })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/cameras/:camera_no/update (Update) ──────
+app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
+  try {
+    const { camera_no } = req.params
+    const { 
+      camera_name, 
+      location_name, 
+      ip_address, 
+      rtsp_port, 
+      username, 
+      password, 
+      channel, 
+      brand, 
+      stream_type,
+      custom_rtsp_url,
+      is_active
+    } = req.body || {}
+
+    if (!camera_name || !location_name) {
+      return res.status(400).json({ error: 'camera_name and location_name are required' })
+    }
+
+    const company_code = req.companyCode || 'DEMO'
+
+    // Generate RTSP URL
+    const generated_rtsp = generateRtspUrl({
+      brand, ip_address, rtsp_port, username, password, channel, stream_type, custom_rtsp_url
+    })
+
+    const pool = await getPool()
+
+    await pool.request()
+      .input('company_code', sql.NVarChar(20), company_code)
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('camera_name', sql.NVarChar(100), camera_name)
+      .input('location_name', sql.NVarChar(200), location_name)
+      .input('rtsp_url', sql.NVarChar(500), generated_rtsp)
+      .input('ip_address', sql.NVarChar(50), ip_address || null)
+      .input('rtsp_port', sql.Int, rtsp_port || 554)
+      .input('username', sql.NVarChar(100), username || null)
+      .input('password', sql.NVarChar(100), password || null)
+      .input('channel', sql.Int, channel || 1)
+      .input('brand', sql.NVarChar(50), brand || null)
+      .input('stream_type', sql.NVarChar(20), stream_type || 'sub')
+      .input('is_active', sql.Bit, is_active !== false ? 1 : 0)
+      .query(`
+        UPDATE smg.mst_camera 
+        SET camera_name = @camera_name,
+            location_name = @location_name,
+            rtsp_url = @rtsp_url,
+            ip_address = @ip_address,
+            rtsp_port = @rtsp_port,
+            username = @username,
+            password = @password,
+            channel = @channel,
+            brand = @brand,
+            stream_type = @stream_type,
+            is_active = @is_active
+        WHERE camera_no = @camera_no AND company_code = @company_code
+      `)
+
+    res.json({ success: true, message: 'Camera updated successfully', rtsp_url: generated_rtsp })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/cameras/:camera_no/delete (Delete) ──────
+app.post('/api/cameras/:camera_no/delete', requireAuth, async (req, res) => {
+  try {
+    const { camera_no } = req.params
+    const company_code = req.companyCode || 'DEMO'
+
+    const pool = await getPool()
+
+    // 1. Delete associated polygon areas from mst_detection_area
+    await pool.request()
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('company_code', sql.NVarChar(20), company_code)
+      .query('DELETE FROM smg.mst_detection_area WHERE camera_no = @camera_no AND company_code = @company_code')
+
+    // 2. Delete camera from mst_camera
+    await pool.request()
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('company_code', sql.NVarChar(20), company_code)
+      .query('DELETE FROM smg.mst_camera WHERE camera_no = @camera_no AND company_code = @company_code')
+
+    res.json({ success: true, message: 'Camera and its associated polygon areas deleted successfully' })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -444,7 +638,90 @@ app.post('/api/cameras/:camera_no/polygons', requireAuth, async (req, res) => {
 async function runMigrations() {
   try {
     const pool = await getPool()
-    console.log('Running database schema migrations for Case Closing...')
+    console.log('Running database schema migrations for Case Closing and Cameras...')
+    
+    // Check which columns exist in mst_camera
+    const checkCamCols = await pool.request().query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = 'smg' 
+        AND TABLE_NAME = 'mst_camera' 
+        AND COLUMN_NAME IN ('ip_address', 'rtsp_port', 'username', 'password', 'channel', 'brand', 'stream_type')
+    `)
+    const existingCam = checkCamCols.recordset.map(r => r.COLUMN_NAME)
+    
+    if (!existingCam.includes('ip_address')) {
+      await pool.request().query(`ALTER TABLE smg.mst_camera ADD ip_address NVARCHAR(50) NULL`)
+      console.log('Migration: Added column ip_address to mst_camera')
+    }
+    if (!existingCam.includes('rtsp_port')) {
+      await pool.request().query(`ALTER TABLE smg.mst_camera ADD rtsp_port INT NOT NULL DEFAULT 554`)
+      console.log('Migration: Added column rtsp_port to mst_camera')
+    }
+    if (!existingCam.includes('username')) {
+      await pool.request().query(`ALTER TABLE smg.mst_camera ADD username NVARCHAR(100) NULL`)
+      console.log('Migration: Added column username to mst_camera')
+    }
+    if (!existingCam.includes('password')) {
+      await pool.request().query(`ALTER TABLE smg.mst_camera ADD password NVARCHAR(100) NULL`)
+      console.log('Migration: Added column password to mst_camera')
+    }
+    if (!existingCam.includes('channel')) {
+      await pool.request().query(`ALTER TABLE smg.mst_camera ADD channel INT NOT NULL DEFAULT 1`)
+      console.log('Migration: Added column channel to mst_camera')
+    }
+    if (!existingCam.includes('brand')) {
+      await pool.request().query(`ALTER TABLE smg.mst_camera ADD brand NVARCHAR(50) NULL`)
+      console.log('Migration: Added column brand to mst_camera')
+    }
+    if (!existingCam.includes('stream_type')) {
+      await pool.request().query(`ALTER TABLE smg.mst_camera ADD stream_type NVARCHAR(20) NOT NULL DEFAULT 'sub'`)
+      console.log('Migration: Added column stream_type to mst_camera')
+    }
+
+    // Compile modified sp_get_camera_status to return all columns
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_get_camera_status
+          @company_code   NVARCHAR(20)    = NULL,
+          @camera_no      NVARCHAR(20)    = NULL
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+
+          SELECT
+              c.company_code,
+              c.camera_no,
+              c.camera_name,
+              c.location_name,
+              c.is_active,
+              c.rtsp_url,
+              c.ip_address,
+              c.rtsp_port,
+              c.username,
+              c.password,
+              c.channel,
+              c.brand,
+              c.stream_type,
+              last_ev.last_event_at,
+              last_ev.last_event_status,
+              last_ev.last_event_id
+          FROM smg.mst_camera c
+          OUTER APPLY (
+              SELECT TOP 1
+                  event_id   AS last_event_id,
+                  event_status AS last_event_status,
+                  detected_at  AS last_event_at
+              FROM smg.trn_detection_event
+              WHERE company_code = c.company_code AND camera_no = c.camera_no
+              ORDER BY detected_at DESC
+          ) last_ev
+          WHERE
+              (@company_code IS NULL OR c.company_code = @company_code)
+              AND (@camera_no IS NULL OR c.camera_no = @camera_no)
+          ORDER BY c.camera_no;
+      END;
+    `)
+    console.log('Migration: Stored procedure sp_get_camera_status updated successfully')
     
     // Check which columns exist in trn_detection_event
     const checkCols = await pool.request().query(`

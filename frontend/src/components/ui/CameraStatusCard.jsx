@@ -1,10 +1,10 @@
 import React from 'react'
-import { Camera, Wifi, WifiOff, Clock } from 'lucide-react'
+import { Camera, Wifi, WifiOff, Clock, Edit, Trash2 } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import { formatRelative } from '../../utils/format'
 import clsx from 'clsx'
 
-export default function CameraStatusCard({ camera, onEditPolygon }) {
+export default function CameraStatusCard({ camera, onEditPolygon, onEditCamera, onDeleteCamera }) {
   const isOnline = camera.status === 'online'
 
   return (
@@ -43,17 +43,28 @@ export default function CameraStatusCard({ camera, onEditPolygon }) {
 
       {/* Details */}
       <div className="relative z-10 my-4 space-y-1.5 pl-0.5">
+        <div className="text-[11px] text-ink-muted leading-relaxed font-semibold">
+          <span className="text-[10px] text-ink-subtle uppercase tracking-wider block font-bold">CAMERA NAME:</span>
+          {camera.camera_name || `Camera ${camera.camera_no}`}
+        </div>
         {camera.location && (
           <div className="text-[11px] text-ink-muted leading-relaxed font-semibold">
             <span className="text-[10px] text-ink-subtle uppercase tracking-wider block font-bold">INSTALL SITE:</span>
             {camera.location}
           </div>
         )}
-        {camera.company_code && (
-          <div className="text-[10px] font-mono text-primary font-bold inline-block bg-primary/10 px-2 py-0.2 rounded-md border border-primary/20">
-            {camera.company_code}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          {camera.company_code && (
+            <div className="text-[10px] font-mono text-primary font-bold inline-block bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+              {camera.company_code}
+            </div>
+          )}
+          {camera.brand && (
+            <div className="text-[10px] font-mono text-ink-muted font-bold inline-block bg-surface-2 px-2 py-0.5 rounded-md border border-border">
+              {camera.brand} ({camera.stream_type || 'sub'})
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer controls & heartbeat */}
@@ -67,12 +78,28 @@ export default function CameraStatusCard({ camera, onEditPolygon }) {
           </div>
         )}
 
-        <button
-          onClick={() => onEditPolygon && onEditPolygon(camera)}
-          className="w-full py-1.5 px-3 rounded-lg border border-border bg-surface-2 text-[10px] text-ink-muted font-bold hover:text-primary hover:border-primary/50 hover:bg-surface/50 transition-all flex items-center justify-center gap-1 cursor-pointer"
-        >
-          <Camera size={11} /> Draw Restricted Zone
-        </button>
+        <div className="flex gap-2 w-full">
+          <button
+            onClick={() => onEditPolygon && onEditPolygon(camera)}
+            className="flex-1 py-1.5 px-3 rounded-lg border border-border bg-surface-2 text-[10px] text-ink-muted font-bold hover:text-primary hover:border-primary/50 hover:bg-surface/50 transition-all flex items-center justify-center gap-1 cursor-pointer"
+          >
+            <Camera size={11} /> Draw Zone
+          </button>
+          <button
+            onClick={() => onEditCamera && onEditCamera(camera)}
+            className="py-1.5 px-2.5 rounded-lg border border-border bg-surface-2 text-ink-muted hover:text-amber-500 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all flex items-center justify-center cursor-pointer"
+            title="Edit Details"
+          >
+            <Edit size={11} />
+          </button>
+          <button
+            onClick={() => onDeleteCamera && onDeleteCamera(camera)}
+            className="py-1.5 px-2.5 rounded-lg border border-border bg-surface-2 text-ink-muted hover:text-rose-500 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all flex items-center justify-center cursor-pointer"
+            title="Delete Camera"
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
       </div>
     </div>
   )
