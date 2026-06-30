@@ -139,6 +139,7 @@ def _load_from_json(path: str) -> list[CameraConfig]:
             company_code=entry.get("company_code", settings.COMPANY_CODE),
             source=rtsp_url,
             danger_zones=zones,
+            schedule_rules=entry.get("schedule_rules", []),
         ))
 
     logger.info("โหลดกล้องจาก %s สำเร็จ: %d ตัว", path, len(configs))

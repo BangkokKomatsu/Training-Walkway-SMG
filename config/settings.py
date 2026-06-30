@@ -23,11 +23,11 @@ class Settings:
     COMPANY_CODE: str = os.getenv("COMPANY_CODE", "DEMO")
 
     # ---- Camera ----
-    CAMERA_CONFIG_SOURCE: str = os.getenv("CAMERA_CONFIG_SOURCE", "json")  # 'json' หรือ 'db'
+    CAMERA_CONFIG_SOURCE: str = os.getenv("CAMERA_CONFIG_SOURCE", "")  # 'json' หรือ 'db'
     CAMERAS_CONFIG_PATH: str = os.getenv("CAMERAS_CONFIG_PATH", "config/cameras.json")
-    CAMERA_RTSP_USER: str = os.getenv("CAMERA_RTSP_USER", "admin")
+    CAMERA_RTSP_USER: str = os.getenv("CAMERA_RTSP_USER", "")
     CAMERA_RTSP_PASSWORD: str = os.getenv("CAMERA_RTSP_PASSWORD", "")
-    SCHEDULE_SOURCE: str = os.getenv("SCHEDULE_SOURCE", "hardcoded")  # 'db' หรือ 'hardcoded'
+    SCHEDULE_SOURCE: str = os.getenv("SCHEDULE_SOURCE", "")  # 'db' หรือ 'hardcoded'
 
     # ---- Detection (YOLO) ----
     YOLO_MODEL_PATH: str = os.getenv("YOLO_MODEL_PATH", "Models/yolo11n.pt")

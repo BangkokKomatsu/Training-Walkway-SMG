@@ -8,6 +8,13 @@
     "rtsp_url": "rtsp://{user}:{password}@192.168.0.1:554/Streaming/Channels/102",
     "danger_zones": [
       [[60,399],[49,294],[43,169],[335,82],[400,110],[481,152],[499,184],[499,284],[497,399]]
+    ],
+    "schedule_rules": [
+      {
+        "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "start_time": "08:00",
+        "end_time": "17:00"
+      }
     ]
   },
   {
@@ -20,6 +27,13 @@
     "danger_zones": [
       [[121,398],[263,398],[334,398],[243,242],[211,188],[103,202],[109,284]],
       [[103,168],[193,161],[165,111],[156,94],[101,98],[101,122]]
+    ],
+    "schedule_rules": [
+      {
+        "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        "start_time": "00:00",
+        "end_time": "23:59"
+      }
     ]
   },
   {

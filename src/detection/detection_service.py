@@ -106,8 +106,11 @@ def is_camera_in_schedule(cam_config: CameraConfig) -> bool:
     
     # Get rules based on SCHEDULE_SOURCE
     if source == "hardcoded":
-        rules = HARDCODED_SCHEDULES.get(cam_config.camera_no, HARDCODED_SCHEDULES.get("default", []))
-    else:  # "db"
+        # Use JSON schedule rules if available, else fallback to hardcoded dict
+        rules = cam_config.schedule_rules
+        if not rules:
+            rules = HARDCODED_SCHEDULES.get(cam_config.camera_no, HARDCODED_SCHEDULES.get("default", []))
+    else:  # "db" or "json"
         rules = cam_config.schedule_rules
 
     # If no rules are set, it means active 24/7
