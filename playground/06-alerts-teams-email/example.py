@@ -27,7 +27,7 @@ SAMPLE_EVENT = {
     "event_type":   "DWELL",
     "confidence":   0.9123,
     "detected_at":  "2026-06-16 14:30:00",
-    "image_url":    "",
+    "image_name":   "",
 }
 
 

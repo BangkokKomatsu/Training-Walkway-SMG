@@ -1,4 +1,4 @@
-﻿# Module 13 — Final Project: ประกอบทุกส่วนเป็นระบบจริง
+# Module 13 — Final Project: ประกอบทุกส่วนเป็นระบบจริง
 
 > **ระดับ:** รวมทุก module | **เวลาโดยประมาณ:** 3–6 ชั่วโมง (ขึ้นกับ environment จริง)
 
@@ -92,19 +92,9 @@ SMTP → อีเมลผู้รับผิดชอบ
 DEVICE=cpu           # เปลี่ยนเป็น cuda ถ้ามี NVIDIA GPU
 COMPANY_CODE=ABC     # รหัสบริษัทจริง (ตกลงกับ admin)
 
-# ---- Camera ----
-CAMERA_RTSP_URL=rtsp://admin:CamP@ss123@10.0.1.55:554/stream1
-CAMERA_NO=CAM001
-CAMERA_NAME=กล้องหน้าโกดัง A
-LOCATION_NAME=ทางเดินหน้าโกดัง A
-
 # ---- Detection ----
 YOLO_MODEL_PATH=Models/yolo11n.pt
 CONF_THRESHOLD=0.5           # ปรับตามผลทดสอบ
-
-# ---- Danger Zone ----
-# ขอพิกัดจากการ capture หน้าจอกล้องจริง
-DANGER_ZONE_POLYGON=120,95;638,95;638,410;120,410
 
 # ---- Event Logic ----
 DWELL_SECONDS=5              # อยู่นานแค่ไหนถึงนับ event
@@ -130,7 +120,27 @@ SMTP_USER=noreply@company.com
 SMTP_PASSWORD=AppPassword123
 ALERT_EMAIL_TO=safety@company.com,manager@company.com
 ```
-### 5.2 วิธีหาพิกัด Polygon สำหรับกล้องจริง
+### 5.2 ตั้งค่าพิกัดพื้นที่และกล้อง (cameras.json)
+
+นอกจาก `.env` แล้ว จะต้องตั้งค่ากล้องใน `config/cameras.json`:
+
+```json
+{
+  "cameras": [
+    {
+      "camera_no": "CAM001",
+      "camera_name": "กล้องหน้าโกดัง A",
+      "location_name": "ทางเดินหน้าโกดัง A",
+      "source": "rtsp://admin:CamP@ss123@10.0.1.55:554/stream1",
+      "danger_zones": [
+        [[120, 95], [638, 95], [638, 410], [120, 410]]
+      ]
+    }
+  ]
+}
+```
+
+วิธีหาพิกัด:
 
 ```bash
 # Step 1: รัน python เพื่อ capture เฟรมจากกล้อง
@@ -150,7 +160,7 @@ cam.stop()
 ```text
 Step 2: เปิดรูป captures/camera_frame.jpg ด้วย Paint หรือ GIMP
 Step 3: นำเมาส์ไปชี้ที่มุมพื้นที่อันตราย บันทึกพิกัด (x, y) แต่ละมุม
-Step 4: ใส่ในรูปแบบ: x1,y1;x2,y2;x3,y3;... ลงใน .env
+Step 4: นำพิกัดไปใส่ใน `cameras.json` ในรูปแบบ `[[x1,y1], [x2,y2], ...]`
 ```
 ### 5.3 ทดสอบทีละ Component
 
@@ -190,7 +200,7 @@ from config.settings import settings
 
 detector = YoloDetector(settings.YOLO_MODEL_PATH, settings.DEVICE, settings.CONF_THRESHOLD)
 dummy = np.zeros((480, 640, 3), dtype=np.uint8)
-result = detector.detect_persons(dummy)
+result = detector.detect(dummy)
 print("✅ YOLO โหลดสำเร็จ (dummy frame ตรวจจับ 0 คน ถือว่าปกติ)")
 ```
 **ทดสอบ 4 — Shared Drive:**
@@ -218,7 +228,7 @@ test_event = {
     "company_code": "TEST", "camera_no": "TEST-1",
     "camera_name": "Test Camera", "location_name": "Test Area",
     "event_type": "TEST", "confidence": 0.99,
-    "detected_at": "2026-01-01 00:00:00", "image_url": "",
+    "detected_at": "2026-01-01 00:00:00", "image_name": "",
     "event_id": 0,
 }
 success, code, msg = send_teams_alert(test_event)
@@ -232,7 +242,7 @@ test_event = {
     "company_code": "TEST", "camera_no": "TEST-1",
     "camera_name": "Test Camera", "location_name": "Test Area",
     "event_type": "TEST", "confidence": 0.99,
-    "detected_at": "2026-01-01 00:00:00", "image_url": "",
+    "detected_at": "2026-01-01 00:00:00", "image_name": "",
     "event_id": 0,
 }
 success, msg = send_email_alert(test_event)
@@ -273,7 +283,7 @@ cd frontend && npm run dev
 3. **รัน python main.py:** เดินเข้าพื้นที่ > 5 วิ ดูว่า log แสดง "EVENT TRIGGERED"
 4. **ตรวจ Teams:** ดูว่ามีข้อความแจ้งเตือนใน Teams channel
 5. **ตรวจ Email:** ดูว่ามีอีเมลใน inbox ผู้รับ
-6. **ตรวจ DB:** Query `SELECT TOP 5 * FROM ww.trn_detection_event ORDER BY created_at DESC`
+6. **ตรวจ DB:** Query `SELECT TOP 5 * FROM smg.trn_detection_event ORDER BY created_at DESC`
 7. **ตรวจรูป:** เปิด folder shared drive ดูว่ามีรูป `.jpg` สร้างขึ้น
 8. **ตรวจเว็บ:** เปิดเว็บ monitor ดู event ล่าสุด + รูปภาพ
 
@@ -323,7 +333,7 @@ cd frontend && npm run dev
 ### ระบบรันได้ แต่ไม่มี event ใน DB
 
 **ตรวจสอบตามลำดับ:**
-1. `DANGER_ZONE_POLYGON` ถูกต้อง? (ลอง print ออกมา)
+1. `danger_zones` ใน `cameras.json` ถูกต้อง? (ลอง print ออกมา)
 2. `DWELL_SECONDS=5` หรือเปล่า? (คนต้องอยู่ > 5 วิจริง ๆ)
 3. ดูใน log มี "EVENT TRIGGERED" หรือไม่
 4. ถ้ามี → ดู log ต่อ มี error ที่ `insert_detection_event` ไหม
@@ -340,9 +350,9 @@ cd frontend && npm run dev
 
 ### รูปภาพใน web ขึ้น 403 Forbidden
 
-**สาเหตุ:** data-api ไม่มีสิทธิ์อ่าน shared drive หรือ route `/images/` ไม่ถูก configure
+**สาเหตุ:** data-api ไม่มีสิทธิ์อ่าน shared drive หรือ route `/api/events/:id/image` ไม่ถูก configure
 
-ตรวจสอบ data-api config: ต้อง serve static จาก `IMAGE_SHARED_DRIVE`
+ตรวจสอบ data-api config และ permission ของโฟลเดอร์ให้ Backend อ่านได้
 
 ---
 
@@ -365,10 +375,10 @@ useEffect(() => {
 
 **สาเหตุ:** network ไม่เสถียร หรือ RTSP URL ผิด format
 
-```dotenv
-# ลอง URL แบบอื่น
-CAMERA_RTSP_URL=rtsp://admin:pass@10.0.1.55:554/h264/ch1/main/av_stream
-CAMERA_RTSP_URL=rtsp://10.0.1.55/live
+```json
+// ลอง URL แบบอื่นใน cameras.json
+"source": "rtsp://admin:pass@10.0.1.55:554/h264/ch1/main/av_stream"
+"source": "rtsp://10.0.1.55/live"
 ```
 ตรวจสอบใน VLC Media Player ก่อน
 
@@ -417,11 +427,21 @@ CAMERA_RTSP_URL=rtsp://10.0.1.55/live
 **เปลี่ยน config แค่นี้ก็ใช้ระบบจริงได้ทันที:**
 ```dotenv
 COMPANY_CODE=ชื่อบริษัทจริง
-CAMERA_RTSP_URL=URL กล้องจริง
-DANGER_ZONE_POLYGON=พิกัดพื้นที่จริง
 DB_SERVER=DB จริง
 IMAGE_SHARED_DRIVE=path จริง
 TEAMS_WEBHOOK_URL=webhook จริง
 SMTP_USER/PASSWORD=M365 จริง
+```
+และตั้งค่า `config/cameras.json`:
+```json
+{
+  "cameras": [
+    {
+      "camera_no": "CAM-01",
+      "source": "URL กล้องจริง",
+      "danger_zones": [[[x1, y1], [x2, y2], ...]]
+    }
+  ]
+}
 ```
 > **ยินดีด้วย!** คุณสร้างระบบ AI Walkway Detection จากศูนย์จนใช้งานได้จริงแล้ว 🎉
