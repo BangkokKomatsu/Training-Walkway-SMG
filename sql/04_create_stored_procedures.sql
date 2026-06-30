@@ -200,6 +200,7 @@ BEGIN
         c.channel,
         c.brand,
         c.stream_type,
+        c.schedule_json,
         last_ev.last_event_at,
         last_ev.last_event_status,
         last_ev.last_event_id

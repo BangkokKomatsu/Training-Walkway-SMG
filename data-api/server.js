@@ -272,7 +272,8 @@ app.post('/api/cameras', requireAuth, async (req, res) => {
       brand, 
       stream_type,
       custom_rtsp_url,
-      is_active
+      is_active,
+      schedule_json
     } = req.body || {}
 
     if (!camera_no || !camera_name || !location_name) {
@@ -312,13 +313,14 @@ app.post('/api/cameras', requireAuth, async (req, res) => {
       .input('brand', sql.NVarChar(50), brand || null)
       .input('stream_type', sql.NVarChar(20), stream_type || 'sub')
       .input('is_active', sql.Bit, is_active !== false ? 1 : 0)
+      .input('schedule_json', sql.NVarChar(sql.MAX), schedule_json || null)
       .query(`
         INSERT INTO smg.mst_camera 
           (company_code, camera_no, camera_name, location_name, rtsp_url, is_active, 
-           ip_address, rtsp_port, username, password, channel, brand, stream_type)
+           ip_address, rtsp_port, username, password, channel, brand, stream_type, schedule_json)
         VALUES 
           (@company_code, @camera_no, @camera_name, @location_name, @rtsp_url, @is_active, 
-           @ip_address, @rtsp_port, @username, @password, @channel, @brand, @stream_type)
+           @ip_address, @rtsp_port, @username, @password, @channel, @brand, @stream_type, @schedule_json)
       `)
 
     res.status(201).json({ success: true, message: 'Camera created successfully', rtsp_url: generated_rtsp })
@@ -342,7 +344,8 @@ app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
       brand, 
       stream_type,
       custom_rtsp_url,
-      is_active
+      is_active,
+      schedule_json
     } = req.body || {}
 
     if (!camera_name || !location_name) {
@@ -372,6 +375,7 @@ app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
       .input('brand', sql.NVarChar(50), brand || null)
       .input('stream_type', sql.NVarChar(20), stream_type || 'sub')
       .input('is_active', sql.Bit, is_active !== false ? 1 : 0)
+      .input('schedule_json', sql.NVarChar(sql.MAX), schedule_json || null)
       .query(`
         UPDATE smg.mst_camera 
         SET camera_name = @camera_name,
@@ -384,7 +388,8 @@ app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
             channel = @channel,
             brand = @brand,
             stream_type = @stream_type,
-            is_active = @is_active
+            is_active = @is_active,
+            schedule_json = @schedule_json
         WHERE camera_no = @camera_no AND company_code = @company_code
       `)
 
@@ -653,7 +658,7 @@ async function runMigrations() {
       FROM INFORMATION_SCHEMA.COLUMNS 
       WHERE TABLE_SCHEMA = 'smg' 
         AND TABLE_NAME = 'mst_camera' 
-        AND COLUMN_NAME IN ('ip_address', 'rtsp_port', 'username', 'password', 'channel', 'brand', 'stream_type')
+        AND COLUMN_NAME IN ('ip_address', 'rtsp_port', 'username', 'password', 'channel', 'brand', 'stream_type', 'schedule_json')
     `)
     const existingCam = checkCamCols.recordset.map(r => r.COLUMN_NAME)
     
@@ -685,6 +690,10 @@ async function runMigrations() {
       await pool.request().query(`ALTER TABLE smg.mst_camera ADD stream_type NVARCHAR(20) NOT NULL DEFAULT 'sub'`)
       console.log('Migration: Added column stream_type to mst_camera')
     }
+    if (!existingCam.includes('schedule_json')) {
+      await pool.request().query(`ALTER TABLE smg.mst_camera ADD schedule_json NVARCHAR(MAX) NULL`)
+      console.log('Migration: Added column schedule_json to mst_camera')
+    }
 
     // Compile modified sp_get_camera_status to return all columns
     await pool.request().query(`
@@ -709,6 +718,7 @@ async function runMigrations() {
               c.channel,
               c.brand,
               c.stream_type,
+              c.schedule_json,
               last_ev.last_event_at,
               last_ev.last_event_status,
               last_ev.last_event_id

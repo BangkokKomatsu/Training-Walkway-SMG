@@ -16,6 +16,7 @@ class CameraConfig:
     company_code: str
     source: str
     danger_zones: list[list[tuple[int, int]]] = field(default_factory=list)
+    schedule_rules: list[dict] = field(default_factory=list)
 
 
 def load_camera_configs() -> list[CameraConfig]:
@@ -41,7 +42,7 @@ def _load_from_db() -> list[CameraConfig]:
         
         # ดึงข้อมูลกล้องทั้งหมดที่ active ของบริษัท
         cursor.execute("""
-            SELECT camera_no, camera_name, location_name, company_code, rtsp_url, username, password
+            SELECT camera_no, camera_name, location_name, company_code, rtsp_url, username, password, schedule_json
             FROM smg.mst_camera
             WHERE is_active = 1 AND company_code = ?
         """, (settings.COMPANY_CODE,))
@@ -57,6 +58,7 @@ def _load_from_db() -> list[CameraConfig]:
             rtsp_url = row[4]
             username = row[5]
             password = row[6]
+            schedule_json = row[7]
             
             # Format RTSP URL if it contains placeholders {user} and {password}
             if "{user}" in rtsp_url or "{password}" in rtsp_url:
@@ -83,6 +85,14 @@ def _load_from_db() -> list[CameraConfig]:
                 except Exception as exc:
                     logger.error("ล้มเหลวในการ parse polygon_json สำหรับกล้อง %s: %s", camera_no, exc)
             
+            # parse schedule rules
+            schedule_rules = []
+            if schedule_json:
+                try:
+                    schedule_rules = json.loads(schedule_json)
+                except Exception as exc:
+                    logger.error("ล้มเหลวในการ parse schedule_json สำหรับกล้อง %s: %s", camera_no, exc)
+
             configs.append(CameraConfig(
                 camera_no=camera_no,
                 camera_name=camera_name,
@@ -90,6 +100,7 @@ def _load_from_db() -> list[CameraConfig]:
                 company_code=company_code,
                 source=source_url,
                 danger_zones=zones,
+                schedule_rules=schedule_rules,
             ))
             
         logger.info("โหลดกล้องจาก Database สำเร็จ: %d ตัว", len(configs))

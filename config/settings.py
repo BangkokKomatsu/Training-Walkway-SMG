@@ -27,6 +27,7 @@ class Settings:
     CAMERAS_CONFIG_PATH: str = os.getenv("CAMERAS_CONFIG_PATH", "config/cameras.json")
     CAMERA_RTSP_USER: str = os.getenv("CAMERA_RTSP_USER", "admin")
     CAMERA_RTSP_PASSWORD: str = os.getenv("CAMERA_RTSP_PASSWORD", "")
+    SCHEDULE_SOURCE: str = os.getenv("SCHEDULE_SOURCE", "hardcoded")  # 'db' หรือ 'hardcoded'
 
     # ---- Detection (YOLO) ----
     YOLO_MODEL_PATH: str = os.getenv("YOLO_MODEL_PATH", "Models/yolo11n.pt")

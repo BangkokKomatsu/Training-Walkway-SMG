@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Camera, Wifi, WifiOff, Search, RefreshCw, AlertTriangle, X, Undo, Eraser, Save, Plus, Edit } from 'lucide-react'
+import { Camera, Wifi, WifiOff, Search, RefreshCw, AlertTriangle, X, Undo, Eraser, Save, Plus, Edit, Trash2 } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import CameraStatusCard from '../components/ui/CameraStatusCard'
@@ -33,6 +33,45 @@ export default function CameraMonitorPage() {
   })
   const [formSaving, setFormSaving] = useState(false)
 
+  // Camera Scheduling States
+  const [scheduleRules, setScheduleRules] = useState([])
+  const [newRuleDays, setNewRuleDays] = useState([])
+  const [newRuleStart, setNewRuleStart] = useState('08:00')
+  const [newRuleEnd, setNewRuleEnd] = useState('17:00')
+
+  const toggleNewRuleDay = (day) => {
+    setNewRuleDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    )
+  }
+
+  const handleAddRule = (e) => {
+    e.preventDefault()
+    if (newRuleDays.length === 0) {
+      alert('Please select at least one day.')
+      return
+    }
+    if (!newRuleStart || !newRuleEnd) {
+      alert('Please select start and end times.')
+      return
+    }
+    if (newRuleStart >= newRuleEnd) {
+      alert('Start time must be before end time.')
+      return
+    }
+    const newRule = {
+      days: newRuleDays,
+      start_time: newRuleStart,
+      end_time: newRuleEnd
+    }
+    setScheduleRules(prev => [...prev, newRule])
+    setNewRuleDays([])
+  }
+
+  const handleDeleteRule = (idx) => {
+    setScheduleRules(prev => prev.filter((_, i) => i !== idx))
+  }
+
   const handleAddClick = () => {
     setFormMode('add')
     setFormData({
@@ -49,10 +88,22 @@ export default function CameraMonitorPage() {
       custom_rtsp_url: '',
       is_active: true
     })
+    setScheduleRules([])
+    setNewRuleDays([])
+    setNewRuleStart('08:00')
+    setNewRuleEnd('17:00')
     setFormOpen(true)
   }
 
   const handleEditClick = (cam) => {
+    let rules = []
+    if (cam.schedule_json) {
+      try {
+        rules = JSON.parse(cam.schedule_json)
+      } catch (e) {
+        rules = []
+      }
+    }
     setFormMode('edit')
     setFormData({
       camera_no: cam.camera_no || '',
@@ -68,6 +119,10 @@ export default function CameraMonitorPage() {
       custom_rtsp_url: (cam.brand?.toLowerCase() === 'generic' ? cam.rtsp_url : ''),
       is_active: cam.is_active ?? true
     })
+    setScheduleRules(rules)
+    setNewRuleDays([])
+    setNewRuleStart('08:00')
+    setNewRuleEnd('17:00')
     setFormOpen(true)
   }
 
@@ -86,10 +141,14 @@ export default function CameraMonitorPage() {
     e.preventDefault()
     setFormSaving(true)
     try {
+      const payload = {
+        ...formData,
+        schedule_json: scheduleRules.length > 0 ? JSON.stringify(scheduleRules) : null
+      }
       if (formMode === 'add') {
-        await api.createCamera(formData)
+        await api.createCamera(payload)
       } else {
-        await api.updateCamera(formData.camera_no, formData)
+        await api.updateCamera(formData.camera_no, payload)
       }
       setFormOpen(false)
       refetch()
@@ -637,6 +696,105 @@ export default function CameraMonitorPage() {
                     />
                   </div>
                 )}
+
+                {/* Detection Schedules */}
+                <div className="md:col-span-2 border-t border-border/60 pt-4 space-y-4">
+                  <div>
+                    <h5 className="text-[11px] font-bold text-ink uppercase tracking-wider">Detection Schedules</h5>
+                    <p className="text-[10px] text-ink-subtle">Set active days and hours. Leave empty for 24/7 detection.</p>
+                  </div>
+
+                  {/* List of active rules */}
+                  {scheduleRules.length > 0 ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {scheduleRules.map((rule, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-2/40 text-[11px]">
+                          <div className="flex flex-col gap-1 pr-2">
+                            <span className="font-bold text-ink">
+                              {rule.days.map(d => d.substring(0, 3)).join(', ')}
+                            </span>
+                            <span className="text-ink-muted font-mono text-[10px]">
+                              {rule.start_time} - {rule.end_time}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRule(idx)}
+                            className="p-1.5 rounded-lg border border-border hover:bg-rose-500/10 hover:border-rose-500/20 text-rose-500 hover:text-rose-600 transition-all cursor-pointer flex-shrink-0"
+                            title="Delete Schedule Rule"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3.5 text-center border border-dashed border-border rounded-xl bg-surface-2/10 text-ink-subtle text-[11px] font-semibold tracking-wide">
+                      ⚡ 24/7 Continuous Detection (No scheduling limits)
+                    </div>
+                  )}
+
+                  {/* Add rule sub-form */}
+                  <div className="p-4 rounded-xl border border-border bg-surface-2/20 space-y-3">
+                    <span className="text-[10px] font-bold text-ink uppercase tracking-wider block">Add New Schedule Rule</span>
+                    
+                    {/* Days selector */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-ink-subtle font-bold uppercase tracking-wide">Select Days:</label>
+                      <div className="flex flex-wrap gap-1">
+                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => {
+                          const isSel = newRuleDays.includes(d);
+                          const short = d.substring(0, 3);
+                          return (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => toggleNewRuleDay(d)}
+                              className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold tracking-wider transition-all cursor-pointer ${
+                                isSel
+                                  ? 'bg-primary border-primary text-white shadow-xs'
+                                  : 'bg-surface border-border text-ink-muted hover:text-ink'
+                              }`}
+                            >
+                              {short}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Time range */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-ink-subtle font-bold uppercase tracking-wide">Start Time:</label>
+                        <input
+                          type="time"
+                          value={newRuleStart}
+                          onChange={e => setNewRuleStart(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-ink-subtle font-bold uppercase tracking-wide">End Time:</label>
+                        <input
+                          type="time"
+                          value={newRuleEnd}
+                          onChange={e => setNewRuleEnd(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Add Button */}
+                    <button
+                      type="button"
+                      onClick={handleAddRule}
+                      className="w-full py-2 px-3 border border-dashed border-primary/30 hover:border-primary text-primary hover:bg-primary/5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={12} /> Add Rule to Schedule
+                    </button>
+                  </div>
+                </div>
 
                 {/* Enabled Status Switch */}
                 <div className="flex items-center gap-3 pt-4 md:col-span-2">

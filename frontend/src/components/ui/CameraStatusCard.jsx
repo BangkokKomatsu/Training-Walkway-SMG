@@ -65,6 +65,22 @@ export default function CameraStatusCard({ camera, onEditPolygon, onEditCamera, 
             </div>
           )}
         </div>
+        {(() => {
+          try {
+            if (camera.schedule_json) {
+              const rules = JSON.parse(camera.schedule_json);
+              if (Array.isArray(rules) && rules.length > 0) {
+                return (
+                  <div className="text-[10px] text-ink-subtle flex items-center gap-1 mt-2.5 font-semibold bg-surface-2/40 px-2 py-1 rounded-md border border-border/40 w-fit">
+                    <Clock size={11} className="text-primary" />
+                    <span>Scheduled ({rules.length} {rules.length === 1 ? 'rule' : 'rules'})</span>
+                  </div>
+                );
+              }
+            }
+          } catch (e) {}
+          return null;
+        })()}
       </div>
 
       {/* Footer controls & heartbeat */}

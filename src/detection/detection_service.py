@@ -79,6 +79,58 @@ class CameraEventTracker:
         return False
 
 
+# Hardcoded schedule configuration for demo/learning
+# Keyed by camera_no or use "default" as fallback
+HARDCODED_SCHEDULES = {
+    "default": [
+        {
+            "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+            "start_time": "08:00",
+            "end_time": "17:00"
+        }
+    ],
+    # Example: CAM-01 has Mon-Wed-Fri schedule
+    "CAM-01": [
+        {
+            "days": ["Monday", "Wednesday", "Friday"],
+            "start_time": "09:00",
+            "end_time": "18:00"
+        }
+    ]
+}
+
+
+def is_camera_in_schedule(cam_config: CameraConfig) -> bool:
+    """ตรวจสอบว่ากล้องนี้อยู่ในช่วงเวลาทำงานที่ต้องตรวจจับหรือไม่"""
+    source = settings.SCHEDULE_SOURCE.lower()
+    
+    # Get rules based on SCHEDULE_SOURCE
+    if source == "hardcoded":
+        rules = HARDCODED_SCHEDULES.get(cam_config.camera_no, HARDCODED_SCHEDULES.get("default", []))
+    else:  # "db"
+        rules = cam_config.schedule_rules
+
+    # If no rules are set, it means active 24/7
+    if not rules:
+        return True
+
+    # Get current day (Monday, Tuesday, ...) and time (HH:MM)
+    now = datetime.now()
+    current_day = now.strftime("%A")  # Full name e.g., "Monday"
+    current_time = now.strftime("%H:%M")
+
+    for rule in rules:
+        days = rule.get("days", [])
+        start_time = rule.get("start_time", "00:00")
+        end_time = rule.get("end_time", "23:59")
+        
+        # Check if today is matching and current time is in range
+        if current_day in days and start_time <= current_time <= end_time:
+            return True
+            
+    return False
+
+
 def run_detection_service() -> None:
     """เริ่มต้น pipeline ตรวจจับ — รองรับหลายกล้องพร้อมกัน"""
     camera_configs = load_camera_configs()
@@ -143,12 +195,35 @@ def _camera_loop(
 
     area_checker = AreaChecker(cam_config.danger_zones)
     tracker = CameraEventTracker(settings.DWELL_SECONDS, settings.ALERT_COOLDOWN_SECONDS)
-    camera = CameraReader(cam_config.source).start()
+    camera = None
 
     try:
         while True:
             if stop_event is not None and stop_event.is_set():
                 break
+
+            # ตรวจสอบว่าอยู่ในช่วงเวลาทำงานหรือไม่
+            in_schedule = is_camera_in_schedule(cam_config)
+            
+            if not in_schedule:
+                # ถ้าอยู่นอกเวลาทำงาน และเปิดกล้องอยู่ ให้ปิดการเชื่อมต่อกล้องและหน้าต่าง
+                if camera is not None:
+                    logger.info("%s อยู่นอกตารางการทำงานตาม Schedule — ปิดการสตรีมเพื่อลดภาระของระบบ", tag)
+                    camera.stop()
+                    camera = None
+                    try:
+                        cv2.destroyWindow(f"Camera {cam_config.camera_no} - {cam_config.camera_name}")
+                    except cv2.error:
+                        pass
+                
+                # นอนหลับนานขึ้นเป็นเวลา 5 วินาทีก่อนวนมาตรวจสอบเวลาทำงานอีกครั้ง
+                time.sleep(5.0)
+                continue
+
+            # ถ้าอยู่ในเวลาทำงานและยังไม่ได้เชื่อมต่อกล้อง ให้ทำการเชื่อมต่อกล้อง
+            if camera is None:
+                logger.info("%s เข้าสู่ตารางการทำงานตาม Schedule — เริ่มต้นเชื่อมต่อกล้อง...", tag)
+                camera = CameraReader(cam_config.source).start()
 
             frame = camera.get_latest_frame()
             if frame is None:
@@ -187,7 +262,8 @@ def _camera_loop(
     except KeyboardInterrupt:
         logger.info("%s ได้รับ Ctrl+C", tag)
     finally:
-        camera.stop()
+        if camera is not None:
+            camera.stop()
         try:
             cv2.destroyWindow(f"Camera {cam_config.camera_no} - {cam_config.camera_name}")
         except cv2.error:

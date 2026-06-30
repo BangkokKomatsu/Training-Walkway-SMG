@@ -40,3 +40,4 @@ frontend/.vscode/
 frontend/src/node_modules/
 data-api/.vscode/
 data-api/node_modules/
+sql/SrciptSQL_Training.sql
