@@ -122,6 +122,41 @@ def demo_get_events():
     finally:
         conn.close()
 
+def demo_get_dashboard_summary():
+    """ทดสอบ: เรียก smg.sp_get_dashboard_summary"""
+    import pyodbc
+
+    conn_str = (
+        f"DRIVER={settings.DB_DRIVER};SERVER={settings.DB_SERVER};"
+        f"DATABASE={settings.DB_NAME};UID={settings.DB_USER};PWD={settings.DB_PASSWORD};"
+        "TrustServerCertificate=yes;Encrypt=yes;"
+    )
+
+    sql = """
+        EXEC smg.sp_get_dashboard_summary
+            @company_code = ?
+    """
+    conn = pyodbc.connect(conn_str, timeout=10)
+    try:
+        cursor = conn.cursor()
+        cursor.execute(sql, ["DEMO"])
+        
+        # Result Set 1: Summary Row
+        summary = cursor.fetchone()
+        if summary:
+            print(f"\nDashboard Summary (DEMO):")
+            print(f"  Total Events: {summary.total_events}, Today: {summary.today_count}, New: {summary.new_count}")
+        
+        # Result Set 2: Camera Summary
+        if cursor.nextset():
+            print(f"Camera Summaries:")
+            for row in cursor.fetchall():
+                print(f"  Camera {row.camera_no} ({row.camera_name}): {row.event_count} events")
+                
+    finally:
+        conn.close()
+
+
 
 if __name__ == "__main__":
     print("=" * 60)
@@ -134,6 +169,8 @@ if __name__ == "__main__":
         demo_insert_event()
         print()
         demo_get_events()
+        print()
+        demo_get_dashboard_summary()
     except Exception as exc:
         print(f"\n❌ Error: {exc}")
         print("ตรวจสอบ: ค่า DB_* ใน .env ถูกต้องไหม? MSSQL เปิดอยู่ไหม? รัน script 01-04 แล้วหรือยัง?")

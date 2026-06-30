@@ -121,3 +121,43 @@
 | `@log_message` | NVARCHAR(MAX) | — |
 
 **คืน:** ไม่คืนค่า (fire and forget)
+
+---
+
+## 8. `ww.sp_login`
+
+**ใช้เมื่อ:** Frontend ต้องการ Authenticate ผู้ใช้เพื่อรับ JWT Token
+
+| Parameter | Type | Default |
+|---|---|---|
+| `@username` | NVARCHAR(50) | — |
+| `@password_hash` | NVARCHAR(255) | — | (ระบบทดสอบอาจใช้ Plaintext หรือ Hash ก็ได้) |
+| `@company_code` | NVARCHAR(20) | — |
+
+**คืน:** `user_id`, `role`, `company_code` หาก login สำเร็จ
+
+---
+
+## 9. `ww.sp_get_alert_log`
+
+**ใช้เมื่อ:** Frontend ต้องการดูประวัติการแจ้งเตือนในหน้า Alert Monitor
+
+| Parameter | Type | Default |
+|---|---|---|
+| `@company_code` | NVARCHAR(20) | — |
+| `@page_no` | INT | 1 |
+| `@page_size` | INT | 50 |
+
+**คืน:** รายการประวัติการแจ้งเตือน (Teams / Email) เรียงตาม `sent_at DESC`
+
+---
+
+## 10. `ww.sp_get_company_list`
+
+**ใช้เมื่อ:** Frontend / Backend ต้องการตรวจสอบรายชื่อบริษัททั้งหมดที่ระบบรองรับ
+
+| Parameter | Type | Default |
+|---|---|---|
+| ไม่มี | | |
+
+**คืน:** `company_code`, `company_name`, `is_active` ของทุกบริษัท

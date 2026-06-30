@@ -1,4 +1,4 @@
-﻿# Module 04 — OpenCV และกล้อง RTSP
+# Module 04 — OpenCV และกล้อง RTSP
 
 > **ระดับ:** มือใหม่-กลาง | **เวลาโดยประมาณ:** 60–90 นาที
 
@@ -237,11 +237,18 @@ class CameraConfig:
 
 
 def load_camera_configs() -> list[CameraConfig]:
-    """โหลดรายการกล้องทั้งหมดจาก cameras.json"""
-    config_path = settings.CAMERAS_CONFIG_PATH
-    with open(config_path, encoding="utf-8") as f:
-        raw_list = json.load(f)
-    # ... แปลงเป็น CameraConfig (ดูโค้ดเต็มใน src/camera/camera_config.py)
+    """โหลดรายการกล้องจาก JSON หรือ MSSQL ขึ้นอยู่กับการตั้งค่า"""
+    source_type = settings.CAMERA_CONFIG_SOURCE
+    
+    if source_type == "mssql":
+        # อ่านจาก Database ผ่าน Stored Procedure
+        pass 
+    else:
+        # อ่านจากไฟล์ cameras.json 
+        config_path = settings.CAMERAS_CONFIG_PATH
+        with open(config_path, encoding="utf-8") as f:
+            raw_list = json.load(f)
+        # ... แปลงเป็น CameraConfig (ดูโค้ดเต็มใน src/camera/camera_config.py)
 ```
 ### 5.4 วิธีใช้ใน Detection Loop
 

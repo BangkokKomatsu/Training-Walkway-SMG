@@ -3,7 +3,7 @@
 สาธิต: เปิดกล้อง/วิดีโอด้วย CameraReader (อ่านเฟรมในเทรดแยก + reconnect อัตโนมัติ)
 
 รัน: python playground/02-opencv-camera/example.py [rtsp://... | path/to/video.mp4 | 0]
-  - ถ้าไม่ระบุ argument จะใช้กล้องตัวแรกจาก cameras.json
+  - ถ้าไม่ระบุ argument จะใช้กล้องตัวแรกจาก Config (JSON หรือ MSSQL ตาม .env)
   - ใส่ "0" เพื่อเปิด webcam เครื่อง (ถ้ามี)
 
 ห้ามใช้ cv2.imshow() - สคริปต์นี้แค่ print ขนาดเฟรมที่อ่านได้

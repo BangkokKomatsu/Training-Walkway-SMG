@@ -1,4 +1,4 @@
-﻿# Module 07 — MSSQL Database และ Stored Procedure
+# Module 07 — MSSQL Database และ Stored Procedure
 
 > **ระดับ:** กลาง | **เวลาโดยประมาณ:** 90–120 นาที
 
@@ -311,6 +311,18 @@ print(f"บันทึก event สำเร็จ event_id={event_id}")
 update_alert_status(event_id, "DEMO", "TEAMS", "SENT", 200, "Accepted")
 print("อัปเดต Teams status สำเร็จ")
 ```
+
+### 5.7 Stored Procedures สำหรับ Frontend Dashboard (Backend API)
+
+นอกจาก SP ที่เรียกโดย Python สำหรับสร้าง Event แล้ว ยังมี SP อื่น ๆ ที่ถูกใช้โดย **Node.js Data API** เพื่อดึงข้อมูลมาแสดงผลใน Frontend Dashboard (`React`) เช่น:
+
+- `smg.sp_login`: ตรวจสอบรหัสผ่านสำหรับ JWT Auth
+- `smg.sp_get_dashboard_summary`: ดึงสถิติจำนวน Event วันนี้, สัปดาห์นี้, เดือนนี้
+- `smg.sp_get_detection_events`: ค้นหาประวัติ Event พร้อมระบบ Pagination
+- `smg.sp_get_camera_status`: ดึงข้อมูลกล้องทั้งหมดพร้อมสถานะปัจจุบัน
+- `smg.sp_get_alert_log`: ดูบันทึกการส่งการแจ้งเตือน (Teams/Email)
+
+*รายละเอียดและโครงสร้างของ SP เหล่านี้สามารถดูเพิ่มเติมได้ใน `docs/admin-backend/02-stored-procedure-design.md`*
 ---
 
 ## ส่วนที่ 6 — แบบฝึกหัด

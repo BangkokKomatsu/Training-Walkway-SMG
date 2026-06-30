@@ -1,4 +1,4 @@
-﻿# Module 10 — React + Vite + Tailwind Frontend
+# Module 10 — React + Vite + Tailwind Frontend
 
 > **ระดับ:** กลาง | **เวลาโดยประมาณ:** 120–150 นาที
 
@@ -65,15 +65,17 @@ App
 ```text
 ผู้ใช้เปิดเว็บ
     ↓
+Login หน้าเว็บ (api/auth) → ได้รับ JWT Token (เก็บใน localStorage)
+    ↓
 React component mount
     ↓
-api.js เรียก fetch("http://localhost:3001/api/dashboard?company_code=DEMO")
+api.js ส่ง Request พร้อม `Authorization: Bearer <token>`
     ↓
-data-api (Node/Express) รับ → เรียก MSSQL SP → คืน JSON
+data-api (Node/Express) ตรวจสอบ Token → เรียก MSSQL SP → คืน JSON
     ↓
 React แสดงผลข้อมูล
 ```
-**สำคัญ:** Frontend ไม่ต่อ MSSQL ตรง ๆ — ผ่าน data-api เสมอ
+**สำคัญ:** Frontend ไม่ต่อ MSSQL ตรง ๆ — ผ่าน data-api เสมอ และทุก API Endpoint (ยกเว้น Login) ต้องใช้ JWT Token
 
 ---
 
@@ -180,7 +182,15 @@ async function get(path, params = {}) {
   Object.entries(params).forEach(([k, v]) => {
     if (v != null && v !== '') url.searchParams.set(k, v)
   })
-  const res = await fetch(url.toString())
+  
+  // แนบ JWT Token ไปกับ Request
+  const token = localStorage.getItem('token');
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url.toString(), { headers })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error || `HTTP ${res.status}`)
@@ -189,6 +199,7 @@ async function get(path, params = {}) {
 }
 
 export const api = {
+  login:          (credentials)     => fetch(`${BASE}/api/auth`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) }).then(res => res.json()),
   getDashboard:   (companyCode)     => get('/api/dashboard',    { company_code: companyCode }),
   getEvents:      (params)          => get('/api/events',       params),
   getEventDetail: (id, companyCode) => get(`/api/events/${id}`, { company_code: companyCode }),

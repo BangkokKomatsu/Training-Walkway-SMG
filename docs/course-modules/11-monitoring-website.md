@@ -1,4 +1,4 @@
-﻿# Module 11 — ใช้งานเว็บ Monitor ระบบ
+# Module 11 — ใช้งานเว็บ Monitor ระบบ
 
 > **ระดับ:** มือใหม่ | **เวลาโดยประมาณ:** 45–60 นาที
 
@@ -53,7 +53,7 @@
 ```text
 เปิดเว็บ http://localhost:5173
         ↓
-หน้า Login → ใส่ company_code
+หน้า Login → ใส่ Username, Password และ Company Code (รับ JWT Token)
         ↓
 Dashboard แสดงสรุป
         ↓
@@ -69,14 +69,17 @@ Dashboard แสดงสรุป
 
 ## ส่วนที่ 5 — ตัวอย่าง Code
 
-### 5.1 Login — ใส่ Company Code
+### 5.1 Login — Authentication ด้วย JWT
 
-เปิดเว็บ → หน้า Login จะขอ `company_code`:
+เปิดเว็บ → หน้า Login จะขอข้อมูลเพื่อยืนยันตัวตน:
 
 ```text
-บริษัทคุณ: [DEMO        ] [เข้าสู่ระบบ]
+ชื่อผู้ใช้:  [admin       ]
+รหัสผ่าน:   [********    ]
+รหัสบริษัท: [DEMO        ] 
+[เข้าสู่ระบบ]
 ```
-`company_code` นี้จะถูกส่งไปกับทุก API request เพื่อกรองข้อมูลของบริษัทนั้น
+เมื่อเข้าสู่ระบบสำเร็จ ระบบจะได้รับ **JWT Token** มาเก็บไว้ที่เบราว์เซอร์ (`localStorage`) และจะแนบ Token นี้ไปกับทุก API request เพื่อยืนยันสิทธิ์ในการเข้าถึงข้อมูล (Dashboard, Event Log, Camera Monitor)
 
 ### 5.2 Dashboard — สรุปตัวเลข
 
