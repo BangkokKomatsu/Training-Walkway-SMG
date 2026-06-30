@@ -1,4 +1,4 @@
-﻿# Module 01 — ติดตั้งและตั้งค่า Environment
+# Module 01 — ติดตั้งและตั้งค่า Environment
 
 > **ระดับ:** มือใหม่ | **เวลาโดยประมาณ:** 60–90 นาที
 
@@ -168,17 +168,15 @@ DEVICE=cpu
 COMPANY_CODE=DEMO
 
 # ---- Camera ----
-CAMERA_RTSP_URL=rtsp://admin:password@192.168.1.100:554/stream1
-CAMERA_NO=1
-CAMERA_NAME=Camera-1
-LOCATION_NAME=ทางเดินหน้าโกดัง
+CAMERA_CONFIG_SOURCE=json
+CAMERAS_CONFIG_PATH=config/cameras.json
+CAMERA_RTSP_USER=admin
+CAMERA_RTSP_PASSWORD=Komatsu@2016!
+SCHEDULE_SOURCE=hardcoded
 
-# ---- Detection ----
+# ---- Detection (YOLO) ----
 YOLO_MODEL_PATH=Models/yolo11n.pt
 CONF_THRESHOLD=0.5
-
-# ---- Danger Zone (polygon พิกัดพิกเซล x,y;x,y;...) ----
-DANGER_ZONE_POLYGON=100,100;540,100;540,380;100,380
 
 # ---- Event Logic ----
 DWELL_SECONDS=5

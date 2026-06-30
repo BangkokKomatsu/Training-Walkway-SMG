@@ -1,4 +1,4 @@
-﻿# Module 02 — Python พื้นฐานสำหรับระบบ AI
+# Module 02 — Python พื้นฐานสำหรับระบบ AI
 
 > **ระดับ:** มือใหม่ | **เวลาโดยประมาณ:** 90–120 นาที
 
@@ -389,7 +389,7 @@ try:
     cursor = conn.cursor()
 
     # ✅ parameterized query — ปลอดภัยจาก SQL injection
-    cursor.execute("SELECT camera_no, camera_name FROM ww.mst_camera WHERE company_code = ?",
+    cursor.execute("SELECT camera_no, camera_name FROM smg.mst_camera WHERE company_code = ?",
                    ["DEMO"])
 
     for row in cursor.fetchall():

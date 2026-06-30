@@ -1,11 +1,11 @@
 # 02 — Stored Procedure Design
 
-ทุก SP อยู่ใน schema `ww`, ขึ้นต้นด้วย `ww.sp_*`  
+ทุก SP อยู่ใน schema `smg`, ขึ้นต้นด้วย `smg.sp_*`  
 สร้างด้วย `CREATE OR ALTER` — รันซ้ำได้ปลอดภัย
 
 ---
 
-## 1. `ww.sp_insert_detection_event`
+## 1. `smg.sp_insert_detection_event`
 
 **ใช้เมื่อ:** Python ตรวจเจอ event (คนอยู่ในพื้นที่ครบ `DWELL_SECONDS`)
 
@@ -19,7 +19,7 @@
 | `@confidence` | DECIMAL(5,4) | — | 0.0–1.0 |
 | `@event_type` | NVARCHAR(50) | — | `'DWELL'` หรือ `'INTRUSION'` |
 | `@image_path` | NVARCHAR(500) | NULL | UNC path บน shared drive |
-| `@image_url` | NVARCHAR(500) | NULL | URL สำหรับ frontend แสดงรูป |
+| `@image_name` | NVARCHAR(260) | NULL | ชื่อไฟล์ เช่น detection__123.jpg |
 | `@created_by` | NVARCHAR(100) | `'system'` | |
 | `@event_id` | BIGINT OUTPUT | — | คืน event_id ที่เพิ่งสร้าง |
 
@@ -27,7 +27,7 @@
 
 ---
 
-## 2. `ww.sp_get_detection_events`
+## 2. `smg.sp_get_detection_events`
 
 **ใช้เมื่อ:** Frontend ดึงรายการ event ในตาราง / รายงาน
 
@@ -46,7 +46,7 @@
 
 ---
 
-## 3. `ww.sp_get_detection_event_detail`
+## 3. `smg.sp_get_detection_event_detail`
 
 **ใช้เมื่อ:** Frontend เปิด modal รายละเอียด event เดียว
 
@@ -61,7 +61,7 @@
 
 ---
 
-## 4. `ww.sp_get_dashboard_summary`
+## 4. `smg.sp_get_dashboard_summary`
 
 **ใช้เมื่อ:** Frontend โหลด dashboard หน้าหลัก
 
@@ -77,7 +77,7 @@
 
 ---
 
-## 5. `ww.sp_get_camera_status`
+## 5. `smg.sp_get_camera_status`
 
 **ใช้เมื่อ:** Frontend แสดงสถานะกล้อง / Python monitor ตรวจสอบ
 
@@ -90,7 +90,7 @@
 
 ---
 
-## 6. `ww.sp_update_alert_status`
+## 6. `smg.sp_update_alert_status`
 
 **ใช้เมื่อ:** Python ส่ง Teams/Email เสร็จแล้ว (สำเร็จหรือล้มเหลว)
 
@@ -109,7 +109,7 @@
 
 ---
 
-## 7. `ww.sp_insert_system_log`
+## 7. `smg.sp_insert_system_log`
 
 **ใช้เมื่อ:** Python บันทึก health/monitor (กล้อง connect/disconnect, disk, error)
 
@@ -124,7 +124,7 @@
 
 ---
 
-## 8. `ww.sp_login`
+## 8. `smg.sp_login`
 
 **ใช้เมื่อ:** Frontend ต้องการ Authenticate ผู้ใช้เพื่อรับ JWT Token
 
@@ -138,7 +138,7 @@
 
 ---
 
-## 9. `ww.sp_get_alert_log`
+## 9. `smg.sp_get_alert_log`
 
 **ใช้เมื่อ:** Frontend ต้องการดูประวัติการแจ้งเตือนในหน้า Alert Monitor
 
@@ -152,7 +152,7 @@
 
 ---
 
-## 10. `ww.sp_get_company_list`
+## 10. `smg.sp_get_company_list`
 
 **ใช้เมื่อ:** Frontend / Backend ต้องการตรวจสอบรายชื่อบริษัททั้งหมดที่ระบบรองรับ
 

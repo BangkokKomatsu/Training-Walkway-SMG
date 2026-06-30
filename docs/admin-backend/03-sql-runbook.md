@@ -5,10 +5,10 @@
 รันตามลำดับเสมอ — แต่ละ script ขึ้นอยู่กับ script ก่อนหน้า
 
 ```
-01_create_schema.sql          ← สร้าง schema ww
+01_create_schema.sql          ← สร้าง schema smg
 02_create_tables.sql          ← สร้างตารางทั้งหมด
 03_create_indexes.sql         ← สร้าง index
-04_create_stored_procedures.sql ← สร้าง SP ทั้ง 7 ตัว
+04_create_stored_procedures.sql ← สร้าง SP ทั้ง 10 ตัว
 05_insert_sample_data.sql     ← ใส่ข้อมูลตัวอย่าง (dev/test เท่านั้น)
 06_sample_exec_commands.sql   ← ทดสอบ EXEC ทุก SP
 ```
@@ -68,12 +68,12 @@ DB_DRIVER=ODBC Driver 17 for SQL Server
 ### สร้าง login สำหรับ application (สิทธิ์น้อยที่สุด)
 ```sql
 -- รันใน master
-CREATE LOGIN ww_app WITH PASSWORD = 'your_strong_password';
+CREATE LOGIN walkway_app WITH PASSWORD = 'your_strong_password';
 
 -- รันใน WalkwayDB
 USE WalkwayDB;
-CREATE USER ww_app FOR LOGIN ww_app;
-GRANT EXECUTE ON SCHEMA::ww TO ww_app;  -- execute SP เท่านั้น
+CREATE USER walkway_app FOR LOGIN walkway_app;
+GRANT EXECUTE ON SCHEMA::smg TO walkway_app;  -- execute SP เท่านั้น
 GO
 ```
 
@@ -105,14 +105,14 @@ MSSQL Express ไม่มี SQL Server Agent — ใช้ Windows Task Schedu
 
 ```sql
 USE WalkwayDB;
-DELETE FROM ww.trn_alert_log;
-DELETE FROM ww.trn_system_log;
-DELETE FROM ww.trn_detection_event;
+DELETE FROM smg.trn_alert_log;
+DELETE FROM smg.trn_system_log;
+DELETE FROM smg.trn_detection_event;
 -- master data ต้องใส่ของจริงแทน
-DELETE FROM ww.mst_detection_area;
-DELETE FROM ww.mst_config;
-DELETE FROM ww.mst_camera;
-DELETE FROM ww.mst_user;
-DELETE FROM ww.mst_company WHERE company_code IN ('DEMO','ACME');
+DELETE FROM smg.mst_detection_area;
+DELETE FROM smg.mst_config;
+DELETE FROM smg.mst_camera;
+DELETE FROM smg.mst_user;
+DELETE FROM smg.mst_company WHERE company_code IN ('DEMO','ACME');
 GO
 ```

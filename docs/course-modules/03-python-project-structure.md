@@ -1,4 +1,4 @@
-﻿# Module 03 — โครงสร้างโปรเจกต์ Python ที่ดี
+# Module 03 — โครงสร้างโปรเจกต์ Python ที่ดี
 
 > **ระดับ:** มือใหม่-กลาง | **เวลาโดยประมาณ:** 60–90 นาที
 
@@ -169,18 +169,12 @@ load_dotenv()
 class Settings:
     DEVICE: str = os.getenv("DEVICE", "cpu")
     COMPANY_CODE: str = os.getenv("COMPANY_CODE", "DEMO")
-    CAMERA_RTSP_URL: str = os.getenv("CAMERA_RTSP_URL", "")
-    CAMERA_NO: str = os.getenv("CAMERA_NO", "1")
+    CAMERA_CONFIG_SOURCE: str = os.getenv("CAMERA_CONFIG_SOURCE", "")
+    CAMERAS_CONFIG_PATH: str = os.getenv("CAMERAS_CONFIG_PATH", "config/cameras.json")
+    CAMERA_RTSP_USER: str = os.getenv("CAMERA_RTSP_USER", "")
+    CAMERA_RTSP_PASSWORD: str = os.getenv("CAMERA_RTSP_PASSWORD", "")
+    SCHEDULE_SOURCE: str = os.getenv("SCHEDULE_SOURCE", "")
     # ... (ดูไฟล์จริงที่ config/settings.py)
-
-    @property
-    def danger_zone_polygon(self) -> list[tuple[int, int]]:
-        """แปลง string "x1,y1;x2,y2;..." เป็น list ของจุด"""
-        points = []
-        for pair in self.DANGER_ZONE_POLYGON_RAW.split(";"):
-            x_str, y_str = pair.split(",")
-            points.append((int(x_str.strip()), int(y_str.strip())))
-        return points
 
 
 settings = Settings()  # instance เดียวสำหรับทั้งโปรเจกต์

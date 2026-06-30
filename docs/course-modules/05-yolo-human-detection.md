@@ -1,4 +1,4 @@
-﻿# Module 05 — YOLO ตรวจจับคน
+# Module 05 — YOLO ตรวจจับคน
 
 > **ระดับ:** มือใหม่-กลาง | **เวลาโดยประมาณ:** 60–90 นาที
 
@@ -161,10 +161,10 @@ from ultralytics import YOLO
 logger = logging.getLogger(__name__)
 
 PERSON_CLASS_ID = 0   # class "person" ใน COCO (index 0)
-
+BICYCLE_CLASS_ID = 1  # class "bicycle"
 
 class YoloDetector:
-    """โหลดโมเดล YOLO และตรวจจับคนในแต่ละเฟรม"""
+    """โหลดโมเดล YOLO และตรวจจับคน+จักรยานในแต่ละเฟรม"""
 
     def __init__(self, model_path: str, device: str = "cpu", conf_threshold: float = 0.5):
         self.device = device
@@ -181,16 +181,16 @@ class YoloDetector:
         dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         self.model.predict(dummy_frame, device=self.device, verbose=False)
 
-    def detect_persons(self, frame, imgsz: int = 640) -> list[dict]:
+    def detect(self, frame, imgsz: int = 640) -> list[dict]:
         """
-        ตรวจจับคนในเฟรม
-        คืน: [{"bbox": (x1, y1, x2, y2), "confidence": float}, ...]
+        ตรวจจับคนและจักรยานในเฟรม
+        คืน: [{"bbox": (x1, y1, x2, y2), "confidence": float, "class_name": str}, ...]
         """
         results = self.model.predict(
             frame,
             device=self.device,
             conf=self.conf_threshold,
-            classes=[PERSON_CLASS_ID],  # จับเฉพาะ person
+            classes=[PERSON_CLASS_ID, BICYCLE_CLASS_ID],  # จับ person และ bicycle
             imgsz=imgsz,
             verbose=False,              # ปิด output ดิบ
         )
@@ -200,9 +200,13 @@ class YoloDetector:
             for box in result.boxes:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 confidence = float(box.conf[0])
+                class_id = int(box.cls[0])
+                class_name = "person" if class_id == PERSON_CLASS_ID else "bicycle"
+
                 detections.append({
                     "bbox": (int(x1), int(y1), int(x2), int(y2)),
                     "confidence": confidence,
+                    "class_name": class_name,
                 })
 
         return detections
@@ -226,13 +230,14 @@ while True:
     if frame is None:
         continue
 
-    detections = detector.detect_persons(frame)
-    print(f"พบคน {len(detections)} คน")
+    detections = detector.detect(frame)
+    print(f"พบวัตถุ {len(detections)} ชิ้น")
 
     for det in detections:
         x1, y1, x2, y2 = det["bbox"]
         conf = det["confidence"]
-        print(f"  - bbox=({x1},{y1},{x2},{y2}) confidence={conf:.1%}")
+        cls_name = det["class_name"]
+        print(f"  - {cls_name}: bbox=({x1},{y1},{x2},{y2}) confidence={conf:.1%}")
 ```
 ### 5.4 วาด bounding box บน frame (สำหรับบันทึกหลักฐาน)
 
@@ -244,7 +249,8 @@ def draw_detections(frame, detections: list[dict]):
     for det in detections:
         x1, y1, x2, y2 = det["bbox"]
         conf = det["confidence"]
-        label = f"person {conf:.0%}"
+        cls_name = det["class_name"]
+        label = f"{cls_name} {conf:.0%}"
 
         # วาดกล่อง (สีเขียว)
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)

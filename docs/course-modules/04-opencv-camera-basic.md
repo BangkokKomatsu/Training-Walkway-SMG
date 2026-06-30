@@ -282,13 +282,19 @@ finally:
 ```
 ### 5.5 ทดสอบด้วยไฟล์วิดีโอ (ถ้าไม่มีกล้อง RTSP)
 
-ใน `.env` เปลี่ยน:
-```dotenv
-CAMERA_RTSP_URL=playground/02-opencv-camera/test_video.mp4
+ในไฟล์ `config/cameras.json` เปลี่ยนค่า `source`:
+```json
+{
+  "camera_no": "1",
+  "source": "playground/02-opencv-camera/test_video.mp4"
+}
 ```
 หรือใช้ webcam:
-```dotenv
-CAMERA_RTSP_URL=0
+```json
+{
+  "camera_no": "1",
+  "source": "0"
+}
 ```
 > `CameraReader` รองรับทั้ง 3 แบบโดยอัตโนมัติ
 
@@ -298,7 +304,7 @@ CAMERA_RTSP_URL=0
 
 1. **เปิดกล้องอย่างง่าย:** รันโค้ดจาก `playground/02-opencv-camera/example.py` ดูว่าอ่านเฟรมได้ไหม
 2. **บันทึกเฟรม:** แก้โค้ดให้บันทึกเฟรมแรกเป็น `frame_001.jpg`
-3. **ทดสอบ reconnect:** ตั้ง `CAMERA_RTSP_URL` เป็น URL ที่ไม่มีอยู่จริง แล้วดู log — ควรเห็น warning "เชื่อมต่อกล้องไม่สำเร็จ" และลอง retry
+3. **ทดสอบ reconnect:** ตั้ง `source` ใน `config/cameras.json` เป็น URL ที่ไม่มีอยู่จริง แล้วดู log — ควรเห็น warning "เชื่อมต่อกล้องไม่สำเร็จ" และลอง retry
 4. **ตรวจสอบ frame shape:** print `frame.shape` ดูว่า resolution ของกล้องที่ใช้คือเท่าไร
 
 ---

@@ -2,7 +2,7 @@
 
 ## Schema
 
-ทุกอย่างอยู่ใน schema `ww` (Walkway) บน MSSQL Express
+ทุกอย่างอยู่ใน schema `smg` บน MSSQL Express
 
 ---
 

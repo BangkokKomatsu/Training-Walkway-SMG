@@ -132,6 +132,31 @@
   .vf-trigger { background: #1c1000; border: 1px solid #92400e; border-radius: 8px; padding: 10px 18px; font-size: 0.78rem; color: #f59e0b; display: flex; align-items: center; gap: 10px; width: 100%; max-width: 860px; }
   .vf-note { padding: 10px 14px; border-radius: 8px; font-size: 0.75rem; display: flex; align-items: center; gap: 10px; margin-top: 14px; border: 1px dashed; }
 
+  /* ─── Tabs ─── */
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #1e293b; padding-bottom: 12px; overflow-x: auto; }
+  .tab-btn { background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; font-family: monospace; white-space: nowrap; transition: all 0.2s; }
+  .tab-btn:hover { background: #29384e; color: #f1f5f9; }
+  .tab-btn.active { background: #38bdf8; color: #0f1117; border-color: #38bdf8; font-weight: bold; }
+  .tab-content { display: none; animation: fadeIn 0.3s ease; }
+  .tab-content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ─── Modal ─── */
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(4px); }
+  .modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
+  .modal-content { background: #1a1f2e; border: 1px solid #334155; border-radius: 12px; width: 100%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; background: #1e293b; }
+  .modal-header h3 { margin: 0; font-size: 1.1rem; color: #f1f5f9; display: flex; align-items: center; gap: 8px; font-family: monospace; }
+  .modal-close { background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1; transition: color 0.2s; }
+  .modal-close:hover { color: #f1f5f9; }
+  .modal-body { padding: 20px; overflow-y: auto; color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; }
+  .modal-body h3 { font-size: 1.05rem; color: #38bdf8; margin-top: 0; margin-bottom: 12px; border-bottom: 1px solid #1e2535; padding-bottom: 8px; font-weight: 600; }
+  .modal-body p { margin-bottom: 12px; font-size: 0.9rem; line-height: 1.6; }
+  .modal-body code:not([class]) { background: #1e293b; color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; }
+  .modal-body pre { background: #0d1117; padding: 16px; border-radius: 8px; border: 1px solid #334155; overflow-x: auto; font-family: monospace; font-size: 0.8rem; margin: 12px 0 20px; color: #e2e8f0; line-height: 1.5; }
+  .clickable-node { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, filter 0.2s; }
+  .clickable-node:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.4); filter: brightness(1.1); }
+
   @media (max-width: 768px) {
     .hero h1 { font-size: 1.4rem; }
     .cards { grid-template-columns: 1fr; }
@@ -210,18 +235,18 @@
 
       <!-- ② config: logging + settings -->
       <div class="vf-row">
-        <div class="vf-node" style="background:#1a2e1a;border-color:#16a34a">
+        <div class="vf-node clickable-node" style="background:#1a2e1a;border-color:#16a34a" onclick="openCodeModal('camera_config')">
           <div class="vf-node-icon" style="background:#15803d;color:#bbf7d0">⚙</div>
           <div class="vf-node-content">
             <div class="vf-node-title" style="color:#86efac">camera_config.py &nbsp;<span style="color:#4ade80;font-size:0.7rem;font-family:monospace">← JSON หรือ MSSQL</span></div>
-            <div class="vf-node-sub">อ่านรายการกล้อง (รองรับ 2 Data sources)</div>
+            <div class="vf-node-sub">อ่านรายการกล้อง (คลิกเพื่อดูโค้ด)</div>
           </div>
         </div>
-        <div class="vf-node" style="background:#2d200a;border-color:#f59e0b">
+        <div class="vf-node clickable-node" style="background:#2d200a;border-color:#f59e0b" onclick="openCodeModal('yolo_detector')">
           <div class="vf-node-icon" style="background:#b45309;color:#fef3c7">🤖</div>
           <div class="vf-node-content">
             <div class="vf-node-title" style="color:#fbbf24">yolo_detector.py &nbsp;<span style="color:#f59e0b;font-size:0.7rem;font-family:monospace">← yolo11n.pt</span></div>
-            <div class="vf-node-sub">โหลดโมเดล YOLO11 ครั้งเดียว ใช้ร่วมทุกกล้อง (thread-safe)</div>
+            <div class="vf-node-sub">โหลดโมเดล YOLO11 ครั้งเดียว (คลิกเพื่อดูโค้ด)</div>
           </div>
         </div>
       </div>
@@ -237,25 +262,25 @@
           🔄 &nbsp;Camera Loop &nbsp;—&nbsp; 1 Thread ต่อ 1 กล้อง &nbsp;·&nbsp; วนซ้ำตลอดเวลา
         </div>
         <div class="vf-loop-chain">
-          <div class="vf-mini" style="background:#1e1e3f;border-color:#7c3aed;color:#c4b5fd">
+          <div class="vf-mini clickable-node" style="background:#1e1e3f;border-color:#7c3aed;color:#c4b5fd" onclick="openCodeModal('camera_reader')">
             <div class="vf-mini-icon">📷</div>
             camera_reader
           </div>
           <div class="vf-chain-arr">→</div>
-          <div class="vf-mini" style="background:#2d200a;border-color:#f59e0b;color:#fbbf24">
+          <div class="vf-mini clickable-node" style="background:#2d200a;border-color:#f59e0b;color:#fbbf24" onclick="openCodeModal('yolo_detect_step')">
             <div class="vf-mini-icon">🤖</div>
             YOLO detect
           </div>
           <div class="vf-chain-arr">→</div>
-          <div class="vf-mini" style="background:#1e2f1e;border-color:#22c55e;color:#4ade80">
+          <div class="vf-mini clickable-node" style="background:#1e2f1e;border-color:#22c55e;color:#4ade80" onclick="openCodeModal('area_checker')">
             <div class="vf-mini-icon">📐</div>
             area_checker
           </div>
           <div class="vf-chain-arr">→</div>
-          <div class="vf-mini" style="background:#1e1030;border-color:#a855f7;color:#d8b4fe">
-            <div class="vf-mini-icon">🖥</div>
-            update status
-            <div class="vf-mini-sub">sp_update_camera_status</div>
+          <div class="vf-mini clickable-node" style="background:#1e1030;border-color:#a855f7;color:#d8b4fe" onclick="openCodeModal('event_tracker')">
+            <div class="vf-mini-icon">⏱️</div>
+            Event Tracker
+            <div class="vf-mini-sub">DWELL_SECONDS</div>
           </div>
         </div>
       </div>
@@ -276,18 +301,18 @@
           ⚡ &nbsp;Event Pipeline &nbsp;—&nbsp; ทำตามลำดับ
         </div>
         <div class="vf-loop-chain">
-          <div class="vf-mini" style="background:#1e1e1e;border-color:#6b7280;color:#d1d5db">
+          <div class="vf-mini clickable-node" style="background:#1e1e1e;border-color:#6b7280;color:#d1d5db" onclick="openCodeModal('image_storage')">
             <div class="vf-mini-icon">💾</div>
             image_storage
           </div>
           <div class="vf-chain-arr">→</div>
-          <div class="vf-mini" style="background:#1e1030;border-color:#a855f7;color:#d8b4fe">
+          <div class="vf-mini clickable-node" style="background:#1e1030;border-color:#a855f7;color:#d8b4fe" onclick="openCodeModal('detection_repository')">
             <div class="vf-mini-icon">🗄</div>
             detection_repository
             <div class="vf-mini-sub">sp_insert_detection_event</div>
           </div>
           <div class="vf-chain-arr">→</div>
-          <div class="vf-mini" style="background:#2d1515;border-color:#ef4444;color:#fca5a5">
+          <div class="vf-mini clickable-node" style="background:#2d1515;border-color:#ef4444;color:#fca5a5" onclick="openCodeModal('teams_alert')">
             <div class="vf-mini-icon">📢</div>
             teams_alert
           </div>
@@ -421,33 +446,434 @@
   <!-- ══════════════════════════════════════════════ SECTION 4: CONFIG -->
   <section>
     <h2><span class="icon">🔧</span> 4. การตั้งค่า (.env และ Config)</h2>
-    <div class="config-block">
-      <h3>ไฟล์ <span class="tag">.env</span> (ระบบอ่านค่าจากไฟล์นี้เป็นหลัก)</h3>
-      <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">เพิ่มค่าใหม่สำหรับ Backend API และ JWT (สร้างจาก .env.example)</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>ค่าตัวอย่าง</th>
-            <th>คำอธิบาย</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>JWT_SECRET</td>
-            <td>your_super_secret_key</td>
-            <td>รหัสลับสำหรับการเข้ารหัส/ถอดรหัส JWT Token ใน Data API</td>
-          </tr>
-          <tr>
-            <td>CAMERA_CONFIG_SOURCE</td>
-            <td>json หรือ mssql</td>
-            <td>เลือกวิธีดึงการตั้งค่ากล้อง (`json` จะอ่าน `cameras.json`, `mssql` จะดึงจาก Database)</td>
-          </tr>
-        </tbody>
-      </table>
+    
+    <div class="tabs">
+      <button class="tab-btn active" onclick="openTab(event, 'tab-env')">.env (Environment)</button>
+      <button class="tab-btn" onclick="openTab(event, 'tab-cameras')">cameras.json (Camera Config)</button>
+      <button class="tab-btn" onclick="openTab(event, 'tab-settings')">settings.py (Python Config)</button>
     </div>
+
+    <!-- Tab: .env -->
+    <div id="tab-env" class="tab-content active">
+      <div class="config-block">
+        <h3>ไฟล์ <span class="tag">.env</span> (ระบบอ่านค่าจากไฟล์นี้เป็นหลัก)</h3>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">เพิ่มค่าใหม่สำหรับ Backend API และ JWT (สร้างจาก .env.example)</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>ค่าตัวอย่าง</th>
+              <th>คำอธิบาย</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">General</td></tr>
+            <tr>
+              <td>DEVICE</td>
+              <td>cpu หรือ cuda</td>
+              <td>เลือกอุปกรณ์ประมวลผลโมเดล AI (CPU หรือ GPU)</td>
+            </tr>
+            <tr>
+              <td>COMPANY_CODE</td>
+              <td>DEMO</td>
+              <td>รหัสบริษัท ใช้เพื่อแยกข้อมูลของแต่ละบริษัทใน Database</td>
+            </tr>
+
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">Camera Config</td></tr>
+            <tr>
+              <td>CAMERA_CONFIG_SOURCE</td>
+              <td>json หรือ mssql</td>
+              <td>เลือกวิธีดึงการตั้งค่ากล้อง (`json` จะอ่าน `cameras.json`, `mssql` จะดึงจาก Database)</td>
+            </tr>
+            <tr>
+              <td>CAMERAS_CONFIG_PATH</td>
+              <td>config/cameras.json</td>
+              <td>ตำแหน่งของไฟล์กำหนดค่ากล้อง (กรณีที่ CAMERA_CONFIG_SOURCE=json)</td>
+            </tr>
+            <tr>
+              <td>CAMERA_RTSP_USER<br>CAMERA_RTSP_PASSWORD</td>
+              <td>admin / pass</td>
+              <td>รหัสผ่านสำหรับเชื่อมต่อสตรีม RTSP พื้นฐาน</td>
+            </tr>
+            <tr>
+              <td>SCHEDULE_SOURCE</td>
+              <td>hardcoded</td>
+              <td>วิธีการดึงข้อมูลตารางเวลาของกล้อง (เช่น hardcoded)</td>
+            </tr>
+
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">AI / Detection</td></tr>
+            <tr>
+              <td>YOLO_MODEL_PATH</td>
+              <td>Models/yolo11n.pt</td>
+              <td>ตำแหน่งของไฟล์โมเดล YOLO ที่ใช้ตรวจจับคน</td>
+            </tr>
+            <tr>
+              <td>CONF_THRESHOLD</td>
+              <td>0.5</td>
+              <td>ระดับความมั่นใจขั้นต่ำ (Confidence Score) ที่จะยอมรับว่าเป็นคนจริง ๆ</td>
+            </tr>
+            <tr>
+              <td>DWELL_SECONDS</td>
+              <td>5</td>
+              <td>เวลา (วินาที) ที่กำหนดให้บุคคลอยู่ในพื้นที่อันตรายต่อเนื่องก่อนจะถือเป็น Event</td>
+            </tr>
+            <tr>
+              <td>ALERT_COOLDOWN_SECONDS</td>
+              <td>120</td>
+              <td>เวลา (วินาที) ที่ต้องรอ (หน่วงเวลา) ก่อนส่งแจ้งเตือนครั้งถัดไปในกล้องตัวเดิม</td>
+            </tr>
+
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">Database (MSSQL)</td></tr>
+            <tr>
+              <td>DB_DRIVER</td>
+              <td>{ODBC Driver 17 for SQL Server}</td>
+              <td>ไดรเวอร์เชื่อมต่อฐานข้อมูล</td>
+            </tr>
+            <tr>
+              <td>DB_SERVER<br>DB_NAME<br>DB_USER<br>DB_PASSWORD</td>
+              <td>localhost\SQLEXPRESS</td>
+              <td>รายละเอียดที่อยู่ฐานข้อมูล ชื่อ DB และรหัสผ่านเพื่อเข้าใช้งาน</td>
+            </tr>
+            <tr>
+              <td>IMAGE_SHARED_DRIVE</td>
+              <td>\\server\shared\images</td>
+              <td>พาธ Network Shared Drive สำหรับบันทึกรูปหลักฐาน Snapshot</td>
+            </tr>
+
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">Alert & Notification</td></tr>
+            <tr>
+              <td>TEAMS_WEBHOOK_URL</td>
+              <td>https://...</td>
+              <td>Webhook URL สำหรับส่งการแจ้งเตือนเข้าช่อง Microsoft Teams</td>
+            </tr>
+            <tr>
+              <td>SMTP_HOST<br>SMTP_PORT<br>SMTP_USER<br>SMTP_PASSWORD</td>
+              <td>smtp.office365.com</td>
+              <td>ตั้งค่าบัญชีอีเมล (SMTP) สำหรับส่ง Email Alert (ใช้ App Password)</td>
+            </tr>
+            <tr>
+              <td>ALERT_EMAIL_TO</td>
+              <td>safety@...</td>
+              <td>ที่อยู่อีเมลผู้รับการแจ้งเตือนเตือนภัย</td>
+            </tr>
+            <tr>
+              <td>JWT_SECRET</td>
+              <td>your_secret_key</td>
+              <td>รหัสลับสำหรับเข้ารหัส JWT Token ฝั่ง Web Dashboard (Backend API)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: cameras.json -->
+    <div id="tab-cameras" class="tab-content">
+      <div class="config-block">
+        <h3>ไฟล์ <span class="tag">config/cameras.json</span></h3>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">ใช้เมื่อตั้งค่า <code>CAMERA_CONFIG_SOURCE=json</code> เพื่อกำหนดรายละเอียดกล้องและพื้นที่อันตราย (Danger Zone)</p>
+        <pre class="runtime" style="margin-bottom: 15px;">[
+  {
+    "camera_no": "CAM-01",
+    "camera_name": "กล้องทางเดินหลัก",
+    "location_name": "อาคาร A",
+    "company_code": "DEMO",
+    "source": "rtsp://admin:pass@192.168.1.100/stream",
+    "danger_zone": [[100, 200], [500, 200], [500, 600], [100, 600]]
+  }
+]</pre>
+      </div>
+    </div>
+
+    <!-- Tab: settings.py -->
+    <div id="tab-settings" class="tab-content">
+      <div class="config-block">
+        <h3>ไฟล์ <span class="tag">config/settings.py</span></h3>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">คลาส <code>Settings</code> (ใช้ Pydantic) สำหรับโหลดค่าจาก .env และกำหนดค่าเริ่มต้นให้กับตัวแปรในระบบ Python</p>
+        <table>
+          <thead>
+            <tr>
+              <th>ตัวแปรใน Settings</th>
+              <th>ประเภท</th>
+              <th>คำอธิบาย</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>DWELL_SECONDS</td>
+              <td>int (default: 5)</td>
+              <td>ระยะเวลาที่บุคคลต้องอยู่ในพื้นที่อันตรายอย่างต่อเนื่อง ก่อนที่ระบบจะตัดสินว่าเป็น Event (Dwell)</td>
+            </tr>
+            <tr>
+              <td>COOLDOWN_SECONDS</td>
+              <td>int (default: 60)</td>
+              <td>ระยะเวลาหน่วง (Cooldown) ก่อนที่จะทริกเกอร์ Event ใหม่ในกล้องตัวเดิม</td>
+            </tr>
+            <tr>
+              <td>YOLO_MODEL_PATH</td>
+              <td>str</td>
+              <td>พาธไปยังไฟล์โมเดล YOLO (เช่น <code>models/yolo11n.pt</code>)</td>
+            </tr>
+            <tr>
+              <td>IMAGE_SHARED_DRIVE</td>
+              <td>str</td>
+              <td>ตำแหน่งโฟลเดอร์สำหรับบันทึกภาพถ่ายหลักฐาน (Snapshot) เมื่อเกิดเหตุการณ์</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </section>
 
 </div>
+
+<script>
+  function openTab(evt, tabId) {
+    // Hide all contents
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(el => el.classList.remove('active'));
+    
+    // Deactivate all tabs
+    const btns = document.querySelectorAll('.tab-btn');
+    btns.forEach(el => el.classList.remove('active'));
+    
+    // Show selected content and activate tab
+    document.getElementById(tabId).classList.add('active');
+    evt.currentTarget.classList.add('active');
+  }
+
+  // --- Modal Logic ---
+  const snippets = {
+    "camera_config": {
+      title: "src/camera/camera_config.py",
+      content: `
+        <h3>โหลดรายการกล้อง (load_camera_configs)</h3>
+        <p>ฟังก์ชันที่เป็นจุดเริ่มต้นของระบบที่เลือกว่าจะอ่านการตั้งค่ากล้องจาก <strong>JSON</strong> หรือ <strong>Database</strong> ตามที่ระบุใน <code>.env</code></p>
+        <pre><code class="language-python">def load_camera_configs() -> list[CameraConfig]:
+    """โหลดรายการกล้องทั้งหมด"""
+    source = settings.CAMERA_CONFIG_SOURCE.lower()
+    if source == "db":
+        return _load_from_db()
+    else:
+        config_path = settings.CAMERAS_CONFIG_PATH
+        if not os.path.isfile(config_path):
+            raise FileNotFoundError(f"ไม่พบไฟล์ config กล้อง: {config_path}")
+        return _load_from_json(config_path)</code></pre>
+      `
+    },
+    "yolo_detector": {
+      title: "src/detection/yolo_detector.py",
+      content: `
+        <h3>YoloDetector</h3>
+        <p>คลาสสำหรับโหลดและรันโมเดล YOLO โดยจะโหลดโมเดลเพียง <strong>ครั้งเดียว</strong> และแชร์ให้ทุกกล้องใช้งาน (Thread-safe)</p>
+        <pre><code class="language-python">class YoloDetector:
+    def __init__(self, model_path: str, device: str = "cpu", conf_threshold: float = 0.5):
+        self.device = device
+        self.conf_threshold = conf_threshold
+        self.model = YOLO(model_path)
+        self.model.to(device)
+        self._warmup()
+
+    def detect(self, frame, imgsz: int = 640) -> list[dict]:
+        """
+        ตรวจจับ person + bicycle ในเฟรม คืนค่า list ของ dict:
+            {"bbox": (x1, y1, x2, y2), "confidence": float, "class_name": str}
+        """
+        results = self.model.predict(
+            frame, device=self.device, conf=self.conf_threshold,
+            classes=[0, 1], imgsz=imgsz, verbose=False
+        )
+        # แปลง result เป็น list 
+        return detections</code></pre>
+      `
+    },
+    "camera_reader": {
+      title: "src/camera/camera_reader.py",
+      content: `
+        <h3>CameraReader (RTSP Stream)</h3>
+        <p>ทำงานใน Background Thread ของตัวเอง เพื่อดึงภาพจากกล้องวงจรปิดผ่านโปรโตคอล RTSP อย่างต่อเนื่อง มีระบบ Auto-reconnect หากสัญญาณหลุด</p>
+        <pre><code class="language-python">class CameraReader:
+    def _read_loop(self) -> None:
+        delay = self.reconnect_delay
+        while self._running:
+            if self._cap is None or not self._cap.isOpened():
+                self._cap = self._open_capture()
+                # ... retry logic ...
+                
+            ret, frame = self._cap.read()
+            if not ret:
+                self._cap.release()
+                self._cap = None
+                time.sleep(delay)
+                continue
+
+            with self._lock:
+                self._latest_frame = frame</code></pre>
+      `
+    },
+    "yolo_detect_step": {
+      title: "src/detection/detection_service.py",
+      content: `
+        <h3>การตรวจสอบบุคคลในเฟรม (Detection Loop)</h3>
+        <p>นำเฟรมล่าสุดจากกล้อง ส่งให้ YOLO ประมวลผล และหาว่ามีคนอยู่ในพื้นที่อันตรายหรือไม่</p>
+        <pre><code class="language-python">def _camera_loop(detector: YoloDetector, cam_config: CameraConfig, stop_event: threading.Event | None) -> None:
+    # ...
+    frame = camera.get_latest_frame()
+    
+    # ตรวจจับ person + bicycle
+    all_detections = detector.detect(frame)
+    persons = [d for d in all_detections if d["class_name"] == "person"]
+    bicycles = [d for d in all_detections if d["class_name"] == "bicycle"]
+
+    # หา person ที่อยู่ในพื้นที่อันตราย + ไม่ได้อยู่ใกล้ bicycle
+    matched = _get_unsafe_person(persons, bicycles, area_checker)
+
+    if tracker.update(matched is not None) and matched is not None:
+        _handle_event(frame, matched, all_detections, area_checker, cam_config)</code></pre>
+      `
+    },
+    "area_checker": {
+      title: "src/detection/area_checker.py",
+      content: `
+        <h3>ตรวจสอบการล้ำพื้นที่ (AreaChecker)</h3>
+        <p>ใช้ OpenCV (<code>cv2.pointPolygonTest</code>) ตรวจสอบว่าพิกัดของคนที่ AI ตรวจจับได้ ตกอยู่ในรูปหลายเหลี่ยม (Polygon) ของพื้นที่อันตรายหรือไม่</p>
+        <pre><code class="language-python">class AreaChecker:
+    def __init__(self, danger_zones: list[list[tuple[int, int]]]):
+        self.polygons = [np.array(zone, dtype=np.int32) for zone in danger_zones]
+
+    def is_in_danger_zone(self, point: tuple[float, float]) -> bool:
+        """True ถ้าจุดอยู่ใน polygon ใด polygon หนึ่ง"""
+        pt = (float(point[0]), float(point[1]))
+        for polygon in self.polygons:
+            if cv2.pointPolygonTest(polygon, pt, False) >= 0:
+                return True
+        return False</code></pre>
+      `
+    },
+    "event_tracker": {
+      title: "src/detection/detection_service.py",
+      content: `
+        <h3>จับเวลาล้ำพื้นที่ (CameraEventTracker)</h3>
+        <p>ตรวจสอบว่าอยู่ในพื้นที่อันตรายต่อเนื่องเกิน <code>DWELL_SECONDS</code> หรือไม่ หากเกินและพ้นระยะ <code>COOLDOWN</code> แล้วจะทำการ Trigger Event</p>
+        <pre><code class="language-python">class CameraEventTracker:
+    def update(self, person_in_zone: bool) -> bool:
+        now = time.monotonic()
+        if not person_in_zone:
+            self._enter_time = None
+            self._event_active = False
+            return False
+
+        if self._enter_time is None:
+            self._enter_time = now
+
+        dwell = now - self._enter_time
+
+        if dwell > self.dwell_seconds and not self._event_active:
+            self._event_active = True
+            cooldown_ok = (self._last_alert_time is None or (now - self._last_alert_time) > self.cooldown_seconds)
+            if cooldown_ok:
+                self._last_alert_time = now
+                return True
+        return False</code></pre>
+      `
+    },
+    "image_storage": {
+      title: "src/detection/detection_service.py",
+      content: `
+        <h3>บันทึกภาพหลักฐาน (Event Pipeline)</h3>
+        <p>เมื่อเกิดเหตุการณ์ จะทำการวาด Polygon และ Bounding Box ลงบนรูปภาพ จากนั้นบันทึกลง Shared Drive ผ่าน <code>save_detection_image</code></p>
+        <pre><code class="language-python">def _handle_event(frame, matched_detection, all_detections, area_checker, camera_config):
+    # วาด polygon + bbox สี + label ลงเฟรมก่อนเซฟ
+    save_frame = frame.copy()
+    _draw_detections(save_frame, all_detections, area_checker)
+
+    # บันทึกรูปลง Shared Drive
+    image_path, image_name = save_detection_image(
+        save_frame, camera_config.company_code, camera_config.camera_no
+    )
+    # ... ทำขั้นตอนต่อไป (DB, Alert) ...</code></pre>
+      `
+    },
+    "detection_repository": {
+      title: "sql/04_create_stored_procedures.sql",
+      content: `
+        <h3>บันทึกประวัติเหตุการณ์ (Stored Procedure)</h3>
+        <p>เมื่อมีคนล้ำพื้นที่ จะบันทึกรายละเอียดเหตุการณ์ลงฐานข้อมูลผ่าน Stored Procedure เพื่อความรวดเร็วและป้องกัน SQL Injection</p>
+        <pre><code class="language-sql">CREATE OR ALTER PROCEDURE smg.sp_insert_detection_event
+    @company_code       NVARCHAR(20),
+    @camera_no          NVARCHAR(20),
+    @event_type         NVARCHAR(50),
+    @image_path         NVARCHAR(500),
+    @image_name         NVARCHAR(260),
+    @event_id           BIGINT OUTPUT
+AS
+BEGIN
+    INSERT INTO smg.trn_detection_event
+        (company_code, camera_no, event_type, image_path, image_name, detected_at)
+    VALUES
+        (@company_code, @camera_no, @event_type, @image_path, @image_name, SYSUTCDATETIME());
+
+    SET @event_id = SCOPE_IDENTITY();
+END;</code></pre>
+      `
+    },
+    "teams_alert": {
+      title: "src/detection/detection_service.py",
+      content: `
+        <h3>แจ้งเตือนผ่าน Teams & Email</h3>
+        <p>หลังจากบันทึกลงฐานข้อมูล จะพยายามส่งแจ้งเตือน และอัปเดตสถานะการส่ง (SENT/FAILED) กลับไปยังฐานข้อมูล</p>
+        <pre><code class="language-python">    # ส่งแจ้งเตือนเข้า Microsoft Teams
+    try:
+        teams_ok, teams_code, teams_msg = send_teams_alert(event)
+        update_alert_status(event_id, camera_config.company_code, "TEAMS", "SENT" if teams_ok else "FAILED", teams_code, teams_msg)
+    except Exception as exc:
+        logger.error("send_teams_alert ล้มเหลว: %s", exc)
+
+    # ส่ง Email แจ้งเตือน
+    try:
+        email_ok, email_msg = send_email_alert(event)
+        update_alert_status(event_id, camera_config.company_code, "EMAIL", "SENT" if email_ok else "FAILED", None, email_msg)
+    except Exception as exc:
+        logger.error("send_email_alert ล้มเหลว: %s", exc)</code></pre>
+      `
+    }
+  };
+
+  function openCodeModal(key) {
+    const data = snippets[key];
+    if (!data) return;
+    
+    document.getElementById('modalTitle').innerHTML = '<span class="icon" style="margin-right:8px">📄</span>' + data.title;
+    document.getElementById('modalBody').innerHTML = data.content;
+    document.getElementById('codeModal').classList.add('active');
+    document.body.style.overflow = 'hidden'; // ป้องกันหน้าหลัก scroll
+  }
+
+  function closeModal(evt) {
+    document.getElementById('codeModal').classList.remove('active');
+    document.body.style.overflow = 'auto';
+  }
+  
+  // ปิด Modal เมื่อกด ESC
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      closeModal(event);
+    }
+  });
+</script>
+
+<!-- Modal Container -->
+<div id="codeModal" class="modal-overlay" onclick="closeModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="modalTitle"></h3>
+      <button class="modal-close" onclick="closeModal(event)">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <!-- Content injected via JS -->
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

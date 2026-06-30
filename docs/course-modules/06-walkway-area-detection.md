@@ -1,4 +1,4 @@
-﻿# Module 06 — Walkway Area Detection (พื้นที่อันตรายและการตัดสิน Event)
+# Module 06 — Walkway Area Detection (พื้นที่อันตรายและการตัดสิน Event)
 
 > **ระดับ:** กลาง | **เวลาโดยประมาณ:** 90–120 นาที
 
@@ -109,30 +109,26 @@ polygon = [(100,100), (540,100), (540,380), (100,380)]
 - [src/detection/detection_service.py](../../src/detection/detection_service.py)
 - [src/utils/helpers.py](../../src/utils/helpers.py)
 
-### 5.1 กำหนด Polygon ใน `.env`
+### 5.1 กำหนด Polygon ใน `config/cameras.json` หรือฐานข้อมูล
 
-```dotenv
-# รูปแบบ: "x1,y1;x2,y2;x3,y3;..."
-# ตัวอย่าง: สี่เหลี่ยม
-DANGER_ZONE_POLYGON=100,100;540,100;540,380;100,380
+ระบบของเราเก็บพื้นที่อันตรายแยกตามกล้อง (เพราะแต่ละกล้องมีมุมมองไม่เหมือนกัน) 
+และรองรับหลายพื้นที่ต่อกล้อง (เช่น ซ้ายของภาพ 1 พื้นที่ ขวาอีก 1 พื้นที่)
 
-# ตัวอย่าง: รูปห้าเหลี่ยม (พื้นที่ซับซ้อนกว่า)
-DANGER_ZONE_POLYGON=100,200;300,100;500,100;600,300;350,400
+```json
+{
+  "camera_no": "1",
+  "camera_name": "Camera-1",
+  "danger_zones": [
+    [
+      [100, 100],
+      [540, 100],
+      [540, 380],
+      [100, 380]
+    ]
+  ]
+}
 ```
 > **วิธีหาพิกัด:** เปิดรูปจากกล้องใน Paint หรือ Photoshop แล้วนำเมาส์ไปวางที่จุดมุมพื้นที่ จะเห็น pixel coordinate ที่ต้องการ
-
-**การแปลงพิกัดใน `config/settings.py`:**
-
-```python
-@property
-def danger_zone_polygon(self) -> list[tuple[int, int]]:
-    """แปลง 'x1,y1;x2,y2;...' → [(x1,y1), (x2,y2), ...]"""
-    points = []
-    for pair in self.DANGER_ZONE_POLYGON_RAW.split(";"):
-        x_str, y_str = pair.split(",")
-        points.append((int(x_str.strip()), int(y_str.strip())))
-    return points
-```
 ### 5.2 `AreaChecker` — ตรวจสอบ Point-in-Polygon
 
 นี่คือโค้ดจริงใน [src/detection/area_checker.py](../../src/detection/area_checker.py):
@@ -141,36 +137,27 @@ def danger_zone_polygon(self) -> list[tuple[int, int]]:
 import cv2
 import numpy as np
 
-
 class AreaChecker:
-    """เช็คว่าจุดอ้างอิงของคนอยู่ในพื้นที่อันตราย (polygon) หรือไม่"""
+    """เช็คว่าจุดอ้างอิงของคนอยู่ในพื้นที่อันตราย (polygons) หรือไม่"""
 
-    def __init__(self, polygon: list[tuple[int, int]]):
-        # แปลงเป็น numpy array ที่ OpenCV ต้องการ
-        self.polygon = np.array(polygon, dtype=np.int32)
+    def __init__(self, danger_zones: list[list[tuple[int, int]]]):
+        """
+        danger_zones: list ของ polygon แต่ละอัน = list ของจุด [(x,y), ...]
+        """
+        self.polygons = [np.array(zone, dtype=np.int32) for zone in danger_zones]
 
     def is_in_danger_zone(self, point: tuple[float, float]) -> bool:
-        """
-        ตรวจ point-in-polygon ด้วย cv2.pointPolygonTest
-        คืน True ถ้าจุดอยู่ในหรือบนขอบ polygon
-        """
-        result = cv2.pointPolygonTest(
-            self.polygon,
-            (float(point[0]), float(point[1])),
-            False   # False = แค่บอกว่าใน/นอก ไม่ต้องบอกระยะ
-        )
-        # result >= 0 คือ ใน polygon (>0 = ใน, =0 = บนขอบ, <0 = นอก)
-        return result >= 0
+        """True ถ้าจุดอยู่ใน polygon ใด polygon หนึ่ง"""
+        pt = (float(point[0]), float(point[1]))
+        for polygon in self.polygons:
+            if cv2.pointPolygonTest(polygon, pt, False) >= 0:
+                return True
+        return False
 
-    def draw_polygon(self, frame, color=(0, 0, 255), thickness=2):
-        """วาดเส้น polygon ลงบน frame สำหรับบันทึกเป็นหลักฐาน"""
-        cv2.polylines(
-            frame,
-            [self.polygon],
-            isClosed=True,      # ปิดรูป (เชื่อมจุดแรกกับจุดสุดท้าย)
-            color=color,        # BGR สีแดง = (0, 0, 255)
-            thickness=thickness
-        )
+    def draw_polygons(self, frame, color: tuple[int, int, int] = (0, 0, 255), thickness: int = 2):
+        """วาดเส้น polygon พื้นที่อันตรายทุกเส้นลงเฟรม"""
+        for polygon in self.polygons:
+            cv2.polylines(frame, [polygon], isClosed=True, color=color, thickness=thickness)
         return frame
 ```
 ### 5.3 จุดอ้างอิงคน — `get_bbox_bottom_center`
@@ -255,7 +242,7 @@ from config.settings import settings
 
 # ตั้งค่า
 detector = YoloDetector(settings.YOLO_MODEL_PATH, settings.DEVICE, settings.CONF_THRESHOLD)
-area_checker = AreaChecker(cam_config.danger_zones)  # list ของ polygon จาก cameras.json
+area_checker = AreaChecker(cam_config.danger_zones)  # list ของ polygon จาก cameras.json หรือ DB
 tracker = CameraEventTracker(settings.DWELL_SECONDS, settings.ALERT_COOLDOWN_SECONDS)
 
 # loop หลัก
@@ -293,8 +280,8 @@ def prepare_evidence_frame(frame, detections, area_checker):
     """เตรียม frame สำหรับบันทึกเป็นหลักฐาน: วาด polygon + bbox ทุกคน"""
     save_frame = frame.copy()
 
-    # วาด polygon พื้นที่อันตราย (สีแดง)
-    area_checker.draw_polygon(save_frame, color=(0, 0, 255), thickness=2)
+    # วาด polygon พื้นที่อันตราย (สีแดง) ทุก polygon
+    area_checker.draw_polygons(save_frame, color=(0, 0, 255), thickness=2)
 
     # วาด bbox ของทุกคนที่พบ (สีเขียว)
     for det in detections:
@@ -316,10 +303,10 @@ cv2.imwrite("evidence.jpg", evidence)
 
 ## ส่วนที่ 6 — แบบฝึกหัด
 
-1. **กำหนด polygon:** ใช้รูปจากกล้องจริง (หรือรูปทดสอบ) หาพิกัดมุม 4 จุดของพื้นที่อันตราย แล้วใส่ใน `.env`
+1. **กำหนด polygon:** ใช้รูปจากกล้องจริง (หรือรูปทดสอบ) หาพิกัดมุม 4 จุดของพื้นที่อันตราย แล้วใส่ใน `config/cameras.json`
 2. **ทดสอบ point-in-polygon:** สร้าง `AreaChecker` แล้วทดสอบด้วยพิกัดจุดต่าง ๆ ว่าอยู่ใน/นอก polygon
 3. **ทดสอบ dwell timer:** จำลองสถานการณ์คนเข้า-อยู่-ออก โดยเรียก `tracker.update()` หลายครั้ง ดูว่า return True เมื่อไร
-4. **วาด polygon:** เปิดรูปทดสอบ วาด polygon ด้วย `area_checker.draw_polygon()` แล้วบันทึกเป็น jpg
+4. **วาด polygon:** เปิดรูปทดสอบ วาด polygon ด้วย `area_checker.draw_polygons()` แล้วบันทึกเป็น jpg
 5. **รัน playground:** ดูตัวอย่างใน `playground/04-area-detection/example.py`
 
 ---
@@ -327,7 +314,7 @@ cv2.imwrite("evidence.jpg", evidence)
 ## ส่วนที่ 7 — Checklist หลังเรียน
 
 - [ ] เข้าใจระบบพิกัดภาพ (x เพิ่มขวา, y เพิ่มลง)
-- [ ] กำหนด polygon ใน `.env` ได้ในรูปแบบ `x1,y1;x2,y2;...`
+- [ ] กำหนด polygon ใน `config/cameras.json` ได้
 - [ ] เข้าใจว่าจุดอ้างอิงคน = กึ่งกลางขอบล่างของ bbox
 - [ ] ทดสอบ `is_in_danger_zone()` และได้ผลถูกต้อง
 - [ ] อธิบายกติกา 4 ขั้นได้ครบ
@@ -340,15 +327,12 @@ cv2.imwrite("evidence.jpg", evidence)
 
 ### polygon ไม่ถูกต้อง — parse error
 
-```text
-DANGER_ZONE_POLYGON=100,100;540,100;540,380;100,380  ✅
-DANGER_ZONE_POLYGON=100, 100; 540, 100               ✅ (มี space ได้ — code strip แล้ว)
-DANGER_ZONE_POLYGON=100 100 540 100                  ❌ (ขาด , และ ;)
+```json
+[
+  [100, 100], [540, 100], [540, 380], [100, 380]
+]
 ```
-ถ้า parse ผิดจะ error:
-```text
-ValueError: not enough values to unpack (expected 2, got 1)
-```
+ตรวจสอบ JSON syntax อย่างระมัดระวัง หากลืม `]` หรือ `,` จะเกิด Error ทันที
 ---
 
 ### คนอยู่ในพื้นที่ชัดเจน แต่ `is_in_danger_zone` คืน False
