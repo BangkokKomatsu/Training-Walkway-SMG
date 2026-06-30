@@ -122,21 +122,23 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- summary รวม
+    -- 1. summary รวม
     SELECT
         COUNT(*)                                            AS total_events,
         SUM(CASE WHEN event_status = 'NEW'       THEN 1 ELSE 0 END) AS new_count,
         SUM(CASE WHEN event_status = 'REVIEWED'  THEN 1 ELSE 0 END) AS reviewed_count,
         SUM(CASE WHEN event_status = 'DISMISSED' THEN 1 ELSE 0 END) AS dismissed_count,
         SUM(CASE WHEN CAST(detected_at AS DATE) = CAST(SYSUTCDATETIME() AS DATE) THEN 1 ELSE 0 END) AS today_count,
-        SUM(CASE WHEN alert_teams_status = 'FAILED' OR alert_email_status = 'FAILED' THEN 1 ELSE 0 END) AS alert_failed_count
+        SUM(CASE WHEN MONTH(detected_at) = MONTH(SYSUTCDATETIME()) AND YEAR(detected_at) = YEAR(SYSUTCDATETIME()) THEN 1 ELSE 0 END) AS month_count,
+        SUM(CASE WHEN event_type = 'INTRUSION'   THEN 1 ELSE 0 END) AS intrusion_count,
+        SUM(CASE WHEN event_type = 'DWELL'       THEN 1 ELSE 0 END) AS dwell_count
     FROM smg.trn_detection_event
     WHERE
         (@company_code IS NULL OR company_code = @company_code)
         AND (@date_from IS NULL OR CAST(detected_at AS DATE) >= @date_from)
         AND (@date_to   IS NULL OR CAST(detected_at AS DATE) <= @date_to);
 
-    -- แยกตามกล้อง
+    -- 2. แยกตามกล้อง
     SELECT
         company_code, camera_no, camera_name, location_name,
         COUNT(*)   AS event_count,
@@ -148,6 +150,27 @@ BEGIN
         AND (@date_to   IS NULL OR CAST(detected_at AS DATE) <= @date_to)
     GROUP BY company_code, camera_no, camera_name, location_name
     ORDER BY event_count DESC;
+
+    -- 3. อัตราส่ง alert สำเร็จ (จาก log จริง)
+    SELECT
+        COUNT(*) AS total_alerts,
+        SUM(CASE WHEN alert_status = 'SENT' THEN 1 ELSE 0 END) AS success_alerts,
+        SUM(CASE WHEN alert_status = 'FAILED' THEN 1 ELSE 0 END) AS failed_alerts
+    FROM smg.trn_alert_log
+    WHERE
+        (@company_code IS NULL OR company_code = @company_code);
+
+    -- 4. Trend 7 วันล่าสุด
+    SELECT 
+        CAST(detected_at AS DATE) AS event_date,
+        camera_no,
+        COUNT(*) AS event_count
+    FROM smg.trn_detection_event
+    WHERE 
+        (@company_code IS NULL OR company_code = @company_code)
+        AND detected_at >= DATEADD(day, -6, CAST(SYSUTCDATETIME() AS DATE))
+    GROUP BY CAST(detected_at AS DATE), camera_no
+    ORDER BY event_date ASC, camera_no ASC;
 END;
 GO
 

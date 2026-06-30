@@ -16,7 +16,7 @@ export default function DashboardPage() {
     () => api.getDashboard(),
     []
   )
-  const { data: recentData, loading: recentLoading } = useAsync(
+  const { data: recentData, loading: recentLoading, refetch: refetchEvents } = useAsync(
     () => api.getEvents({ page: 1, page_size: 8 }),
     []
   )
@@ -25,8 +25,32 @@ export default function DashboardPage() {
   const [selectedCamera, setSelectedCamera] = React.useState('ALL')
   const [startDate, setStartDate] = React.useState('')
   const [endDate, setEndDate] = React.useState('')
+  const [manualRefreshing, setManualRefreshing] = React.useState(false)
 
-  if (loading || recentLoading) {
+  // Auto-refresh interval (every 30 seconds)
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      refetch()
+      refetchEvents()
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [refetch, refetchEvents])
+
+  const handleManualRefresh = async () => {
+    setManualRefreshing(true)
+    try {
+      await Promise.all([refetch(), refetchEvents()])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setManualRefreshing(false)
+    }
+  }
+
+  // Prevent flickering: only show full page skeletons on initial load when data is empty
+  const isInitialLoading = (loading && !data) || (recentLoading && !recentData)
+
+  if (isInitialLoading) {
     return (
       <div className="space-y-6 w-full max-w-[1360px] mx-auto">
         <SkeletonMetrics />
@@ -61,22 +85,17 @@ export default function DashboardPage() {
   const d = data || {}
   const events = recentData?.data || []
 
-  // Extract dynamic values for Bar Chart (Violations per camera)
-  const cameraMap = {}
-  events.forEach(ev => {
-    const cam = ev.camera_no || 'Unknown'
-    cameraMap[cam] = (cameraMap[cam] || 0) + 1
-  })
-  
-  // fallback chart data if empty
-  const barChartData = Object.keys(cameraMap).length > 0 
-    ? Object.entries(cameraMap).map(([name, value]) => ({ name, value }))
-    : [
-        { name: 'CAM-01', value: 14 },
-        { name: 'CAM-02', value: 8 },
-        { name: 'CAM-03', value: 11 },
-        { name: 'CAM-04', value: 4 }
-      ]
+  // Map actual camera totals for Bar Chart
+  const barChartData = d.by_camera && d.by_camera.length > 0
+    ? (() => {
+        const hasMultipleCompanies = new Set(d.by_camera.map(c => c.company_code)).size > 1
+        return d.by_camera.map(item => ({ 
+          name: hasMultipleCompanies ? `${item.camera_no} (${item.company_code})` : item.camera_no, 
+          value: item.event_count,
+          label: item.camera_name || item.camera_no 
+        })).sort((a, b) => a.name.localeCompare(b.name))
+      })()
+    : []
 
   const maxBarValue = Math.max(...barChartData.map(item => item.value), 1)
 
@@ -91,16 +110,43 @@ export default function DashboardPage() {
   const circumference = 2 * Math.PI * radius
   const successStrokeDashoffset = circumference - (alertSuccess / alertTotal) * circumference
 
-  // Line Chart Trend Data (Past 7 Days)
-  const trendHistory = [
-    { date: '2026-06-23', label: '23 Jun', counts: { 'ALL': 14, 'CAM-01': 5, 'CAM-02': 3, 'CAM-03': 4, 'CAM-04': 2 } },
-    { date: '2026-06-24', label: '24 Jun', counts: { 'ALL': 18, 'CAM-01': 7, 'CAM-02': 4, 'CAM-03': 5, 'CAM-04': 2 } },
-    { date: '2026-06-25', label: '25 Jun', counts: { 'ALL': 16, 'CAM-01': 6, 'CAM-02': 2, 'CAM-03': 6, 'CAM-04': 2 } },
-    { date: '2026-06-26', label: '26 Jun', counts: { 'ALL': 22, 'CAM-01': 9, 'CAM-02': 5, 'CAM-03': 5, 'CAM-04': 3 } },
-    { date: '2026-06-27', label: '27 Jun', counts: { 'ALL': 15, 'CAM-01': 5, 'CAM-02': 3, 'CAM-03': 4, 'CAM-04': 3 } },
-    { date: '2026-06-28', label: '28 Jun', counts: { 'ALL': 25, 'CAM-01': 10, 'CAM-02': 4, 'CAM-03': 8, 'CAM-04': 3 } },
-    { date: '2026-06-29', label: '29 Jun', counts: { 'ALL': 28, 'CAM-01': 12, 'CAM-02': 5, 'CAM-03': 7, 'CAM-04': 4 } },
-  ]
+  // Build dynamic 7-day trend history
+  const trendHistory = d.trend_data ? (() => {
+    const history = []
+    
+    // Generate past 7 days up to today
+    for (let i = 6; i >= 0; i--) {
+      const dt = new Date()
+      dt.setDate(dt.getDate() - i)
+      const dateStr = dt.toISOString().split('T')[0] // 'YYYY-MM-DD'
+      const label = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      history.push({
+        date: dateStr,
+        label: label,
+        counts: { 'ALL': 0 }
+      })
+    }
+    
+    // Populate counts from DB trend_data
+    d.trend_data.forEach(row => {
+      let rowDateStr = ''
+      if (row.event_date) {
+        rowDateStr = typeof row.event_date === 'string'
+          ? row.event_date.split('T')[0]
+          : new Date(row.event_date).toISOString().split('T')[0]
+      }
+      
+      const item = history.find(h => h.date === rowDateStr)
+      if (item) {
+        const cam = row.camera_no || 'Unknown'
+        const count = row.event_count || 0
+        item.counts[cam] = (item.counts[cam] || 0) + count
+        item.counts['ALL'] = (item.counts['ALL'] || 0) + count
+      }
+    })
+    
+    return history
+  })() : []
 
   // Filter trend data
   const filteredTrend = trendHistory.filter(item => {
@@ -136,9 +182,34 @@ export default function DashboardPage() {
     }
   }
 
+  const isRefreshing = loading || recentLoading || manualRefreshing
+
   return (
     <div className="space-y-6 w-full max-w-[1360px] mx-auto">
       
+      {/* Top Controls Bar */}
+      <div className="flex items-center justify-between pb-1">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="text-[10px] text-ink-muted font-bold uppercase tracking-wider">
+            Live Monitoring Active (Auto-refreshes every 30s)
+          </span>
+        </div>
+        <button
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/50 text-ink-muted hover:text-ink hover:bg-surface text-xs font-semibold transition-all select-none cursor-pointer ${
+            isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          <RefreshCw size={12} className={`${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>Refresh Now</span>
+        </button>
+      </div>
+
       {/* Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardCard
@@ -209,10 +280,11 @@ export default function DashboardPage() {
                   className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-border bg-surface-2 text-ink outline-none cursor-pointer focus:border-primary"
                 >
                   <option value="ALL">All Cameras</option>
-                  <option value="CAM-01">Camera 1</option>
-                  <option value="CAM-02">Camera 2</option>
-                  <option value="CAM-03">Camera 3</option>
-                  <option value="CAM-04">Camera 4</option>
+                  {d.by_camera && d.by_camera.map(cam => (
+                    <option key={cam.camera_no} value={cam.camera_no}>
+                      {cam.camera_name || cam.camera_no}
+                    </option>
+                  ))}
                 </select>
 
                 <div className="flex items-center gap-1 text-[10px] text-ink-subtle font-semibold">
@@ -386,30 +458,36 @@ export default function DashboardPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Violations by Camera Feeds</h3>
-              <span className="text-[10px] text-ink-muted">Reflecting recent detections</span>
+              <span className="text-[10px] text-ink-muted">Reflecting total violations</span>
             </div>
             
             {/* Custom SVG Bar Chart (Responsive) */}
             <div className="w-full h-48 flex items-end justify-between pt-6 px-2 sm:px-4">
-              {barChartData.map((item, index) => {
-                const barHeightPercent = (item.value / maxBarValue) * 75 // Max height 75%
-                return (
-                  <div key={index} className="flex flex-col items-center flex-1 group">
-                    {/* Tooltip value */}
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-surface border border-border text-ink text-[9px] font-bold py-0.5 px-2 rounded-md mb-2 shadow-sm font-mono -translate-y-1">
-                      {item.value} ev
-                    </span>
-                    {/* Bar shape */}
-                    <div className="w-6 sm:w-10 md:w-12 bg-surface-2 rounded-t-lg relative overflow-hidden flex items-end justify-center min-h-[4px]" style={{ height: `${barHeightPercent}%` }}>
-                      <div className="absolute inset-0 bg-gradient-to-t from-primary to-blue-400 group-hover:brightness-110 transition-all duration-300 rounded-t-lg" />
+              {barChartData.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-ink-subtle">
+                  No camera violation events recorded
+                </div>
+              ) : (
+                barChartData.map((item, index) => {
+                  const barHeightPercent = (item.value / maxBarValue) * 75 // Max height 75%
+                  return (
+                    <div key={index} className="flex flex-col items-center flex-1 group h-full justify-end">
+                      {/* Tooltip value */}
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-surface border border-border text-ink text-[9px] font-bold py-0.5 px-2 rounded-md mb-2 shadow-sm font-mono -translate-y-1">
+                        {item.value} ev
+                      </span>
+                      {/* Bar shape */}
+                      <div className="w-6 sm:w-10 md:w-12 bg-surface-2 rounded-t-lg relative overflow-hidden flex items-end justify-center min-h-[4px]" style={{ height: `${barHeightPercent}%` }}>
+                        <div className="absolute inset-0 bg-gradient-to-t from-primary to-blue-400 group-hover:brightness-110 transition-all duration-300 rounded-t-lg" />
+                      </div>
+                      {/* Label */}
+                      <span className="mt-2 text-[9px] sm:text-[10px] font-mono font-bold text-ink-muted group-hover:text-ink transition-colors truncate max-w-[50px] sm:max-w-none" title={item.label}>
+                        {item.name}
+                      </span>
                     </div>
-                    {/* Label */}
-                    <span className="mt-2 text-[9px] sm:text-[10px] font-mono font-bold text-ink-muted group-hover:text-ink transition-colors truncate max-w-[50px] sm:max-w-none">
-                      {item.name}
-                    </span>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
           </div>
         </div>
@@ -417,22 +495,60 @@ export default function DashboardPage() {
         {/* Safety Detection Configurations Bento Box */}
         <div className="col-span-1 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl shadow-xs flex flex-col justify-between">
           <div>
-            <h3 className="text-xs font-bold text-ink uppercase tracking-wider mb-3">AI Safety Engine</h3>
-            <div className="flex flex-col gap-2.5">
-              <div className="p-2 rounded-lg bg-surface/50 border border-border/60">
-                <span className="text-[8px] font-bold text-ink-subtle uppercase block">Scope</span>
+            <h3 className="text-xs font-bold text-ink uppercase tracking-wider mb-3">AI Safety Engine & Breakdown</h3>
+            
+            {/* Event Type Breakdown Progress Bar */}
+            <div className="mb-4 p-3 rounded-lg bg-surface/50 border border-border/60">
+              <span className="text-[8px] font-bold text-ink-subtle uppercase block mb-1.5">Violations Breakdown</span>
+              {(() => {
+                const intrusionCount = d.intrusion_count ?? 0
+                const dwellCount = d.dwell_count ?? 0
+                const totalViolations = intrusionCount + dwellCount
+                const intrusionPercent = totalViolations > 0 ? Math.round((intrusionCount / totalViolations) * 100) : 0
+                const dwellPercent = totalViolations > 0 ? Math.round((dwellCount / totalViolations) * 100) : 0
+
+                return (
+                  <>
+                    <div className="flex h-2 w-full rounded-full bg-border/60 overflow-hidden">
+                      {totalViolations === 0 ? (
+                        <div className="bg-border w-full h-full" />
+                      ) : (
+                        <>
+                          <div className="bg-primary transition-all duration-500" style={{ width: `${intrusionPercent}%` }} title={`Intrusion: ${intrusionCount}`} />
+                          <div className="bg-purple-500 transition-all duration-500" style={{ width: `${dwellPercent}%` }} title={`Dwell: ${dwellCount}`} />
+                        </>
+                      )}
+                    </div>
+                    <div className="flex justify-between items-center text-[9px] font-bold text-ink-muted mt-2">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded bg-primary" />
+                        <span>Intrusion ({intrusionCount})</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded bg-purple-500" />
+                        <span>Dwell ({dwellCount})</span>
+                      </span>
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
+                <span className="text-[8px] font-bold text-ink-subtle uppercase">Scope</span>
                 <strong className="text-ink font-mono text-[11px]">YOLO11 Nano</strong>
               </div>
-              <div className="p-2 rounded-lg bg-surface/50 border border-border/60">
-                <span className="text-[8px] font-bold text-ink-subtle uppercase block">Hardware</span>
+              <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
+                <span className="text-[8px] font-bold text-ink-subtle uppercase">Hardware</span>
                 <strong className="text-ink font-mono text-[11px] text-primary">CUDA GPU</strong>
               </div>
-              <div className="p-2 rounded-lg bg-surface/50 border border-border/60">
-                <span className="text-[8px] font-bold text-ink-subtle uppercase block">Dwell Limit</span>
+              <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
+                <span className="text-[8px] font-bold text-ink-subtle uppercase">Dwell Limit</span>
                 <strong className="text-ink font-mono text-[11px]">5 Seconds</strong>
               </div>
-              <div className="p-2 rounded-lg bg-surface/50 border border-border/60">
-                <span className="text-[8px] font-bold text-ink-subtle uppercase block">Cooldown</span>
+              <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
+                <span className="text-[8px] font-bold text-ink-subtle uppercase">Cooldown</span>
                 <strong className="text-ink font-mono text-[11px]">60 Seconds</strong>
               </div>
             </div>

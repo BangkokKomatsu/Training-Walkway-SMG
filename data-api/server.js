@@ -135,6 +135,10 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
     ])
 
     const s = summaryResult.recordsets[0]?.[0] || {}
+    const by_camera = summaryResult.recordsets[1] || []
+    const alerts = summaryResult.recordsets[2]?.[0] || {}
+    const trend_data = summaryResult.recordsets[3] || []
+
     const cameras      = cameraResult.recordset || []
     const cameras_total   = cameras.length
     const cameras_online  = cameras.filter(c => c.is_active).length
@@ -143,17 +147,20 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
     res.json({
       total_events:    s.total_events    ?? 0,
       events_today:    s.today_count     ?? 0,
-      events_month:    s.total_events    ?? 0,
+      events_month:    s.month_count     ?? 0,
       new_count:       s.new_count       ?? 0,
       reviewed_count:  s.reviewed_count  ?? 0,
       dismissed_count: s.dismissed_count ?? 0,
-      alerts_failed:   s.alert_failed_count ?? 0,
-      alerts_total:    s.total_events    ?? 0,
-      alerts_success:  (s.total_events ?? 0) - (s.alert_failed_count ?? 0),
+      alerts_failed:   alerts.failed_alerts ?? 0,
+      alerts_total:    alerts.total_alerts  ?? 0,
+      alerts_success:  alerts.success_alerts ?? 0,
+      intrusion_count: s.intrusion_count ?? 0,
+      dwell_count:     s.dwell_count     ?? 0,
       cameras_total,
       cameras_online,
       cameras_offline,
-      by_camera:       summaryResult.recordsets[1] || [],
+      by_camera,
+      trend_data,
       db_status: 'ok',
     })
   } catch (err) {
