@@ -265,8 +265,8 @@ export default function EventLogPage() {
 
       {/* Floating Bulk Operations Drawer */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/95 border border-zinc-800 p-4 rounded-2xl flex items-center gap-6 shadow-2xl animate-fade-in backdrop-blur-md">
-          <span className="text-xs font-bold text-zinc-300 font-mono">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-surface-2/95 border border-border p-4 rounded-2xl flex items-center gap-6 shadow-2xl animate-fade-in backdrop-blur-md">
+          <span className="text-xs font-bold text-ink font-mono">
             {selectedIds.length} incidents selected
           </span>
           <div className="flex items-center gap-2">
@@ -286,7 +286,7 @@ export default function EventLogPage() {
             </button>
             <button
               onClick={() => setSelectedIds([])}
-              className="px-3 py-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-900 text-[11px] font-bold text-zinc-400 hover:text-white transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-lg border border-border hover:bg-surface text-[11px] font-bold text-ink-muted hover:text-ink transition-all cursor-pointer"
             >
               Cancel
             </button>
