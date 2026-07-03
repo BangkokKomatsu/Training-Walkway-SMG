@@ -74,6 +74,17 @@ BEGIN
     ORDER BY detected_at DESC
     OFFSET  (CASE WHEN @page_size = 0 THEN 0 ELSE (@page_no - 1) * @page_size END) ROWS
     FETCH NEXT (CASE WHEN @page_size = 0 THEN 2147483647 ELSE @page_size END) ROWS ONLY;
+
+    -- total count
+    SELECT COUNT(*) AS total
+    FROM smg.trn_detection_event
+    WHERE
+        (@company_code IS NULL OR company_code = @company_code)
+        AND (@camera_no    IS NULL OR camera_no    = @camera_no)
+        AND (@event_status IS NULL OR event_status = @event_status)
+        AND (@event_type   IS NULL OR event_type   = @event_type)
+        AND (@date_from    IS NULL OR CAST(detected_at AS DATE) >= @date_from)
+        AND (@date_to      IS NULL OR CAST(detected_at AS DATE) <= @date_to);
 END;
 GO
 

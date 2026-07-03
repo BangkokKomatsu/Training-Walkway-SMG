@@ -183,8 +183,8 @@ app.get('/api/events', requireAuth, async (req, res) => {
       { name: 'page_size',     type: sql.Int,            value: parseInt(page_size || '50') },
     ])
     res.json({
-      data:  result.recordset,
-      total: result.recordset.length,
+      data:  result.recordsets[0] || [],
+      total: result.recordsets[1]?.[0]?.total ?? (result.recordsets[0]?.length ?? 0),
     })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -797,6 +797,52 @@ async function runMigrations() {
       END;
     `)
     console.log('Migration: Stored procedure sp_get_detection_event_detail updated successfully')
+
+    // Compile modified sp_get_detection_events to return total count
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_get_detection_events
+          @company_code   NVARCHAR(20)    = NULL,
+          @camera_no      NVARCHAR(20)    = NULL,
+          @date_from      DATE            = NULL,
+          @date_to        DATE            = NULL,
+          @event_status   NVARCHAR(20)    = NULL,
+          @event_type     NVARCHAR(50)    = NULL,
+          @page_no        INT             = 1,
+          @page_size      INT             = 50
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+
+          SELECT
+              event_id, company_code, camera_no, camera_name, location_name,
+              detected_class, confidence, event_type, event_status,
+              detected_at, image_name,
+              alert_teams_status, alert_email_status,
+              created_at, created_by
+          FROM smg.trn_detection_event
+          WHERE
+              (@company_code IS NULL OR company_code = @company_code)
+              AND (@camera_no    IS NULL OR camera_no    = @camera_no)
+              AND (@event_status IS NULL OR event_status = @event_status)
+              AND (@event_type   IS NULL OR event_type   = @event_type)
+              AND (@date_from    IS NULL OR CAST(detected_at AS DATE) >= @date_from)
+              AND (@date_to      IS NULL OR CAST(detected_at AS DATE) <= @date_to)
+          ORDER BY detected_at DESC
+          OFFSET  (CASE WHEN @page_size = 0 THEN 0 ELSE (@page_no - 1) * @page_size END) ROWS
+          FETCH NEXT (CASE WHEN @page_size = 0 THEN 2147483647 ELSE @page_size END) ROWS ONLY;
+
+          SELECT COUNT(*) AS total
+          FROM smg.trn_detection_event
+          WHERE
+              (@company_code IS NULL OR company_code = @company_code)
+              AND (@camera_no    IS NULL OR camera_no    = @camera_no)
+              AND (@event_status IS NULL OR event_status = @event_status)
+              AND (@event_type   IS NULL OR event_type   = @event_type)
+              AND (@date_from    IS NULL OR CAST(detected_at AS DATE) >= @date_from)
+              AND (@date_to      IS NULL OR CAST(detected_at AS DATE) <= @date_to);
+      END;
+    `)
+    console.log('Migration: Stored procedure sp_get_detection_events updated successfully')
   } catch (err) {
     console.error('Migration failed:', err.message)
   }
