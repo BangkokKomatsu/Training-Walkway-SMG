@@ -54,6 +54,17 @@ SELECT * FROM smg.trn_detection_event WHERE company_code = 'ABC'
 -- บริษัท XYZ ก็เห็นเฉพาะของตัวเอง
 SELECT * FROM smg.trn_detection_event WHERE company_code = 'XYZ'
 ```
+
+**ทำไม SP ฝั่ง read ถึงเขียน `@company_code NVARCHAR(20) = NULL` เสมอ?**
+
+SP ที่ให้ data-api ดึงข้อมูล (`sp_get_detection_events`, `sp_get_dashboard_summary`, `sp_get_camera_status`, `sp_get_alert_log`, `sp_get_detection_event_detail` ฯลฯ) ใช้ pattern เดียวกันหมดใน `WHERE`:
+
+```sql
+WHERE (@company_code IS NULL OR company_code = @company_code)
+```
+
+ความหมาย: **`@company_code = NULL` แปลว่า "ทุกบริษัท"** — ใช้เมื่อ Super Admin (`is_super_admin = 1`) ต้องการดูภาพรวมทุกบริษัทพร้อมกัน ส่วน user ทั่วไปจะถูก data-api บังคับส่ง `@company_code` เป็นค่าจาก JWT ของตัวเองเสมอ (ไม่มีทาง NULL) จึงเห็นแค่ข้อมูลบริษัทตัวเอง ผู้เรียนไม่ต้องเจาะลึกเรื่อง JWT/Super Admin ในบทนี้ (ดูเพิ่มที่ Module ว่าด้วย Authentication) แต่ควรจำ convention นี้ไว้เวลาอ่าน SP ที่มี parameter เป็น `NULL` default
+
 ### ทำไม Parameterized Query จึงสำคัญ?
 
 **SQL Injection คืออะไร?**
@@ -171,6 +182,7 @@ DB_NAME=WalkwayDB
 DB_USER=walkway_app
 DB_PASSWORD=YourSecurePassword123
 ```
+> **หมายเหตุ:** `WalkwayDB` ด้านบนเป็นแค่ชื่อตัวอย่าง (placeholder) ไม่ใช่ชื่อจริงที่ต้องใช้ — ให้ใส่ชื่อ database ตามที่ admin ของทีมตั้งค่าไว้จริง (ถามได้จาก admin หรือดูใน `.env` ที่ admin เตรียมให้)
 ### 5.3 `insert_detection_event()` — บันทึก Event
 
 ```python
@@ -262,28 +274,45 @@ def update_alert_status(
 ```
 ### 5.5 ทดสอบเบื้องต้น (ไม่ต้องมีกล้องจริง)
 
+ไฟล์จริงคือ [playground/05-mssql-database/example.py](../../playground/05-mssql-database/example.py) — ต่างจาก `src/database/mssql_connection.py` ตรงที่ playground ประกอบ connection string เองจาก `config.settings` โดยตรง (ไม่ได้เรียก `get_connection()` ซ้ำ) เพื่อให้ผู้เรียนเห็นทุกขั้นตอนชัด ๆ ในไฟล์เดียว ไฟล์นี้มี 4 ฟังก์ชันสาธิต รันต่อกันจาก `if __name__ == "__main__":`
+
 ```python
 # playground/05-mssql-database/example.py
+from config.settings import settings
 
-from src.database.mssql_connection import get_connection
+def demo_connection():
+    """ทดสอบ: เปิด connection และ ping DB"""
+    import pyodbc
 
-def test_connection():
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # ทดสอบ query ง่าย ๆ
-        cursor.execute("SELECT GETDATE() AS server_time")
-        row = cursor.fetchone()
-        print(f"DB time: {row.server_time}")
-
-        conn.close()
-        print("เชื่อมต่อ DB สำเร็จ ✅")
-    except Exception as e:
-        print(f"เชื่อมต่อ DB ล้มเหลว: {e}")
-
-test_connection()
+    conn_str = (
+        f"DRIVER={settings.DB_DRIVER};"
+        f"SERVER={settings.DB_SERVER};"
+        f"DATABASE={settings.DB_NAME};"
+        f"UID={settings.DB_USER};"
+        f"PWD={settings.DB_PASSWORD};"
+        "TrustServerCertificate=yes;"
+        "Encrypt=yes;"
+    )
+    conn = pyodbc.connect(conn_str, timeout=10)
+    cursor = conn.cursor()
+    cursor.execute("SELECT @@VERSION")
+    version = cursor.fetchone()[0]
+    print(f"เชื่อมต่อสำเร็จ!\nSQL Server version: {version[:60]}...")
+    conn.close()
 ```
+
+นอกจาก `demo_connection()` แล้ว ไฟล์ยังมี:
+
+- `demo_insert_event()` — เรียก `smg.sp_insert_detection_event` แบบ parameterized แล้วรับ `event_id` กลับ (โค้ดเดียวกับ §5.3)
+- `demo_get_events()` — เรียก `smg.sp_get_detection_events` แล้ว loop แสดงผล
+- `demo_get_dashboard_summary()` — เรียก `smg.sp_get_dashboard_summary` และสาธิตการอ่านหลาย result set ด้วย `cursor.nextset()`
+
+รันทั้งไฟล์ (ทำ 4 อย่างข้างบนต่อกัน):
+
+```bash
+python playground/05-mssql-database/example.py
+```
+
 ### 5.6 ตัวอย่างการเรียก SP โดยตรง
 
 ```python
@@ -317,12 +346,17 @@ print("อัปเดต Teams status สำเร็จ")
 นอกจาก SP ที่เรียกโดย Python สำหรับสร้าง Event แล้ว ยังมี SP อื่น ๆ ที่ถูกใช้โดย **Node.js Data API** เพื่อดึงข้อมูลมาแสดงผลใน Frontend Dashboard (`React`) เช่น:
 
 - `smg.sp_login`: ตรวจสอบรหัสผ่านสำหรับ JWT Auth
-- `smg.sp_get_dashboard_summary`: ดึงสถิติจำนวน Event วันนี้, สัปดาห์นี้, เดือนนี้
+- `smg.sp_get_dashboard_summary`: ดึงตัวเลขสรุปสำหรับ dashboard — รวม event ทั้งหมด, แยกตาม status, จำนวนวันนี้ (`today_count`), จำนวนเดือนนี้ (`month_count`), สรุปแยกตามกล้อง, อัตราส่ง alert สำเร็จ/ล้มเหลว และ trend รายวันย้อนหลัง 7 วัน (คนละ result set กัน ไม่ใช่ตัวเลข "สัปดาห์นี้" ก้อนเดียว)
 - `smg.sp_get_detection_events`: ค้นหาประวัติ Event พร้อมระบบ Pagination
+- `smg.sp_get_detection_event_detail`: ดึงรายละเอียด Event เดียว (ใช้เปิดหน้า/modal รายละเอียด event) พร้อมประวัติการส่ง alert ของ event นั้น
 - `smg.sp_get_camera_status`: ดึงข้อมูลกล้องทั้งหมดพร้อมสถานะปัจจุบัน
 - `smg.sp_get_alert_log`: ดูบันทึกการส่งการแจ้งเตือน (Teams/Email)
+- `smg.sp_get_company_list`: ดึงรายชื่อบริษัททั้งหมด (ใช้กับ dropdown สลับบริษัทของ Super Admin เท่านั้น)
 
 *รายละเอียดและโครงสร้างของ SP เหล่านี้สามารถดูเพิ่มเติมได้ใน `docs/admin-backend/02-stored-procedure-design.md`*
+
+> **หมายเหตุ:** ในโฟลเดอร์ `sql/` ยังมีไฟล์ `SrciptSQL_Training.sql` ซึ่งเป็นสคริปต์ตรวจสอบข้อมูล (`SELECT * FROM smg.<table>` ของแต่ละตาราง) ไว้ให้ผู้พัฒนา eyeball ว่า sample data หลังรัน step 05 เข้าไปถูกต้อง — **ไม่ใช่ส่วนหนึ่งของลำดับ setup 01-06** และผู้เรียนไม่จำเป็นต้องรันไฟล์นี้
+
 ---
 
 ## ส่วนที่ 6 — แบบฝึกหัด

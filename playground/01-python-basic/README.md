@@ -165,10 +165,71 @@ if __name__ == "__main__":
 
 ---
 
+## 7. เสริม: File I/O, python-dotenv และ pyodbc เบื้องต้น (ไฟล์แยก)
+
+นอกจากพื้นฐานภาษา Python แล้ว ก่อนไปเรียนบทถัดไป ๆ (กล้อง, YOLO, MSSQL) ควรทำความคุ้นเคยกับ 3 เรื่องนี้ก่อน เพราะทั้งโปรเจกต์ใช้ซ้ำตลอด — ดูโค้ดเต็มได้ที่ `file_io_config_example.py`
+
+### 7.1 อ่าน/เขียนไฟล์ด้วย `os.path`
+
+```python
+output_dir = os.path.join(os.path.dirname(__file__), "output")
+os.makedirs(output_dir, exist_ok=True)
+
+log_path = os.path.join(output_dir, "playground_log.txt")
+with open(log_path, "w", encoding="utf-8") as f:
+    f.write("playground 01 - file_io_config_example demo\n")
+
+with open(log_path, "r", encoding="utf-8") as f:
+    content = f.read()
+```
+
+**คำอธิบายโค้ด (Line-by-Line):**
+- `os.path.join(...)`: ประกอบ path ให้ถูกต้องเสมอไม่ว่าจะรันบน Windows (`\`) หรือ Linux/macOS (`/`)
+- `os.makedirs(folder, exist_ok=True)`: สร้างโฟลเดอร์ถ้ายังไม่มี — `exist_ok=True` กันไม่ให้ error ถ้าโฟลเดอร์นั้นมีอยู่แล้ว
+- `open(path, "w", encoding="utf-8")`: เปิดไฟล์เพื่อเขียน (`"w"` = เขียนทับใหม่) โดยระบุ `encoding="utf-8"` เสมอเพื่อไม่ให้ภาษาไทยเพี้ยน
+- `with open(...) as f:`: ใช้ `with` เพื่อให้ไฟล์ถูกปิดอัตโนมัติแม้เกิด error ระหว่างทาง
+
+### 7.2 โหลดค่า config ด้วย `python-dotenv` (pattern ของ `config/settings.py`)
+
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # อ่านไฟล์ .env ที่ root โปรเจกต์เข้า environment variables
+
+device_raw = os.getenv("DEVICE", "cpu")
+company_raw = os.getenv("COMPANY_CODE", "DEMO")
+```
+
+**คำอธิบายโค้ด (Line-by-Line):**
+- `load_dotenv()`: อ่านไฟล์ `.env` แล้วเซ็ตค่าใน environment ให้อัตโนมัติ (เรียกครั้งเดียวตอนเริ่มโปรแกรมพอ)
+- `os.getenv("DEVICE", "cpu")`: อ่านค่า `DEVICE` จาก environment ถ้าไม่พบให้ใช้ `"cpu"` เป็นค่า default
+- ⚠️ **โปรเจกต์นี้ห้ามเรียก `os.getenv()` กระจัดกระจายแบบนี้ในโค้ดจริง** — ทุกไฟล์ต้อง `from config.settings import settings` แล้วใช้ `settings.DEVICE` แทน (ดู `config/settings.py`) ตัวอย่างนี้แค่โชว์ว่ากลไกเบื้องหลังทำงานยังไง
+
+### 7.3 รูปแบบ Connection String ของ `pyodbc`
+
+```python
+conn_str = (
+    f"DRIVER={settings.DB_DRIVER};"
+    f"SERVER={settings.DB_SERVER};"
+    f"DATABASE={settings.DB_NAME};"
+    f"UID={settings.DB_USER};"
+    f"PWD={settings.DB_PASSWORD};"
+    "TrustServerCertificate=yes;Encrypt=yes;"
+)
+```
+
+**คำอธิบายโค้ด (Line-by-Line):**
+- ค่าทุกตัวมาจาก `config/settings.py` (ซึ่งโหลดจาก `.env`) — ห้าม hardcode server/user/password ตรง ๆ ในโค้ดเด็ดขาด
+- ถ้ายังไม่ได้ตั้งค่า `DB_SERVER` ใน `.env` สคริปต์นี้จะ**ข้าม**การลอง connect จริง แล้วแค่ print ตัวอย่าง connection string ให้ดูเฉย ๆ — ไม่ต้องมี MSSQL รันอยู่ก็ทำแบบฝึกหัดนี้ผ่านได้
+- ถ้าตั้งค่า DB ไว้แล้ว จะลองต่อจริงด้วย `pyodbc.connect(...)` แล้วปิด connection ทันที (ดูตัวอย่างเรียก Stored Procedure เต็ม ๆ ที่ `playground/05-mssql-database`)
+
+---
+
 ## การรันทดสอบ
 
 1. เปิด Terminal (เช่น Command Prompt, PowerShell หรือ VS Code Terminal)
-2. พิมพ์คำสั่งด้านล่างเพื่อรันสคริปต์
+2. พิมพ์คำสั่งด้านล่างเพื่อรันสคริปต์หลัก
 ```bash
 python playground/01-python-basic/example.py
 ```
@@ -183,3 +244,34 @@ INFO | Counter นับได้ 3 ครั้ง
 WARNING | ค่า 'not_a_number' ไม่ใช่ตัวเลข - ข้ามไป
 INFO | ค่า confidence ที่ใช้ได้: [0.5, 0.9]
 ```
+4. ลองรันไฟล์เสริมเรื่อง File I/O / python-dotenv / pyodbc ด้วยคำสั่งนี้
+
+```bash
+python playground/01-python-basic/file_io_config_example.py
+```
+
+ผลลัพธ์ที่คาดหวัง (กรณียังไม่ได้ตั้งค่า `DB_SERVER` ใน `.env`):
+
+```text
+INFO | === 1. File I/O ด้วย os.path ===
+INFO | เขียนไฟล์แล้ว: playground/01-python-basic/output/playground_log.txt
+INFO | อ่านไฟล์กลับมาได้:
+playground 01 - file_io_config_example demo
+company_code (default จาก settings) = DEMO
+
+INFO | === 2. python-dotenv + os.getenv() ===
+INFO | os.getenv('DEVICE', 'cpu') = cpu
+INFO | os.getenv('COMPANY_CODE', 'DEMO') = DEMO
+INFO | settings.DEVICE (จาก config/settings.py) = cpu
+INFO | settings.COMPANY_CODE (จาก config/settings.py) = DEMO
+
+INFO | === 3. pyodbc connection string (pattern) ===
+INFO | ตัวอย่าง connection string ที่ประกอบได้:
+  DRIVER={ODBC Driver 17 for SQL Server};SERVER=<ยังไม่ตั้งค่า DB_SERVER ใน .env>;...
+WARNING | DB_SERVER ยังไม่ตั้งค่าใน .env — ข้ามการลอง connect จริง (แบบฝึกหัดนี้ไม่บังคับว่าต้องมี MSSQL รันอยู่)
+```
+
+## ลองต่อยอด (แบบฝึกหัดเพิ่มเติม)
+
+- ลองสร้างไฟล์ `.env` ที่ root โปรเจกต์ ใส่ `COMPANY_CODE=ACME` แล้วรัน `file_io_config_example.py` ใหม่ ดูว่าค่าที่ print เปลี่ยนตาม `.env` จริงไหม
+- ลองตั้งค่า `DB_SERVER`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` ใน `.env` ให้ชี้ไป MSSQL ที่มีจริง (ถ้ามี) แล้วดูว่าขั้นตอนที่ 3 ต่อสำเร็จไหม

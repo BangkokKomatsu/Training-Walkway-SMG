@@ -47,7 +47,8 @@ rtsp://10.0.0.50:554/cam/realmonitor?channel=1&subtype=0
 - วาดกราฟิก (กล่อง, เส้น, polygon) ลงบน frame
 - บันทึกเป็น image ไฟล์
 
-> **สิ่งที่ห้ามทำในโปรเจกต์นี้:** `cv2.imshow()` — เปิดหน้าต่างแสดงผล GUI ไม่ทำงานบน server ที่ไม่มี display และคนนอกมองไม่เห็น เราดูผ่านเว็บ React แทน
+> **`cv2.imshow()` ใช้ได้ในคอร์สนี้:** ใน `src/` และ `playground/` เราตั้งใจให้ใช้ `cv2.imshow()` เปิดหน้าต่าง live view ระหว่างพัฒนา เพื่อให้ผู้เรียน**เห็นด้วยตาตัวเอง**ว่า YOLO ตรวจจับคนถูกไหม, bbox/polygon วาดตรงตำแหน่งหรือเปล่า ก่อนนำไป deploy จริง
+> ข้อยกเว้นเดียวคือตอน deploy บน server ที่ไม่มีจอ (Linux headless/Docker) — กรณีนั้น `cv2.imshow()` จะ crash เพราะไม่มี display ให้เปิดหน้าต่าง (ตอนนี้โปรเจกต์ยังไม่มี guard สำหรับกรณีนี้ใน `config/settings.py` — เป็นสิ่งที่ควรเพิ่มในอนาคตถ้าจะ deploy บน server ไร้จอจริง ๆ)
 
 ### Frame คืออะไร?
 
@@ -222,7 +223,7 @@ class CameraReader:
 ### 5.3 `CameraConfig` — แยก Config กล้อง
 
 ```python
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from config.settings import settings
 
 
@@ -232,17 +233,18 @@ class CameraConfig:
     camera_name: str
     location_name: str
     company_code: str
-    source: str                          # RTSP URL หรือไฟล์วิดีโอ
-    danger_zone: list[tuple[int, int]]   # polygon พื้นที่อันตราย
+    source: str                                                # RTSP URL หรือไฟล์วิดีโอ
+    danger_zones: list[list[tuple[int, int]]] = field(default_factory=list)  # หลาย polygon ต่อกล้อง
+    schedule_rules: list[dict] = field(default_factory=list)   # ตารางเวลาทำงาน (ดู Module 06)
 
 
 def load_camera_configs() -> list[CameraConfig]:
     """โหลดรายการกล้องจาก JSON หรือ MSSQL ขึ้นอยู่กับการตั้งค่า"""
-    source_type = settings.CAMERA_CONFIG_SOURCE
-    
-    if source_type == "mssql":
-        # อ่านจาก Database ผ่าน Stored Procedure
-        pass 
+    source = settings.CAMERA_CONFIG_SOURCE.lower()
+
+    if source == "db":
+        # อ่านจาก Database (smg.mst_camera + smg.mst_detection_area) — ดูฟังก์ชันจริง _load_from_db()
+        return _load_from_db()
     else:
         # อ่านจากไฟล์ cameras.json 
         config_path = settings.CAMERAS_CONFIG_PATH
@@ -250,6 +252,7 @@ def load_camera_configs() -> list[CameraConfig]:
             raw_list = json.load(f)
         # ... แปลงเป็น CameraConfig (ดูโค้ดเต็มใน src/camera/camera_config.py)
 ```
+> **หมายเหตุ:** `danger_zones` เป็น **list ของ list** (พหูพจน์) เพราะกล้อง 1 ตัวมีพื้นที่อันตรายได้หลายเส้น (ดูรายละเอียดเต็มใน Module 06) และ `_load_from_db()` เป็นฟังก์ชันที่ทำงานได้จริงแล้ว ไม่ใช่แค่โครงร่าง — อ่านค่ากล้อง + polygon + schedule จากฐานข้อมูลจริง (คำอธิบายเชิงลึกอยู่ใน Module 06 ส่วนที่ว่าด้วยการจัดการกล้องผ่านเว็บ)
 ### 5.4 วิธีใช้ใน Detection Loop
 
 ```python
@@ -282,18 +285,18 @@ finally:
 ```
 ### 5.5 ทดสอบด้วยไฟล์วิดีโอ (ถ้าไม่มีกล้อง RTSP)
 
-ในไฟล์ `config/cameras.json` เปลี่ยนค่า `source`:
+ในไฟล์ `config/cameras.json` เปลี่ยนค่า `rtsp_url` (ฟิลด์ใน JSON ชื่อ `rtsp_url` เสมอ — `source` เป็นแค่ชื่อ attribute ของ Python หลังโหลดเข้า `CameraConfig` แล้วเท่านั้น):
 ```json
 {
   "camera_no": "1",
-  "source": "playground/02-opencv-camera/test_video.mp4"
+  "rtsp_url": "playground/02-opencv-camera/test_video.mp4"
 }
 ```
 หรือใช้ webcam:
 ```json
 {
   "camera_no": "1",
-  "source": "0"
+  "rtsp_url": "0"
 }
 ```
 > `CameraReader` รองรับทั้ง 3 แบบโดยอัตโนมัติ
@@ -313,7 +316,7 @@ finally:
 
 - [ ] อธิบาย RTSP URL format ได้ (user:password@ip:port/path)
 - [ ] เข้าใจว่า frame คือ numpy array shape (H, W, 3)
-- [ ] รู้ว่าทำไม `ห้ามใช้ cv2.imshow()` ในโปรเจกต์นี้
+- [ ] รู้ว่า `cv2.imshow()` ใช้ได้ปกติใน `src/` และ `playground/` ระหว่างพัฒนา แต่ต้องเลี่ยงถ้า deploy บน server ที่ไม่มีจอ (headless)
 - [ ] เข้าใจว่า thread แยกทำให้ระบบไม่ block
 - [ ] รู้ว่า backoff reconnect ทำงานยังไง
 - [ ] เปิดวิดีโอจากไฟล์หรือ RTSP แล้วอ่านเฟรมได้

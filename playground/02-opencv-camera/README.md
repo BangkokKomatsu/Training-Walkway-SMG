@@ -72,9 +72,55 @@ def main() -> None:
 
 ---
 
-## 3. การอ่านเฟรมภาพแบบ Background Thread
+## 3. เปิดกล้องแบบ raw ด้วย `cv2.VideoCapture` (ก่อนเข้าคลาส)
 
-หัวใจสำคัญของการทำงานคือคลาส `CameraReader` ซึ่งจะทำการอ่านภาพอย่างต่อเนื่องอยู่เบื้องหลัง
+ก่อนไปดูคลาส `CameraReader` ที่ระบบจริงใช้ ควรเห็นวิธีอ่านเฟรมแบบพื้นฐานที่สุดของ OpenCV ก่อน — เปิดกล้องตรง ๆ ด้วย `cv2.VideoCapture` ไม่มี Thread แยก ไม่มี auto-reconnect ใด ๆ
+
+```python
+def demo_bare_videocapture(source) -> None:
+    logger.info("=== เปิดกล้องแบบ raw ด้วย cv2.VideoCapture (ไม่มี auto-reconnect) ===")
+
+    cap = cv2.VideoCapture(source)
+    # ลด buffer เหลือ 1 เฟรม ป้องกันภาพหน่วง (ไม่งั้นเฟรมเก่าจะค้างอยู่ใน buffer)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    if not cap.isOpened():
+        logger.warning("เปิดกล้องแบบ raw ไม่สำเร็จ: %s", source)
+        return
+
+    for i in range(5):
+        ok, frame = cap.read()
+        if not ok:
+            logger.warning("[raw] อ่านเฟรมที่ %d ไม่สำเร็จ", i + 1)
+            continue
+        logger.info("[raw] เฟรมที่ %d: ขนาด %s", i + 1, frame.shape)
+
+        # cv2.imshow() ใช้ได้ปกติใน playground/ (ดู CLAUDE.md ข้อ 5)
+        # เปิดคอมเมนต์ 2 บรรทัดด้านล่างถ้าอยากเห็นภาพจริงบนหน้าจอ (กด 'q' เพื่อออกก่อนครบ 5 เฟรม)
+        # cv2.imshow("raw capture", frame)
+        # if cv2.waitKey(1) & 0xFF == ord("q"):
+        #     break
+
+    cap.release()
+    # cv2.destroyAllWindows()  # เปิดคอมเมนต์นี้คู่กับ cv2.imshow() ด้านบนเสมอ
+    logger.info("ปิดกล้องแบบ raw แล้ว")
+```
+
+**คำอธิบายโค้ด (Line-by-Line):**
+- `cv2.VideoCapture(source)`: เปิดกล้อง/วิดีโอ/RTSP ตรง ๆ ด้วย OpenCV เพียวๆ ไม่มีการห่อหุ้ม (wrap) ใด ๆ — นี่คือวิธีพื้นฐานที่สุดที่ทุกคลาสในโปรเจกต์ (รวมถึง `CameraReader`) ใช้อยู่ข้างใน
+- `cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)`: บอก OpenCV ให้เก็บ buffer แค่ 1 เฟรม เพราะค่า default ของบาง backend จะสะสมเฟรมเก่าไว้ ทำให้ภาพที่อ่านได้ "ล่าช้า" กว่าเวลาจริง
+- `cap.isOpened()`: เช็คว่ากล้องเปิดสำเร็จหรือไม่ก่อนเข้าลูปอ่านเฟรม
+- `cap.read()`: คืนค่าเป็น tuple `(ok, frame)` — `ok` คือ `True/False` ว่าอ่านสำเร็จไหม, `frame` คือภาพ (จะเป็น `None` ถ้า `ok=False`)
+- `cap.release()`: ปิดการเชื่อมต่อกล้อง **ต้องเรียกเสมอ** เมื่อใช้งานเสร็จ ไม่งั้นอาจมีปัญหากล้องถูกเครื่องอื่น/โปรเซสอื่นใช้ไม่ได้ (device busy)
+- `cv2.imshow(...)` (คอมเมนต์ไว้): ถ้าอยากเห็นภาพจริงบนหน้าจอสามารถเปิดใช้ได้เลย เพราะ `cv2.imshow()` **อนุญาตใน `playground/`** (ห้ามใช้เฉพาะตอน deploy บน server ที่ไม่มีจอ/headless เท่านั้น — ดู CLAUDE.md ข้อ 5)
+
+> **สังเกต:** ฟังก์ชันนี้ยังไม่มี auto-reconnect ถ้าสาย RTSP หลุดกลางทาง `cap.read()` จะคืน `ok=False` ไปเรื่อย ๆ โดยไม่พยายามเชื่อมต่อใหม่ให้เอง — นี่คือปัญหาที่คลาส `CameraReader` ในหัวข้อถัดไปถูกสร้างขึ้นมาแก้
+
+---
+
+## 4. การอ่านเฟรมภาพแบบ Background Thread (Production Class)
+
+หัวใจสำคัญของการทำงานจริงในระบบคือคลาส `CameraReader` ซึ่งจะทำการอ่านภาพอย่างต่อเนื่องอยู่เบื้องหลัง (Thread แยก) และมี auto-reconnect ให้อัตโนมัติ — แก้ปัญหาที่ `cv2.VideoCapture` แบบ raw ด้านบนยังไม่มี
 
 ```python
     camera = CameraReader(source).start()
@@ -114,8 +160,14 @@ python playground/02-opencv-camera/example.py
 python playground/02-opencv-camera/example.py 0
 ```
 4. ผลลัพธ์ที่คาดหวังใน Console:
+
 ```text
 INFO | เปิดกล้อง/วิดีโอจาก: 0
+INFO | === เปิดกล้องแบบ raw ด้วย cv2.VideoCapture (ไม่มี auto-reconnect) ===
+INFO | [raw] เฟรมที่ 1: ขนาด (480, 640, 3)
+INFO | [raw] เฟรมที่ 2: ขนาด (480, 640, 3)
+...
+INFO | ปิดกล้องแบบ raw แล้ว
 INFO | กำลังเชื่อมต่อกล้อง: 0
 INFO | เชื่อมต่อกล้องสำเร็จ: 0
 INFO | เฟรมที่ 1: ขนาด (480, 640, 3)

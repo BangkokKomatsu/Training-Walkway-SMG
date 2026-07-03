@@ -167,11 +167,11 @@ def send_teams_alert(event: dict) -> tuple[bool, int, str]:
         resp = requests.post(settings.TEAMS_WEBHOOK_URL, json=payload, timeout=_TIMEOUT)
 
         if resp.status_code == 429:
-            logger.warning("Teams rate limit (HTTP 429)")
+            logger.warning("Teams rate limit (HTTP 429) event_id=%s", event.get("event_id"))
         elif not resp.ok:
             logger.error("Teams webhook ตอบ %d: %s", resp.status_code, resp.text[:200])
         else:
-            logger.info("ส่ง Teams สำเร็จ")
+            logger.info("ส่ง Teams สำเร็จ event_id=%s", event.get("event_id"))
 
         return resp.ok, resp.status_code, resp.text[:200]
 

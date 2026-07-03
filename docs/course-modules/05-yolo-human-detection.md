@@ -211,6 +211,8 @@ class YoloDetector:
 
         return detections
 ```
+> **ทำไมต้องจับ `bicycle` ด้วย?** เราไม่ได้เอา bicycle มาเช็ค dwell เหมือน person — แต่ใช้เป็นเงื่อนไข "ยกเว้น" คนที่ยืนใกล้จักรยาน (เช่น กำลังขี่จักรยานผ่านพื้นที่) ไม่ให้นับเป็นการบุกรุก รายละเอียดกติกานี้อยู่ใน **Module 06** (ฟังก์ชัน `_get_unsafe_person` ใน `detection_service.py`)
+
 ### 5.3 วิธีใช้ใน detection loop
 
 ```python

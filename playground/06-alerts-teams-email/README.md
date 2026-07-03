@@ -102,6 +102,58 @@ def demo_email():
 
 ---
 
+## 3. สาธิต Cooldown เต็มวงจร (Full Alert Lifecycle)
+
+ตัวอย่างข้างบนส่งแจ้งเตือนแบบ "ยิงแล้วจบ" (fire-and-forget) แต่ระบบจริงมีอีก 2 อย่างที่ทำเพิ่มเสมอ: (1) เช็ค **cooldown** ก่อนส่งทุกครั้งเพื่อกัน spam และ (2) **บันทึกสถานะ** การส่งแต่ละครั้งลง MSSQL ด้วย `update_alert_status()` — ฟังก์ชันนี้จะสาธิตให้เห็นวงจรเต็ม ๆ โดยส่ง event เดิมซ้ำ 2 ครั้งติดกันทันที
+
+```python
+from src.alert.teams_alert import send_teams_alert
+from src.database.detection_repository import update_alert_status
+
+def demo_cooldown():
+    last_sent_at = {}
+    event_id = SAMPLE_EVENT["event_id"]
+
+    def try_send(label: str):
+        now = datetime.now()
+        last = last_sent_at.get(event_id)
+
+        # เช็ค cooldown ก่อนส่งทุกครั้ง
+        if last is not None:
+            elapsed = (now - last).total_seconds()
+            if elapsed < settings.ALERT_COOLDOWN_SECONDS:
+                print(f"[{label}] ⏭  ข้าม — ส่งไปแล้วเมื่อ {elapsed:.1f} วิก่อน (ยังไม่พ้น cooldown)")
+                return
+
+        # พ้น cooldown แล้ว → ส่งจริง
+        ok, code, text = send_teams_alert(SAMPLE_EVENT)
+        last_sent_at[event_id] = now
+        print(f"[{label}] ✅ ส่งจริง — HTTP {code}")
+
+        # บันทึกสถานะลง MSSQL
+        update_alert_status(
+            event_id, SAMPLE_EVENT["company_code"],
+            "TEAMS", "SENT" if ok else "FAILED",
+            code, text,
+        )
+
+    try_send("รอบที่ 1")
+    try_send("รอบที่ 2 (ทันที)")
+```
+
+**คำอธิบายโค้ด (Line-by-Line):**
+- `from src.alert.teams_alert import send_teams_alert`: ใช้ฟังก์ชันจริงของระบบตรง ๆ (ตัวเดียวกับที่ `demo_teams()` ทำเอง) แทนการเขียน payload ซ้ำเอง
+- `last_sent_at = {}`: จำลอง cache เก็บเวลาที่แจ้งเตือนล่าสุดของแต่ละ `event_id` — ของจริงในระบบเก็บไว้ใน memory ของ `detection_service.py` ตอนโปรแกรมรันอยู่
+- `elapsed = (now - last).total_seconds()`: คำนวณว่าผ่านมากี่วินาทีแล้วนับจากครั้งล่าสุดที่ส่ง
+- `if elapsed < settings.ALERT_COOLDOWN_SECONDS:`: ถ้ายังไม่ผ่านเวลา cooldown (ค่า default 120 วิ) ให้ `return` ออกทันที — **ข้ามการส่งไปเลย ไม่ยิง webhook ซ้ำ**
+- `last_sent_at[event_id] = now`: อัปเดตเวลาส่งล่าสุด **หลัง**ส่งสำเร็จ (หรือพยายามส่ง) เพื่อให้รอบถัดไปนับ cooldown ต่อจากจุดนี้
+- `update_alert_status(event_id, company_code, "TEAMS", "SENT"/"FAILED", code, text)`: บันทึกผลการส่งแต่ละครั้งลง MSSQL ผ่าน `smg.sp_update_alert_status` — ใช้ดูย้อนหลังได้ว่า event นี้แจ้งเตือนสำเร็จ/ล้มเหลวกี่ครั้ง ผ่านช่องทางไหนบ้าง
+- เรียก `try_send()` 2 ครั้งติดกันทันที (ไม่มี `time.sleep`) เพื่อจำลองว่าเกิด event ซ้ำเร็ว ๆ — รอบที่ 2 ต้องถูกข้ามเพราะ `elapsed` ใกล้ 0 วิ ซึ่งน้อยกว่า `ALERT_COOLDOWN_SECONDS` เสมอ
+
+> **หมายเหตุ:** ถ้ายังไม่ได้ตั้งค่า `DB_SERVER` ใน `.env` ฟังก์ชันจะข้ามขั้นตอน `update_alert_status()` ไปเฉย ๆ (ไม่ error) เพื่อให้แบบฝึกหัดนี้รันได้แม้ไม่มี MSSQL
+
+---
+
 ## การรันทดสอบ
 
 1. เปิด Terminal
@@ -121,4 +173,18 @@ Teams ตอบกลับ: HTTP 200 — 1
 กำลังส่งอีเมล my_email@domain.com → target_email@domain.com
 SMTP: smtp.office365.com:587
 ส่งอีเมลสำเร็จ!
+
+============================================================
+Playground 06b: Cooldown + update_alert_status() (Full Alert Lifecycle)
+============================================================
+
+ALERT_COOLDOWN_SECONDS = 120 วินาที
+[รอบที่ 1] ✅ ส่งจริง — HTTP 200 (สำเร็จ)
+[รอบที่ 1]    บันทึกสถานะลง MSSQL สำเร็จ (update_alert_status)
+[รอบที่ 2 (ทันที)] ⏭  ข้าม — ส่งไปแล้วเมื่อ 0.0 วิก่อน (ยังไม่พ้น cooldown)
 ```
+
+## ลองต่อยอด (แบบฝึกหัดเพิ่มเติม)
+
+- ลองตั้งค่า `ALERT_COOLDOWN_SECONDS=2` ใน `.env` แล้วแก้ `demo_cooldown()` ให้ `time.sleep(3)` ก่อนเรียก `try_send("รอบที่ 2")` ดูว่ารอบที่ 2 ส่งสำเร็จแทนที่จะถูกข้าม
+- ลองเพิ่มการแจ้งเตือนผ่าน Email เข้าไปใน `demo_cooldown()` ด้วย (เรียก `send_email_alert()` แบบเดียวกับ Teams) แล้วบันทึกสถานะด้วย `update_alert_status(..., "EMAIL", ...)` แยกจาก Teams

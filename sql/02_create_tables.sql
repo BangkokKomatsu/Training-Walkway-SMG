@@ -75,6 +75,7 @@ CREATE TABLE smg.mst_camera (
     channel         INT             NOT NULL DEFAULT 1,
     brand           NVARCHAR(50)    NULL,
     stream_type     NVARCHAR(20)    NOT NULL DEFAULT 'sub',
+    schedule_json   NVARCHAR(MAX)   NULL,   -- ตารางเวลาเปิด/ปิดตรวจจับของกล้อง (เก็บเป็น JSON) ดู Module 06
     CONSTRAINT PK_mst_camera PRIMARY KEY (company_code, camera_no),
     CONSTRAINT FK_mst_camera_company FOREIGN KEY (company_code) REFERENCES smg.mst_company(company_code)
 );

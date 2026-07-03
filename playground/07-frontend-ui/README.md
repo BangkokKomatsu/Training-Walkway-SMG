@@ -26,13 +26,13 @@ const API_BASE = "http://localhost:3001";
 async function runDemo() {
   console.log("=== 1. Login เพื่อรับ JWT Token ===");
   try {
-    const loginResponse = await fetch(`${API_BASE}/api/auth`, {
+    // Endpoint จริงคือ /api/auth/login (ไม่ใช่ /api/auth) และรับแค่ username/password เท่านั้น
+    const loginResponse = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: 'admin',
-        password: 'password', // รหัสผ่านทดสอบ
-        company_code: 'DEMO'
+        username: 'demo_admin',
+        password: 'Walkway@2024', // รหัสผ่านทดสอบ (บัญชี sample จาก CLAUDE.md)
       })
     });
 
@@ -50,9 +50,9 @@ async function runDemo() {
 
 **คำอธิบายโค้ด (Line-by-Line):**
 - `async function runDemo()`: เราครอบโค้ดด้วยฟังก์ชัน `async` เพื่อให้สามารถใช้คำสั่ง `await` สำหรับรอผลลัพธ์จากการเชื่อมต่อ Network ได้
-- `fetch(..., { method: 'POST', ... })`: เรียกใช้งาน API โดยระบุเมธอดเป็น POST เพื่อส่งข้อมูล 
+- `fetch(`${API_BASE}/api/auth/login`, { method: 'POST', ... })`: เรียก endpoint login ที่แท้จริงของระบบ (`POST /api/auth/login` ใน `data-api/server.js`) ระบุเมธอดเป็น POST เพื่อส่งข้อมูล
 - `headers: { 'Content-Type': 'application/json' }`: เป็นการบอก Server ว่าข้อมูลที่เรากำลังส่งไปเป็นก้อน JSON
-- `JSON.stringify({...})`: ฟังก์ชันดั้งเดิมของ JavaScript ที่แปลงออบเจกต์ให้กลายเป็นข้อความ String รูปแบบ JSON
+- `body: JSON.stringify({ username, password })`: request body ของ endpoint นี้รับแค่ `username`/`password` เท่านั้น — **ไม่มี** field `company_code` เพราะ server หาบริษัทของ user จากผลลัพธ์ `smg.sp_login` เอง (ถ้าส่ง `company_code` ไปด้วย server จะเพิกเฉยไม่สนใจค่านั้นเลย)
 - `if (!loginResponse.ok)`: ตรวจสอบสถานะการตอบกลับ หากไม่ใช่ 2xx (เช่น รหัสผ่านผิด หรือ Server พัง) มันจะเข้ามาในบล็อกนี้
 - `loginResponse.json()`: แกะข้อมูล JSON ที่ Server ตอบกลับมากลับเป็นออบเจกต์ของ JavaScript อีกครั้ง
 - `token = loginData.token`: ดึงค่า Token ยอมรับสิทธิ์ออกมาเก็บไว้เพื่อใช้งานในคำสั่งถัดไป
@@ -65,7 +65,11 @@ async function runDemo() {
 
 ```javascript
     console.log("\n=== 2. ใช้ Token ดึงข้อมูล Dashboard ===");
-    const dashboardResponse = await fetch(`${API_BASE}/api/dashboard?company_code=DEMO`, {
+    // company scoping ไม่ได้ส่งเป็น query param (?company_code=...) — server อ่าน company_code
+    // ของ user ธรรมดาจาก JWT โดยอัตโนมัติ ไม่ต้องส่งอะไรเพิ่ม
+    // ถ้า login ด้วยบัญชี Super Admin (company_code=BKC, is_super_admin=1) ถึงจะส่ง header
+    // 'x-company': 'DEMO' เพิ่มเพื่อขอดูข้อมูลของบริษัทอื่นแทน
+    const dashboardResponse = await fetch(`${API_BASE}/api/dashboard`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}` // แนบ Token ใน Header
@@ -79,7 +83,8 @@ async function runDemo() {
 
     const dashboardData = await dashboardResponse.json();
     console.log("✅ ข้อมูล Dashboard:");
-    console.log(`- Event วันนี้: ${dashboardData.today_events || 0}`);
+    console.log(`- Event วันนี้: ${dashboardData.events_today || 0}`);
+    console.log(`- Event เดือนนี้: ${dashboardData.events_month || 0}`);
     console.log(`- กล้องออนไลน์: ${dashboardData.cameras_online || 0} / ${dashboardData.cameras_total || 0}`);
     console.log(`- Event ทั้งหมด: ${dashboardData.total_events || 0}`);
 
@@ -93,10 +98,11 @@ runDemo();
 ```
 
 **คำอธิบายโค้ด (Line-by-Line):**
-- `fetch(..., { method: 'GET' })`: ดึงข้อมูลจาก API ปลายทางด้วยเมธอด GET
+- `fetch(`${API_BASE}/api/dashboard`, { method: 'GET' })`: ดึงข้อมูลจาก API ปลายทางด้วยเมธอด GET — **ไม่มี** query param `?company_code=...` เพราะ endpoint นี้ไม่รับ company scoping ผ่าน query string เลย
 - `'Authorization': 'Bearer ' + token`: นี่คือหัวใจสำคัญของการยืนยันตัวตนแบบ JWT เราต้องส่ง Token ไปใน HTTP Header ทุกครั้ง หากลืมส่ง Backend จะปฏิเสธคำขอทันที
-- `dashboardResponse.json()`: แกะแพ็กเกจข้อมูลแดชบอร์ดออกมา 
-- `dashboardData.today_events || 0`: เป็นการป้องกันค่า `undefined` หรือ `null` หาก Backend ไม่ได้ส่งตัวเลขกลับมา ก็จะแสดงผลเป็น 0 แทน
+- company scoping ที่แท้จริง: middleware `requireAuth` ใน `data-api/server.js` จะตั้งค่า `req.companyCode` ให้อัตโนมัติจาก `company_code` ใน JWT ของ user ธรรมดา — เฉพาะ **Super Admin** เท่านั้น (`is_super_admin: true`, `company_code: 'BKC'`) ถึงจะสามารถส่ง header เพิ่ม เช่น `headers: { 'x-company': 'DEMO' }` เพื่อขอดูข้อมูลของบริษัทอื่นแทนบริษัทตัวเอง
+- `dashboardResponse.json()`: แกะแพ็กเกจข้อมูลแดชบอร์ดออกมา
+- `dashboardData.events_today || 0`: ชื่อ field จริงจาก `GET /api/dashboard` คือ `events_today` (ไม่ใช่ `today_events`) — เป็นการป้องกันค่า `undefined` หรือ `null` หาก Backend ไม่ได้ส่งตัวเลขกลับมา ก็จะแสดงผลเป็น 0 แทน
 - `catch (err) { ... }`: บล็อกนี้จะทำงานหากโปรแกรมเราติดต่อ Server ไม่ได้เลย (เช่น ลืมเปิดรัน Server หรือเน็ตหลุด) ซึ่งต่างจาก `if (!ok)` ที่ติดต่อได้แต่ผลลัพธ์เป็น Error
 
 ---

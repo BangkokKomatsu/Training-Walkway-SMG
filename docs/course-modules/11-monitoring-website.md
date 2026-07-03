@@ -53,15 +53,15 @@
 ```text
 เปิดเว็บ http://localhost:5173
         ↓
-หน้า Login → ใส่ Username, Password และ Company Code (รับ JWT Token)
+หน้า Login → ใส่ Username + Password เท่านั้น (รับ JWT Token — บริษัทถูกกำหนดจาก JWT ฝั่ง server)
         ↓
 Dashboard แสดงสรุป
         ↓
-ดู Event Log → กรองตามวัน/กล้อง
+ดู Event Log → กรองตามวัน/กล้อง/สถานะ + เลือกหลาย event เพื่อ bulk resolve/reject
         ↓
-คลิก Event → ดูรูปภาพ + รายละเอียด
+คลิก Event → ดูรูปภาพ + รายละเอียด (+ ปิดเคส ถ้าเปิดใช้งาน)
         ↓
-ดู Camera Monitor → สถานะกล้อง
+ดู Camera Monitor → สถานะกล้อง + จัดการกล้อง (เพิ่ม/แก้ไข/ลบ/วาด polygon)
         ↓
 ดู System Health → ทุกอย่างปกติไหม
 ```
@@ -76,10 +76,13 @@ Dashboard แสดงสรุป
 ```text
 ชื่อผู้ใช้:  [admin       ]
 รหัสผ่าน:   [********    ]
-รหัสบริษัท: [DEMO        ] 
 [เข้าสู่ระบบ]
 ```
+**ไม่มีช่องกรอกรหัสบริษัท** — login ใช้แค่ username/password เท่านั้น บริษัทที่ผู้ใช้เห็นข้อมูลถูกกำหนดฝั่ง server จาก JWT (ผู้ใช้ทั่วไปถูกล็อกไว้ที่บริษัทตัวเอง ส่วน Super Admin เลือกบริษัทภายหลังผ่าน Company Switcher ที่ Sidebar)
+
 เมื่อเข้าสู่ระบบสำเร็จ ระบบจะได้รับ **JWT Token** มาเก็บไว้ที่เบราว์เซอร์ (`localStorage`) และจะแนบ Token นี้ไปกับทุก API request เพื่อยืนยันสิทธิ์ในการเข้าถึงข้อมูล (Dashboard, Event Log, Camera Monitor)
+
+> กลไกเบื้องหลังทั้งหมด — bcrypt hashing, JWT issuance/verification/expiry, Super Admin model (`is_super_admin` + `x-company` header), และการส่งรูปภาพแบบ signed URL — อธิบายละเอียดใน **Module 10 หัวข้อ 5.6 Authentication & Authorization**
 
 ### 5.2 Dashboard — สรุปตัวเลข
 
@@ -102,18 +105,23 @@ Dashboard แสดงสรุป
 
 ```text
 ┌─────────────────────────────────────────────────────┐
-│  Event Log                          [กล้อง ▼] [วัน] │
-├─────┬────────────┬──────────┬──────────┬────────────┤
-│  # │ กล้อง      │ พื้นที่   │ เวลา     │ ความมั่นใจ │
-├─────┼────────────┼──────────┼──────────┼────────────┤
-│ 47 │ Camera-1   │ ทางเดิน  │ 10:05:32 │ 87.0%      │
-│ 46 │ Camera-2   │ โกดัง A  │ 09:41:15 │ 92.3%      │
-└─────┴────────────┴──────────┴──────────┴────────────┘
+│  Event Log                [สถานะ ▼] [กล้อง ▼] [วัน] │
+├──┬─────┬────────────┬──────────┬──────────┬─────────┤
+│☐│  # │ กล้อง      │ พื้นที่   │ เวลา     │ ความมั่นใจ │
+├──┼─────┼────────────┼──────────┼──────────┼─────────┤
+│☑│ 47 │ Camera-1   │ ทางเดิน  │ 10:05:32 │ 87.0%   │
+│☑│ 46 │ Camera-2   │ โกดัง A  │ 09:41:15 │ 92.3%   │
+└──┴─────┴────────────┴──────────┴──────────┴─────────┘
+      [เลือกทั้งหมด]      [Resolve ที่เลือก] [Reject ที่เลือก]
 ```
 **การใช้งาน:**
+
+- กรองตาม **สถานะ**: New / Resolved / Rejected
 - กรองตาม **กล้อง**: เลือก Camera-1, Camera-2, ... ทั้งหมด
 - กรองตาม **วันที่**: เลือกช่วงเวลา
+- ค้นหาด้วยข้อความ (free-text search)
 - คลิก **แถว event** → ดูรายละเอียดและรูปภาพ
+- **ติ๊กเลือกหลาย event** ที่ checkbox ซ้ายมือ → กด "เลือกทั้งหมด" ได้ด้วย → แถบ bulk action ลอยขึ้นมาให้ Resolve/Reject event ที่เลือกพร้อมกันทีเดียว (ไม่ต้องเปิดทีละ event)
 
 ### 5.4 รายละเอียด Event + รูปภาพ
 
@@ -122,32 +130,48 @@ Dashboard แสดงสรุป
 ```text
 Event #47
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+บริษัท:   DEMO
 กล้อง:    Camera-1 (กล้อง 1)
 พื้นที่:   ทางเดินหน้าโกดัง
 เวลา:     2026-01-01 10:05:32
 ความมั่นใจ: 87.0%
-ประเภท:   DWELL (อยู่นาน > 5 วิ)
 
 [รูปภาพ detection] ← มี polygon + bbox วาดไว้
-                      ถ้าไม่พบรูป → "ไม่พบรูปภาพ"
+                      ถ้าไม่พบรูป → "Detection Frame Unavailable"
 ```
-### 5.5 Camera Monitor — สถานะกล้อง
+หน้ารายละเอียด event จริงแสดงข้อมูล **Camera Source, Company ID, Restricted Area, Timestamp, AI Confidence** เท่านั้น — ไม่มีฟิลด์ "ประเภท event" (INTRUSION/DWELL) แยกต่อ event สถิติ intrusion/dwell มีให้ดูแบบภาพรวมที่หน้า Dashboard เท่านั้น
+
+รูปภาพที่เห็นมาจาก signed URL ที่ data-api ขอมาจาก BKC Image API (ดู Module 10 หัวข้อ 5.6.4) ถ้าไม่ได้ตั้งค่า API key ไว้ (training mode) ระบบจะแสดงข้อความ "Detection Frame Unavailable" แทนที่จะ error
+
+> **ถ้าเปิดใช้งาน** ตัวแปร `VITE_CLOSE_CASE_MODE=true` ในไฟล์ `.env.local` ของ frontend หน้านี้จะมี panel เพิ่มเติมให้ "ปิดเคส" (resolve/reject พร้อมแนบรูปหลักฐานและคำอธิบาย) — ถ้าไม่ได้ตั้งค่าไว้ panel นี้จะไม่แสดงเลย
+
+### 5.5 Camera Monitor — สถานะกล้อง + จัดการกล้อง
 
 ```text
 ┌─────────────────────────────────────────────────────┐
-│  Camera Monitor                                     │
-├────────────────────┬────────────┬───────────────────┤
-│  กล้อง            │ สถานะ      │ ตรวจจับล่าสุด     │
-├────────────────────┼────────────┼───────────────────┤
-│  Camera-1          │ ● Online   │ 10:05:32 (1 นาที) │
-│  Camera-2          │ ● Online   │ 09:41:15 (30 นาที)│
-│  Camera-3          │ ○ Offline  │ เมื่อวาน          │
-└────────────────────┴────────────┴───────────────────┘
+│  Camera Monitor      [ทั้งหมด|Online|Offline] [ค้นหา]│
+│                                      [+ เพิ่มกล้อง]  │
+├────────────────────┬────────────┬───────────┬───────┤
+│  กล้อง            │ สถานะ      │ ตรวจจับล่าสุด │ จัดการ│
+├────────────────────┼────────────┼───────────┼───────┤
+│  Camera-1          │ ● Online   │ 10:05:32  │ ✎ 🗑 📐│
+│  Camera-2          │ ● Online   │ 09:41:15  │ ✎ 🗑 📐│
+│  Camera-3          │ ○ Offline  │ เมื่อวาน  │ ✎ 🗑 📐│
+└────────────────────┴────────────┴───────────┴───────┘
 ```
 **สี indicator:**
+
 - 🟢 Green = Online, ตรวจจับปกติ
 - 🔴 Red = Offline หรือ error
 - 🟡 Yellow = Warning (ไม่ได้ส่ง alert นาน)
+
+**หน้านี้ไม่ใช่แค่ตารางอ่านอย่างเดียว** — เป็นหน้าจัดการกล้องแบบเต็มรูปแบบ:
+
+- **[+ เพิ่มกล้อง]** เปิด modal ให้กรอกยี่ห้อ (Hikvision/Dahua/Panasonic/generic), IP, credentials — ระบบสร้าง RTSP URL ให้อัตโนมัติตามยี่ห้อ พร้อมตั้งตารางเวลาเปิด/ปิดตรวจจับ (Detection Schedule)
+- **✎ แก้ไข** และ **🗑 ลบ** กล้องแต่ละตัวได้
+- **📐 วาดโซน** เปิด canvas ให้คลิกปักจุด polygon พื้นที่อันตรายของกล้องนั้นได้เอง โดยไม่ต้องแก้ไฟล์ JSON เอง
+
+รายละเอียดกลไกเบื้องหลังทั้งหมด (การสร้าง RTSP URL ตามยี่ห้อ, การเก็บตารางเวลาเป็น `schedule_json`, และวิธีที่ Python service อ่านค่าที่ตั้งจากหน้านี้ไปใช้จริง) อธิบายละเอียดใน **Module 06 ส่วนที่ 6 — การจัดการกล้องและ Polygon พื้นที่ผ่านเว็บ**
 
 ### 5.6 Alert Monitor — ประวัติ Alert
 
@@ -167,19 +191,24 @@ Event #47
 ### 5.7 System Health — สถานะระบบ
 
 ```text
-┌───────────────────────────────────┐
-│  System Health                    │
-├───────────────┬───────────────────┤
-│ Python Service │ ● Running        │
-│ Database (DB)  │ ● Connected      │
-│ Storage Drive  │ ● Accessible     │
-│ Camera-1       │ ● Connected      │
-│ Camera-2       │ ● Connected      │
-│ Camera-3       │ ○ Disconnected   │
-└───────────────┴───────────────────┘
+┌───────────────────────────────────────┐
+│  System Health                        │
+├─────────────────────┬─────────────────┤
+│ Python Service       │ ● Running      │
+│ Database (DB)        │ ● Connected    │
+│ Storage Drive         │ ● Accessible   │
+│ Camera-1              │ ● Connected    │
+│ Camera-2              │ ● Connected    │
+│ Camera-3              │ ○ Disconnected │
+│ Alert Webhook Delivery│ ● OK (24 ชม.)  │
+└─────────────────────┴─────────────────┘
 
 Last check: 2026-01-01 10:10:00
+
+▸ Diagnostic Raw JSON Payload (คลิกเพื่อขยาย)
 ```
+"Alert Webhook Delivery (Last 24 Hours)" คือแถวสรุปว่า Teams/Email webhook ในช่วง 24 ชั่วโมงล่าสุดส่งสำเร็จ/ล้มเหลวกี่ครั้ง ส่วน "Diagnostic Raw JSON Payload" เป็น panel แบบพับเก็บ (`<details>`) ที่ dump ค่าตรวจ health ทั้งหมดเป็น JSON ดิบ ไว้ให้แอดมิน/ผู้พัฒนาไล่ debug ได้ละเอียดกว่าตารางสรุปด้านบน
+
 **ถ้า error:**
 | สถานะ | ความหมาย | ต้องทำอะไร |
 |-------|---------|-----------|
@@ -187,16 +216,16 @@ Last check: 2026-01-01 10:10:00
 | Storage ❌ | shared drive เข้าไม่ได้ | ตรวจ path และ permission |
 | Camera ❌ | กล้องหลุด | ตรวจ network/IP/RTSP URL |
 
-### 5.8 Log ล่าสุดใน Health page
+### 5.8 ส่วนอื่น ๆ ที่เห็นทันทีตอนเปิดเว็บ
 
-```text
-System Log
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-10:10:00 INFO   System health check: db=OK, storage=OK
-10:09:00 ERROR  กล้อง 3 ไม่สามารถเชื่อมต่อได้
-10:05:32 INFO   Event #47 บันทึกสำเร็จ
-10:05:30 INFO   ตรวจพบคน Camera-1 confidence=87%
-```
+หน้าเว็บมีองค์ประกอบเล็ก ๆ ที่ใช้บ่อยแต่ไม่ได้อยู่ในหน้าใดหน้าหนึ่งโดยเฉพาะ:
+
+- **สลับธีมมืด/สว่าง** — ปุ่มรูปพระอาทิตย์/พระจันทร์มุมขวาบน (TopBar) สลับได้ทันที ระบบจำค่าไว้ให้ (persist) ครั้งหน้าเปิดเว็บจะเป็นธีมเดิม
+- **Company Switcher (เฉพาะ Super Admin)** — ถ้า login ด้วยบัญชี Super Admin (`is_super_admin=1`) จะเห็น dropdown เลือกบริษัทที่ sidebar ด้านซ้าย ใช้สลับดูข้อมูลบริษัทอื่นได้โดยไม่ต้อง logout (ผู้ใช้ทั่วไปจะไม่เห็น dropdown นี้ เพราะถูกล็อกบริษัทตัวเองไว้ตาม JWT)
+- **Sidebar แบบ responsive** — บนจอเล็ก/มือถือ sidebar จะยุบเป็นเมนูแบบ drawer เปิด/ปิดด้วยปุ่มแฮมเบอร์เกอร์แทนการแสดงเต็มด้านซ้ายตลอดเวลา
+
+> **หมายเหตุ:** เอกสารรุ่นก่อนหน้าเคยอธิบายว่าหน้า System Health มี panel "System Log" แสดง log แบบ INFO/ERROR สด ๆ — ในระบบจริงไม่มี panel นี้ มีแค่ "Diagnostic Raw JSON Payload" ที่กล่าวถึงใน §5.7 เท่านั้น ถ้าต้องการดู log จริงของฝั่ง Python ต้องเปิดไฟล์ `logs/walkway.log` บนเครื่องที่รัน service โดยตรง
+
 ---
 
 ## ส่วนที่ 6 — แบบฝึกหัด
@@ -211,12 +240,13 @@ System Log
 
 ## ส่วนที่ 7 — Checklist หลังเรียน
 
-- [ ] Login ด้วย company_code และดู Dashboard ได้
-- [ ] ดู Event Log และ filter ตามกล้อง/วันได้
-- [ ] คลิก event ดูรูปภาพได้ (หรือเห็น placeholder ถ้าไม่มีรูป)
-- [ ] ดู Camera Monitor รู้ว่ากล้องไหน Online/Offline
+- [ ] Login ด้วย username/password (ไม่มีช่อง company_code) แล้วดู Dashboard ได้
+- [ ] ดู Event Log, filter ตามสถานะ/กล้อง/วัน, และลอง bulk resolve/reject event ได้
+- [ ] คลิก event ดูรูปภาพได้ (หรือเห็น "Detection Frame Unavailable" ถ้าไม่มีรูป)
+- [ ] ดู Camera Monitor รู้ว่ากล้องไหน Online/Offline และรู้ว่าเพิ่ม/แก้ไข/ลบ/วาด polygon ได้จากหน้านี้
 - [ ] ดู Alert Monitor รู้ว่า Teams/Email ส่งสำเร็จหรือ FAILED
-- [ ] ดู System Health รู้ว่าองค์ประกอบใด OK หรือ error
+- [ ] ดู System Health รู้ว่าองค์ประกอบใด OK หรือ error พร้อมเปิดดู Diagnostic Raw JSON ได้
+- [ ] ลองสลับธีมมืด/สว่าง และ (ถ้า login เป็น Super Admin) ลองสลับบริษัทที่ sidebar
 
 ---
 
@@ -237,9 +267,9 @@ npm start
 
 ### Event Log ว่าง ทั้งที่ระบบทำงาน
 
-**สาเหตุ 1:** `company_code` ที่ login ไม่ตรงกับที่ Python บันทึก
+**สาเหตุ 1:** `COMPANY_CODE` ที่ฝั่ง Python (`.env`) ไม่ตรงกับบริษัทของบัญชีที่ใช้ login
 
-ตรวจสอบ: ใน `.env` ตั้ง `COMPANY_CODE=DEMO` และ login ด้วย `DEMO`
+ตรวจสอบ: ใน `.env` ของ Python ตั้ง `COMPANY_CODE=DEMO` และ login ด้วยบัญชีที่มี `company_code = DEMO` (เช่น `demo_admin`) — ผู้ใช้ทั่วไปเห็นเฉพาะบริษัทของตัวเองเสมอ (Super Admin เท่านั้นที่สลับดูบริษัทอื่นได้ผ่าน Company Switcher)
 
 **สาเหตุ 2:** Python ยังไม่เชื่อม DB หรือ insert ล้มเหลว
 

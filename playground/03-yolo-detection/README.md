@@ -105,6 +105,49 @@ def main() -> None:
 
 ---
 
+## 4. วาดกรอบ + เซฟภาพหลักฐาน (Evidence Image)
+
+ในระบบจริง เมื่อเกิด event ต้องมี "หลักฐาน" เป็นภาพว่าตรวจพบคนจริง ๆ ตรงไหน ขั้นตอนนี้จึงวาด bounding box ของทุกคนที่พบลงบนภาพ แล้วเซฟเป็นไฟล์ `.jpg` ไว้ตรวจสอบภายหลัง
+
+```python
+def draw_detections(frame, detections: list[dict]):
+    annotated = frame.copy()
+    for det in detections:
+        x1, y1, x2, y2 = det["bbox"]
+        label = f"{det['class_name']} {det['confidence']:.0%}"
+
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.putText(
+            annotated, label,
+            (x1, max(y1 - 5, 0)),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2,
+        )
+    return annotated
+
+
+def save_evidence_image(annotated_frame) -> str:
+    output_dir = os.path.join(os.path.dirname(__file__), "output")
+    os.makedirs(output_dir, exist_ok=True)
+
+    output_path = os.path.join(output_dir, "detection_result.jpg")
+    success = cv2.imwrite(output_path, annotated_frame)
+    if not success:
+        raise OSError(f"cv2.imwrite คืนค่า False - เซฟไฟล์ไม่สำเร็จ: {output_path}")
+    return output_path
+```
+
+**คำอธิบายโค้ด (Line-by-Line):**
+- `frame.copy()`: สำเนาภาพต้นฉบับก่อนวาด เพื่อไม่ให้ frame ตัวจริงถูกแก้ไข (เผื่อโค้ดส่วนอื่นยังต้องใช้ frame ดิบอยู่)
+- `cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)`: วาดกรอบสี่เหลี่ยมล้อมรอบคนที่พบ ใช้พิกัดจาก `det["bbox"]` สีเขียว (BGR = `(0, 255, 0)`) หนา 2 พิกเซล
+- `cv2.putText(...)`: เขียนข้อความชื่อคลาส + confidence (เช่น `person 89%`) ไว้เหนือกรอบเล็กน้อย
+- `os.makedirs(output_dir, exist_ok=True)`: สร้างโฟลเดอร์ `output/` ถ้ายังไม่มี
+- `cv2.imwrite(output_path, annotated_frame)`: เซฟภาพลงดิสก์ คืนค่า `True/False` ว่าสำเร็จไหม — ถ้า `False` มักเกิดจาก path ผิดหรือไม่มีสิทธิ์เขียน
+- ใน `main()` เราจะเรียก 2 ฟังก์ชันนี้ **เฉพาะตอนพบคนอย่างน้อย 1 คน** เท่านั้น (`if detections:`) เพื่อไม่ให้เปลืองพื้นที่เซฟภาพเปล่า ๆ ที่ไม่มีใครอยู่ในเฟรม
+
+> **ของจริงในระบบ:** production path ใช้ `save_detection_image()` จาก `src/storage/image_storage.py` เพื่อเซฟลง shared drive กลาง (ไม่ใช่โฟลเดอร์ `output/` ในเครื่อง) — ลองดูตัวอย่างเต็มที่ `playground/08-image-storage`
+
+---
+
 ## การรันทดสอบ
 
 1. เปิด Terminal
@@ -127,4 +170,7 @@ INFO | โหลดโมเดล YOLO สำเร็จ
 INFO | พบคนทั้งหมด 2 คน
 INFO |   1. bbox=(100, 50, 200, 300), confidence=0.89
 INFO |   2. bbox=(400, 80, 480, 290), confidence=0.75
+INFO | บันทึกภาพหลักฐาน (evidence image) แล้วที่: playground/03-yolo-detection/output/detection_result.jpg
 ```
+
+เปิดไฟล์ `playground/03-yolo-detection/output/detection_result.jpg` ดูด้วยตาตัวเอง — ต้องเห็นกรอบสีเขียวล้อมรอบคนที่ตรวจจับได้ พร้อม label ชื่อคลาส + confidence

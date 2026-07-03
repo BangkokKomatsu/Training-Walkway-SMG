@@ -58,6 +58,8 @@ src/detection/detection_service.py → orchestrate ทุกอย่าง
     ├── src/database/detection_repository.py → บันทึก DB
     └── src/alert/ → Teams + Email
 ```
+> **หมายเหตุ:** `src/monitoring/health_reporter.py` (ฟังก์ชัน `report_health()`) มีอยู่จริงในโค้ด แต่ **ยังไม่ถูกเรียกใช้งาน** จาก `main.py` หรือ `detection_service.py` ในเวอร์ชันปัจจุบัน — ไม่ได้อยู่ใน flow การทำงานจริงข้างบนนี้ ถือเป็นโค้ดที่เตรียมไว้สำหรับต่อยอด (เช่น health check endpoint หรือ scheduled job) ยังไม่ได้ wire เข้ากับ pipeline หลัก
+
 ---
 
 ## ส่วนที่ 5 — ตัวอย่าง Code

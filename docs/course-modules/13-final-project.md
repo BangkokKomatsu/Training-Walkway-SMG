@@ -122,22 +122,20 @@ ALERT_EMAIL_TO=safety@company.com,manager@company.com
 ```
 ### 5.2 ตั้งค่าพิกัดพื้นที่และกล้อง (cameras.json)
 
-นอกจาก `.env` แล้ว จะต้องตั้งค่ากล้องใน `config/cameras.json`:
+นอกจาก `.env` แล้ว จะต้องตั้งค่ากล้องใน `config/cameras.json` — ไฟล์นี้เป็น **array เปล่า ๆ ที่ระดับบนสุด** (ไม่มี key ห่อ เช่น `"cameras"`) และฟิลด์ RTSP URL ชื่อ `rtsp_url` (ไม่ใช่ `source` — `source` เป็นแค่ชื่อ attribute ของ Python หลังโหลดเข้า `CameraConfig` แล้ว):
 
 ```json
-{
-  "cameras": [
-    {
-      "camera_no": "CAM001",
-      "camera_name": "กล้องหน้าโกดัง A",
-      "location_name": "ทางเดินหน้าโกดัง A",
-      "source": "rtsp://admin:CamP@ss123@10.0.1.55:554/stream1",
-      "danger_zones": [
-        [[120, 95], [638, 95], [638, 410], [120, 410]]
-      ]
-    }
-  ]
-}
+[
+  {
+    "camera_no": "CAM001",
+    "camera_name": "กล้องหน้าโกดัง A",
+    "location_name": "ทางเดินหน้าโกดัง A",
+    "rtsp_url": "rtsp://admin:CamP@ss123@10.0.1.55:554/stream1",
+    "danger_zones": [
+      [[120, 95], [638, 95], [638, 410], [120, 410]]
+    ]
+  }
+]
 ```
 
 วิธีหาพิกัด:
@@ -306,7 +304,7 @@ cd frontend && npm run dev
 ### 7B — Frontend + data-api
 
 - [ ] `npm run dev` รันได้
-- [ ] Login ด้วย company_code จริงได้
+- [ ] Login ด้วย username/password จริงได้ (ไม่มีช่อง company_code ที่หน้า login — บริษัทถูกกำหนดจาก JWT ฝั่ง server)
 - [ ] Dashboard แสดงตัวเลขถูกต้อง
 - [ ] Event Log แสดง event ล่าสุด
 - [ ] รูปภาพแสดงได้ใน Event Detail
@@ -432,16 +430,14 @@ IMAGE_SHARED_DRIVE=path จริง
 TEAMS_WEBHOOK_URL=webhook จริง
 SMTP_USER/PASSWORD=M365 จริง
 ```
-และตั้งค่า `config/cameras.json`:
+และตั้งค่า `config/cameras.json` (array เปล่า ๆ ที่ระดับบนสุด ฟิลด์ RTSP ชื่อ `rtsp_url`):
 ```json
-{
-  "cameras": [
-    {
-      "camera_no": "CAM-01",
-      "source": "URL กล้องจริง",
-      "danger_zones": [[[x1, y1], [x2, y2], ...]]
-    }
-  ]
-}
+[
+  {
+    "camera_no": "CAM-01",
+    "rtsp_url": "URL กล้องจริง",
+    "danger_zones": [[[x1, y1], [x2, y2], ...]]
+  }
+]
 ```
 > **ยินดีด้วย!** คุณสร้างระบบ AI Walkway Detection จากศูนย์จนใช้งานได้จริงแล้ว 🎉
