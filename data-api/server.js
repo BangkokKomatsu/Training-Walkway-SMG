@@ -220,11 +220,18 @@ app.get('/api/cameras', requireAuth, async (req, res) => {
       { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
       { name: 'camera_no',   type: sql.NVarChar(20), value: camera_no || null },
     ])
-    const mapped = (result.recordset || []).map(c => ({
-      ...c,
-      status: c.is_active ? 'online' : 'offline',
-      location: c.location_name
-    }))
+    const mapped = (result.recordset || []).map(c => {
+      const { password, rtsp_url, ...rest } = c
+      // Mask password in RTSP URL if present (e.g., rtsp://admin:pass123@ip -> rtsp://admin:*****@ip)
+      const maskedRtsp = rtsp_url ? rtsp_url.replace(/^(rtsp:\/\/)([^:]+):([^@]+)(@)/i, '$1$2:*****$4') : rtsp_url
+      return {
+        ...rest,
+        rtsp_url: maskedRtsp,
+        status: c.is_active ? 'online' : 'offline',
+        location: c.location_name,
+        has_password: !!password
+      }
+    })
     res.json(mapped)
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -353,24 +360,48 @@ app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
     }
 
     const company_code = req.companyCode || 'DEMO'
+    const pool = await getPool()
 
-    // Generate RTSP URL
-    const generated_rtsp = generateRtspUrl({
-      brand, ip_address, rtsp_port, username, password, channel, stream_type, custom_rtsp_url
+    // 1. Fetch existing camera settings to retrieve password/rtsp_url if omitted
+    const existingResult = await pool.request()
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('company_code', sql.NVarChar(20), company_code)
+      .query('SELECT username, password, rtsp_url FROM smg.mst_camera WHERE camera_no = @camera_no AND company_code = @company_code')
+
+    if (existingResult.recordset.length === 0) {
+      return res.status(404).json({ error: 'Camera not found' })
+    }
+    const existingCam = existingResult.recordset[0]
+
+    // 2. Decide on password: if blank/empty, preserve the existing one
+    const finalPassword = (password !== undefined && password !== null && password !== '')
+      ? password
+      : existingCam.password
+
+    // 3. Generate RTSP URL (for standard brands)
+    let final_rtsp = generateRtspUrl({
+      brand, ip_address, rtsp_port, username, password: finalPassword, channel, stream_type, custom_rtsp_url
     })
 
-    const pool = await getPool()
+    // 4. Handle generic brands: if the user submitted a masked URL, restore the original URL
+    if (brand?.toLowerCase() === 'generic' && custom_rtsp_url) {
+      if (custom_rtsp_url.includes(':*****@')) {
+        final_rtsp = existingCam.rtsp_url
+      } else {
+        final_rtsp = custom_rtsp_url
+      }
+    }
 
     await pool.request()
       .input('company_code', sql.NVarChar(20), company_code)
       .input('camera_no', sql.NVarChar(20), camera_no)
       .input('camera_name', sql.NVarChar(100), camera_name)
       .input('location_name', sql.NVarChar(200), location_name)
-      .input('rtsp_url', sql.NVarChar(500), generated_rtsp)
+      .input('rtsp_url', sql.NVarChar(500), final_rtsp)
       .input('ip_address', sql.NVarChar(50), ip_address || null)
       .input('rtsp_port', sql.Int, rtsp_port || 554)
       .input('username', sql.NVarChar(100), username || null)
-      .input('password', sql.NVarChar(100), password || null)
+      .input('password', sql.NVarChar(100), finalPassword || null)
       .input('channel', sql.Int, channel || 1)
       .input('brand', sql.NVarChar(50), brand || null)
       .input('stream_type', sql.NVarChar(20), stream_type || 'sub')
@@ -393,7 +424,7 @@ app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
         WHERE camera_no = @camera_no AND company_code = @company_code
       `)
 
-    res.json({ success: true, message: 'Camera updated successfully', rtsp_url: generated_rtsp })
+    res.json({ success: true, message: 'Camera updated successfully', rtsp_url: final_rtsp })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
