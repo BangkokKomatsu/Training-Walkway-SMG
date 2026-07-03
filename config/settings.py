@@ -28,6 +28,8 @@ class Settings:
     CAMERA_RTSP_USER: str = os.getenv("CAMERA_RTSP_USER", "")
     CAMERA_RTSP_PASSWORD: str = os.getenv("CAMERA_RTSP_PASSWORD", "")
     SCHEDULE_SOURCE: str = os.getenv("SCHEDULE_SOURCE", "")  # 'db' หรือ 'hardcoded'
+    MAX_CONCURRENT_CAMERAS: int = int(os.getenv("MAX_CONCURRENT_CAMERAS", "2"))
+    ROTATION_INTERVAL_SECONDS: int = int(os.getenv("ROTATION_INTERVAL_SECONDS", "60"))
 
     # ---- Detection (YOLO) ----
     YOLO_MODEL_PATH: str = os.getenv("YOLO_MODEL_PATH", "Models/yolo11n.pt")

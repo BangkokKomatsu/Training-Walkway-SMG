@@ -157,7 +157,77 @@ def run_detection_service() -> None:
 
 
 def _run_multi_camera(detector: YoloDetector, cam_configs: list[CameraConfig]) -> None:
-    """รัน detection loop สำหรับหลายกล้องพร้อมกัน ด้วย threading"""
+    """รัน detection loop แบบสลับกล้องทีละ N ตัว ทุกๆ M วินาที"""
+    max_concurrent = settings.MAX_CONCURRENT_CAMERAS
+    rotation_interval = settings.ROTATION_INTERVAL_SECONDS
+    total_cameras = len(cam_configs)
+    
+    # กรณีจำนวนกล้องมีน้อยกว่าหรือเท่ากับที่กำหนด ให้รันพร้อมกันตามปกติไปเลย
+    if total_cameras <= max_concurrent:
+        logger.info("จำนวนกล้อง (%d) <= ขีดจำกัดพร้อมกัน (%d) — รันพร้อมกันทั้งหมด", total_cameras, max_concurrent)
+        _run_all_simultaneously(detector, cam_configs)
+        return
+
+    logger.info(
+        "ระบบเริ่มทำงานโหมดสลับกล้อง (รันพร้อมกันไม่เกิน %d ตัว ทุกๆ %d วินาทีจากทั้งหมด %d ตัว)", 
+        max_concurrent, rotation_interval, total_cameras
+    )
+                
+    current_index = 0
+    global_stop = threading.Event()
+    
+    try:
+        while not global_stop.is_set():
+            # 1. คัดกรองกล้องที่จะนำมารันในรอบนี้
+            active_configs = []
+            for i in range(max_concurrent):
+                idx = (current_index + i) % total_cameras
+                if cam_configs[idx] not in active_configs:
+                    active_configs.append(cam_configs[idx])
+            
+            logger.info(
+                "=== [เริ่มรอบการทำงาน] เปิดใช้งานกล้อง: %s ===", 
+                ", ".join([c.camera_no for c in active_configs])
+            )
+            
+            local_stop = threading.Event()
+            threads = []
+            
+            # ใช้ try...finally เพื่อให้แน่ใจว่าลูป Thread จะถูกเคลียร์/หยุดสนิทเสมอ
+            try:
+                for cam_config in active_configs:
+                    t = threading.Thread(
+                        target=_camera_loop,
+                        args=(detector, cam_config, local_stop),
+                        name=f"cam-{cam_config.camera_no}",
+                        daemon=True,
+                    )
+                    threads.append(t)
+                    t.start()
+                    logger.info("เริ่ม thread กล้อง %s", cam_config.camera_no)
+                
+                # 2. นอนรอจนครบระยะเวลาสลับกล้อง
+                start_time = time.monotonic()
+                while time.monotonic() - start_time < rotation_interval:
+                    time.sleep(0.5)
+                    
+            finally:
+                # 3. ส่งสัญญาณหยุดการทำงาน และปิดกล้องกลุ่มนี้เพื่อสลับไปกลุ่มถัดไป
+                logger.info("=== [สลับกล้อง] กำลังปิดการเชื่อมต่อกล้องกลุ่มปัจจุบัน... ===")
+                local_stop.set()
+                for t in threads:
+                    t.join(timeout=5)
+            
+            # 4. เลื่อน Index ไปยังกล้องกลุ่มถัดไป
+            current_index = (current_index + max_concurrent) % total_cameras
+            
+    except KeyboardInterrupt:
+        logger.info("ได้รับคำสั่งหยุดการทำงาน (Ctrl+C) — กำลังหยุดระบบ")
+        global_stop.set()
+
+
+def _run_all_simultaneously(detector: YoloDetector, cam_configs: list[CameraConfig]) -> None:
+    """รันกล้องทั้งหมดพร้อมกันโดยไม่มีการหมุนเวียน"""
     stop_event = threading.Event()
     threads: list[threading.Thread] = []
 
