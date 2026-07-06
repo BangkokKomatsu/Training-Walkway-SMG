@@ -14,7 +14,7 @@ export function PageLoading() {
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-3" aria-label="Loading" role="status">
       <LoadingSpinner size={32} />
-      <span className="text-xs font-semibold text-ink-muted">Loading workspace...</span>
+      <span className="text-sm font-semibold text-ink-muted">Loading workspace...</span>
     </div>
   )
 }
@@ -23,11 +23,11 @@ export function ErrorState({ message = 'Something went wrong', onRetry }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 gap-3 text-center border border-dashed border-red-500/30 rounded-xl bg-red-500/5 max-w-md mx-auto">
       <AlertCircle size={28} className="text-red-500" />
-      <p className="text-sm font-bold text-ink">{message}</p>
+      <p className="text-base font-bold text-ink">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="text-xs px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 transition-all font-semibold"
+          className="text-sm px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 transition-all font-semibold"
         >
           Retry Connection
         </button>
@@ -40,7 +40,7 @@ export function EmptyState({ message = 'No data found', icon: Icon = FileQuestio
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 gap-3 text-center border border-dashed border-border rounded-xl bg-surface/50 max-w-md mx-auto">
       <Icon size={28} className="text-ink-subtle" />
-      <p className="text-xs font-semibold text-ink-muted">{message}</p>
+      <p className="text-sm font-semibold text-ink-muted">{message}</p>
     </div>
   )
 }

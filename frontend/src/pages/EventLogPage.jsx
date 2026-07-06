@@ -114,10 +114,10 @@ export default function EventLogPage() {
         {/* Table Header Section */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface-2/40">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-ink uppercase tracking-wider">
+            <span className="text-sm font-bold text-ink uppercase tracking-wider">
               Recorded Safety Events
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface text-ink-muted border border-border">
+            <span className="text-[12px] font-mono px-2 py-0.5 rounded-full bg-surface text-ink-muted border border-border">
               {total.toLocaleString()} total
             </span>
           </div>
@@ -129,10 +129,10 @@ export default function EventLogPage() {
         {error ? (
           <div className="p-12 text-center max-w-sm mx-auto">
             <AlertCircle size={28} className="text-rose-500 mx-auto mb-2" />
-            <p className="text-sm font-bold text-ink mb-3">{error}</p>
+            <p className="text-base font-bold text-ink mb-3">{error}</p>
             <button
               onClick={refetch}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs font-semibold"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-sm font-semibold"
             >
               <RefreshCw size={12} /> Retry
             </button>
@@ -142,13 +142,13 @@ export default function EventLogPage() {
         ) : !events.length ? (
           <div className="p-12 text-center">
             <ListChecks size={28} className="text-ink-subtle mx-auto mb-2" />
-            <p className="text-xs font-semibold text-ink-muted">No safety events found matching the filters</p>
+            <p className="text-sm font-semibold text-ink-muted">No safety events found matching the filters</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse min-w-[850px]">
+            <table className="w-full text-sm text-left border-collapse min-w-[850px]">
               <thead>
-                <tr className="bg-surface-2/30 border-b border-border text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
+                <tr className="bg-surface-2/30 border-b border-border text-[12px] font-bold text-ink-subtle uppercase tracking-wider">
                   <th className="px-5 py-3 w-10">
                     <input
                       type="checkbox"
@@ -240,21 +240,21 @@ export default function EventLogPage() {
         {/* Pagination Bar */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-5 py-3.5 border-t border-border bg-surface-2/20">
-            <span className="text-[11px] text-ink-muted font-medium">
+            <span className="text-[13px] text-ink-muted font-medium">
               Showing page <strong className="text-ink font-bold font-mono">{page}</strong> of <strong className="text-ink font-bold font-mono">{totalPages}</strong>
             </span>
             <div className="flex gap-1.5">
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
+                className="px-3 py-1.5 text-sm rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
               >
                 Previous
               </button>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
+                className="px-3 py-1.5 text-sm rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
               >
                 Next
               </button>
@@ -266,27 +266,27 @@ export default function EventLogPage() {
       {/* Floating Bulk Operations Drawer */}
       {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-surface-2/95 border border-border p-4 rounded-2xl flex items-center gap-6 shadow-2xl animate-fade-in backdrop-blur-md">
-          <span className="text-xs font-bold text-ink font-mono">
+          <span className="text-sm font-bold text-ink font-mono">
             {selectedIds.length} incidents selected
           </span>
           <div className="flex items-center gap-2">
             <button
               disabled={bulkUpdating}
               onClick={() => handleBulkUpdate('CLOSED')}
-              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <CheckCircle size={12} /> Bulk Resolve
             </button>
             <button
               disabled={bulkUpdating}
               onClick={() => handleBulkUpdate('DISMISSED')}
-              className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <XCircle size={12} /> Bulk Reject
             </button>
             <button
               onClick={() => setSelectedIds([])}
-              className="px-3 py-1.5 rounded-lg border border-border hover:bg-surface text-[11px] font-bold text-ink-muted hover:text-ink transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-lg border border-border hover:bg-surface text-[13px] font-bold text-ink-muted hover:text-ink transition-all cursor-pointer"
             >
               Cancel
             </button>

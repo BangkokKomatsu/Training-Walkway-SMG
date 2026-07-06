@@ -48,10 +48,10 @@ export default function AlertMonitorPage() {
         {/* Table Header Section */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface-2/40">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-ink uppercase tracking-wider">
+            <span className="text-sm font-bold text-ink uppercase tracking-wider">
               Alert Delivery Tracking
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface text-ink-muted border border-border">
+            <span className="text-[12px] font-mono px-2 py-0.5 rounded-full bg-surface text-ink-muted border border-border">
               {total.toLocaleString()} total alerts
             </span>
           </div>
@@ -63,10 +63,10 @@ export default function AlertMonitorPage() {
         {error ? (
           <div className="p-12 text-center max-w-sm mx-auto">
             <AlertTriangle size={28} className="text-rose-500 mx-auto mb-2" />
-            <p className="text-sm font-bold text-ink mb-3">{error}</p>
+            <p className="text-base font-bold text-ink mb-3">{error}</p>
             <button
               onClick={refetch}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs font-semibold"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-sm font-semibold"
             >
               <RefreshCw size={12} /> Retry
             </button>
@@ -76,13 +76,13 @@ export default function AlertMonitorPage() {
         ) : !alerts.length ? (
           <div className="p-12 text-center">
             <Bell size={28} className="text-ink-subtle mx-auto mb-2" />
-            <p className="text-xs font-semibold text-ink-muted">No alert logs found in this date range</p>
+            <p className="text-sm font-semibold text-ink-muted">No alert logs found in this date range</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse min-w-[700px]">
+            <table className="w-full text-sm text-left border-collapse min-w-[700px]">
               <thead>
-                <tr className="bg-surface-2/30 border-b border-border text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
+                <tr className="bg-surface-2/30 border-b border-border text-[12px] font-bold text-ink-subtle uppercase tracking-wider">
                   <th className="px-5 py-3">Event ID</th>
                   <th className="px-5 py-3">Sent Timestamp</th>
                   <th className="px-5 py-3">Notification Type</th>
@@ -118,7 +118,7 @@ export default function AlertMonitorPage() {
                         label={al.email_sent ? 'Sent' : 'Failed'}
                       />
                     </td>
-                    <td className="px-5 py-3 max-w-xs truncate text-rose-500 font-mono text-[11px]" title={al.error_message}>
+                    <td className="px-5 py-3 max-w-xs truncate text-rose-500 font-mono text-[13px]" title={al.error_message}>
                       {al.error_message || '—'}
                     </td>
                   </tr>
@@ -131,21 +131,21 @@ export default function AlertMonitorPage() {
         {/* Pagination bar */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-5 py-3.5 border-t border-border bg-surface-2/20">
-            <span className="text-[11px] text-ink-muted font-medium">
+            <span className="text-[13px] text-ink-muted font-medium">
               Showing page <strong className="text-ink font-bold font-mono">{page}</strong> of <strong className="text-ink font-bold font-mono">{totalPages}</strong>
             </span>
             <div className="flex gap-1.5">
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
+                className="px-3 py-1.5 text-sm rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
               >
                 Previous
               </button>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
+                className="px-3 py-1.5 text-sm rounded-lg border border-border bg-surface text-ink-muted hover:text-ink hover:bg-surface-2 disabled:opacity-40 disabled:pointer-events-none transition-all font-semibold cursor-pointer"
               >
                 Next
               </button>

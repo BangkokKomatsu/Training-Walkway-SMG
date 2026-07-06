@@ -34,7 +34,7 @@ export default function StatusBadge({ status = 'offline', label, size = 'sm' }) 
     <span
       className={clsx(
         'inline-flex items-center gap-1 rounded-md font-bold border transition-all duration-150',
-        size === 'sm' ? 'px-2 py-0.5 text-[10px] tracking-wide' : 'px-2.5 py-1 text-[11px] tracking-wider',
+        size === 'sm' ? 'px-2 py-0.5 text-[12px] tracking-wide' : 'px-2.5 py-1 text-[13px] tracking-wider',
         activeVariant.styles
       )}
     >

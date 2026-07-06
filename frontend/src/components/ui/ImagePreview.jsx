@@ -13,7 +13,7 @@ export default function ImagePreview({ src, alt = 'Detection image', className =
         aria-label="Detection frame unavailable"
       >
         <ImageOff size={24} className="text-ink-subtle opacity-70" />
-        <span className="text-xs font-bold text-ink-subtle opacity-70">
+        <span className="text-sm font-bold text-ink-subtle opacity-70">
           Detection Frame Unavailable
         </span>
       </div>
@@ -41,7 +41,7 @@ export default function ImagePreview({ src, alt = 'Detection image', className =
       />
       {/* Beautiful dark/glassy overlay on hover */}
       <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px] pointer-events-none">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface/95 text-xs font-bold border border-border shadow-md">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface/95 text-sm font-bold border border-border shadow-md">
           <ZoomIn size={12} className="text-primary" />
           <span>Inspect Detection Capture</span>
         </div>

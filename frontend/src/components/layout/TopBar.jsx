@@ -34,7 +34,7 @@ export default function TopBar({ onMenuClick }) {
         >
           <Menu size={18} />
         </button>
-        <h1 className="text-sm font-bold tracking-tight text-ink">
+        <h1 className="text-base font-bold tracking-tight text-ink">
           {title}
         </h1>
       </div>
@@ -43,7 +43,7 @@ export default function TopBar({ onMenuClick }) {
       <div className="flex items-center gap-4">
         {/* Company indicator */}
         {activeCompanyCode && (
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono border border-border bg-surface-2 text-primary font-bold">
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-mono border border-border bg-surface-2 text-primary font-bold">
             <Building size={11} />
             <span>{activeCompanyCode}</span>
           </div>
@@ -56,9 +56,9 @@ export default function TopBar({ onMenuClick }) {
           aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
           {theme === 'dark' ? (
-            <Sun size={15} className="text-amber-400" />
+            <Sun size={15} className="text-primary" />
           ) : (
-            <Moon size={15} className="text-indigo-500" />
+            <Moon size={15} className="text-ink-muted" />
           )}
         </button>
 
@@ -68,14 +68,14 @@ export default function TopBar({ onMenuClick }) {
         {/* User preview */}
         <div className="flex items-center gap-2.5">
           <div className="text-right hidden sm:block">
-            <p className="text-xs font-bold text-ink leading-none">
+            <p className="text-sm font-bold text-ink leading-none">
               {user?.full_name || user?.username || 'Operator'}
             </p>
-            <span className="text-[9px] text-ink-subtle leading-none mt-0.5">
+            <span className="text-[11px] text-ink-subtle leading-none mt-0.5">
               {user?.is_super_admin ? 'System Admin' : (user?.role_name || 'operator')}
             </span>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-blue-400 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-primary/10">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center font-bold text-primary-fg text-sm shadow-md shadow-primary/10">
             {(user?.username?.[0] ?? '?').toUpperCase()}
           </div>
         </div>

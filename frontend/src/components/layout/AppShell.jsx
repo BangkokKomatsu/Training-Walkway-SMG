@@ -39,7 +39,7 @@ export default function AppShell({ children }) {
         </main>
 
         {/* Footer */}
-        <footer className="py-2.5 px-6 border-t border-border bg-surface text-ink-subtle text-[11px] flex items-center justify-between flex-shrink-0">
+        <footer className="py-2.5 px-6 border-t border-border bg-surface text-ink-subtle text-[13px] flex items-center justify-between flex-shrink-0">
           <div>
             © {new Date().getFullYear()} WalkWay Safety Monitor · Bangkok Komatsu
           </div>

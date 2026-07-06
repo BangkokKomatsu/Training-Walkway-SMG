@@ -3,52 +3,56 @@
 @tailwind utilities;
 
 /* ─── Design Tokens ─────────────────────────────── */
+/* Single signature accent: deep amber/gold. Warm-tinted neutrals throughout
+   (hue ~75) instead of achromatic grays, so surfaces never clash with the
+   accent. Status colors stay semantic (green/amber/red) but shifted off the
+   accent hue so a gold button is never mistaken for a warning state. */
 
 /* Light mode (default) */
 :root,
 [data-theme="light"] {
-  --bg:         oklch(1.000 0.000  0);
-  --surface:    oklch(0.975 0.003 105);
-  --surface-2:  oklch(0.950 0.005 105);
-  --border:     oklch(0.88  0.004 105);
+  --bg:         oklch(0.995 0.004 85);
+  --surface:    oklch(0.978 0.006 82);
+  --surface-2:  oklch(0.953 0.010 80);
+  --border:     oklch(0.878 0.014 75);
 
-  --ink:        oklch(0.17  0.008 105);
-  --ink-muted:  oklch(0.44  0.006 105);
-  --ink-subtle: oklch(0.62  0.004 105);
+  --ink:        oklch(0.19  0.014 70);
+  --ink-muted:  oklch(0.46  0.012 70);
+  --ink-subtle: oklch(0.53  0.012 70);
 
-  --primary:    oklch(0.52  0.12  108);
-  --primary-fg: oklch(0.98  0.000   0);
+  --primary:    oklch(0.53  0.15  75);
+  --primary-fg: oklch(0.99  0.010  90);
 
-  --accent:     oklch(0.48  0.14  212);
-  --accent-fg:  oklch(0.98  0.000   0);
+  --accent:     oklch(0.66  0.13  70);
+  --accent-fg:  oklch(0.16  0.020  70);
 
-  --status-ok:   oklch(0.45 0.18 142);
-  --status-warn: oklch(0.52 0.18  62);
-  --status-err:  oklch(0.48 0.22  25);
-  --status-off:  oklch(0.62 0.006 105);
+  --status-ok:   oklch(0.50 0.15 150);
+  --status-warn: oklch(0.60 0.17  55);
+  --status-err:  oklch(0.52 0.20  25);
+  --status-off:  oklch(0.60 0.010  75);
 }
 
 /* Dark mode */
 [data-theme="dark"] {
-  --bg:         oklch(0.09 0.000 0);
-  --surface:    oklch(0.14 0.004 105);
-  --surface-2:  oklch(0.19 0.005 105);
-  --border:     oklch(0.25 0.004 105);
+  --bg:         oklch(0.105 0.006 75);
+  --surface:    oklch(0.155 0.008 75);
+  --surface-2:  oklch(0.205 0.010 75);
+  --border:     oklch(0.285 0.010 75);
 
-  --ink:        oklch(0.93 0.003 105);
-  --ink-muted:  oklch(0.58 0.003 105);
-  --ink-subtle: oklch(0.38 0.002 105);
+  --ink:        oklch(0.94  0.006 75);
+  --ink-muted:  oklch(0.62  0.008 75);
+  --ink-subtle: oklch(0.52  0.008 75);
 
-  --primary:    oklch(0.72 0.13 108);
-  --primary-fg: oklch(0.10 0.000 0);
+  --primary:    oklch(0.76  0.14  78);
+  --primary-fg: oklch(0.13  0.020 75);
 
-  --accent:     oklch(0.62 0.14 212);
-  --accent-fg:  oklch(0.98 0.000 0);
+  --accent:     oklch(0.62  0.13  68);
+  --accent-fg:  oklch(0.97  0.010 90);
 
-  --status-ok:   oklch(0.65 0.18 142);
-  --status-warn: oklch(0.72 0.18  62);
-  --status-err:  oklch(0.58 0.22  25);
-  --status-off:  oklch(0.38 0.005 105);
+  --status-ok:   oklch(0.68 0.16 150);
+  --status-warn: oklch(0.74 0.17  55);
+  --status-err:  oklch(0.62 0.20  25);
+  --status-off:  oklch(0.42 0.008  75);
 }
 
 /* ─── Motion ─────────────────────────────────────── */
@@ -76,7 +80,7 @@
 
 /* ─── Base ────────────────────────────────────────── */
 html {
-  font-family: 'Roboto', system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   background-color: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
@@ -85,12 +89,27 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  position: relative;
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* ─── Grain texture ──────────────────────────────────
+   Fixed, ultra-low-opacity noise layer so surfaces read as material rather
+   than flat vector fills. Non-interactive, invisible to layout/a11y. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
 
 /* ─── Scrollbar (dark mode) ─────────────────────── */

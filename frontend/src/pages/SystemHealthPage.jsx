@@ -23,9 +23,9 @@ function HealthRow({ icon: Icon, label, status, value, sub }) {
         <Icon size={16} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-ink">{label}</p>
+        <p className="text-sm font-bold text-ink">{label}</p>
         {(value || sub) && (
-          <p className="text-[10px] font-mono text-ink-muted mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
+          <p className="text-[12px] font-mono text-ink-muted mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
             {value}{sub ? ` · ${sub}` : ''}
           </p>
         )}
@@ -54,10 +54,10 @@ export default function SystemHealthPage() {
     return (
       <div className="py-20 text-center max-w-sm mx-auto">
         <AlertTriangle size={28} className="text-rose-500 mx-auto mb-2" />
-        <p className="text-sm font-bold text-ink mb-3">{error}</p>
+        <p className="text-base font-bold text-ink mb-3">{error}</p>
         <button
           onClick={refetch}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs font-semibold"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-sm font-semibold"
         >
           <RefreshCw size={12} /> Retry check
         </button>
@@ -78,7 +78,7 @@ export default function SystemHealthPage() {
     <div className="space-y-5 w-full max-w-[1360px] mx-auto">
       
       {/* Last checked ribbon */}
-      <div className="flex items-center gap-1.5 pl-1 text-[11px] font-bold text-ink-subtle uppercase tracking-wider">
+      <div className="flex items-center gap-1.5 pl-1 text-[13px] font-bold text-ink-subtle uppercase tracking-wider">
         <Clock size={13} className="text-ink-subtle" />
         <span>
           Diagnostic check: <span className="font-mono text-ink font-bold">{items[0]?.checked_at ? formatRelative(items[0].checked_at) : '—'}</span>
@@ -88,7 +88,7 @@ export default function SystemHealthPage() {
       {/* Health Components Rack */}
       <div className="rounded-xl border border-border bg-surface/40 dark:bg-surface/20 overflow-hidden shadow-xs">
         <div
-          className="px-5 py-3.5 border-b border-border text-[10px] font-bold text-ink-subtle uppercase tracking-wider bg-surface-2/40"
+          className="px-5 py-3.5 border-b border-border text-[12px] font-bold text-ink-subtle uppercase tracking-wider bg-surface-2/40"
         >
           Server Diagnostic Nodes
         </div>
@@ -132,17 +132,17 @@ export default function SystemHealthPage() {
       {items.length > 0 && (
         <details className="group border border-border/80 rounded-xl overflow-hidden bg-zinc-950">
           <summary
-            className="cursor-pointer px-4 py-3 flex items-center justify-between text-[11px] font-bold tracking-wider text-zinc-400 uppercase select-none list-none bg-zinc-900/60"
+            className="cursor-pointer px-4 py-3 flex items-center justify-between text-[13px] font-bold tracking-wider text-zinc-400 uppercase select-none list-none bg-zinc-900/60"
           >
             <div className="flex items-center gap-2">
               <Terminal size={12} className="text-primary" />
               <span>Diagnostic Raw JSON Payload</span>
             </div>
-            <span className="text-zinc-500 font-mono text-[9px] group-open:rotate-180 transition-transform">
+            <span className="text-zinc-500 font-mono text-[11px] group-open:rotate-180 transition-transform">
               ▼
             </span>
           </summary>
-          <div className="p-4 border-t border-zinc-900 text-[10px] overflow-x-auto font-mono text-zinc-300 leading-relaxed max-h-72">
+          <div className="p-4 border-t border-zinc-900 text-[12px] overflow-x-auto font-mono text-zinc-300 leading-relaxed max-h-72">
             <pre>{JSON.stringify(items, null, 2)}</pre>
           </div>
         </details>

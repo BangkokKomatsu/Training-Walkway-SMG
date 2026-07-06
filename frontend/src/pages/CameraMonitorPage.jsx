@@ -262,13 +262,13 @@ export default function CameraMonitorPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/10">
             <Wifi size={13} className="animate-pulse" />
-            <span className="text-xs font-bold font-mono">{online}</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">Online</span>
+            <span className="text-sm font-bold font-mono">{online}</span>
+            <span className="text-[12px] uppercase font-bold tracking-wider opacity-80">Online</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/10">
             <WifiOff size={13} />
-            <span className="text-xs font-bold font-mono">{offline}</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">Offline</span>
+            <span className="text-sm font-bold font-mono">{offline}</span>
+            <span className="text-[12px] uppercase font-bold tracking-wider opacity-80">Offline</span>
           </div>
         </div>
 
@@ -281,7 +281,7 @@ export default function CameraMonitorPage() {
               <button
                 key={v}
                 onClick={() => setFilter(v)}
-                className={`px-3.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-md text-[13px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
                   filter === v
                     ? 'bg-surface text-ink shadow-xs'
                     : 'text-ink-muted hover:text-ink'
@@ -303,14 +303,14 @@ export default function CameraMonitorPage() {
               placeholder="Search camera..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-9 pr-3 py-1.5 text-xs rounded-lg border border-border bg-surface-2 text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all w-52"
+              className="pl-9 pr-3 py-1.5 text-sm rounded-lg border border-border bg-surface-2 text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all w-52"
             />
           </div>
 
           {/* Add Camera Button */}
           <button
             onClick={handleAddClick}
-            className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:shadow-lg hover:shadow-primary/25 hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-1.5 rounded-lg bg-primary text-white text-sm font-bold hover:shadow-lg hover:shadow-primary/25 hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Plus size={14} />
             <span>Add Camera</span>
@@ -322,10 +322,10 @@ export default function CameraMonitorPage() {
       {error ? (
         <div className="p-12 text-center max-w-sm mx-auto">
           <AlertTriangle size={28} className="text-rose-500 mx-auto mb-2" />
-          <p className="text-sm font-bold text-ink mb-3">{error}</p>
+          <p className="text-base font-bold text-ink mb-3">{error}</p>
           <button
             onClick={refetch}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs font-semibold"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-sm font-semibold"
           >
             <RefreshCw size={12} /> Retry feeds
           </button>
@@ -335,7 +335,7 @@ export default function CameraMonitorPage() {
       ) : !filtered.length ? (
         <div className="py-20 text-center border border-dashed border-border rounded-2xl bg-surface/30">
           <Camera size={32} className="text-ink-subtle mx-auto mb-2" />
-          <p className="text-xs font-bold text-ink-muted uppercase tracking-wider">No Camera feeds found</p>
+          <p className="text-sm font-bold text-ink-muted uppercase tracking-wider">No Camera feeds found</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -358,7 +358,7 @@ export default function CameraMonitorPage() {
             
             {/* Draw Area Canvas */}
             <div className="p-6 flex flex-col items-center justify-center flex-1">
-              <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest self-start mb-2 pl-0.5">
+              <span className="text-[12px] font-bold text-ink-subtle uppercase tracking-widest self-start mb-2 pl-0.5">
                 Restricted Area Draw Canvas (500 x 400 Grid)
               </span>
 
@@ -372,7 +372,7 @@ export default function CameraMonitorPage() {
               >
                 {/* Visual Camera lens / grid mesh */}
                 <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
-                <div className="absolute top-4 left-4 flex items-center gap-1.5 text-rose-500 font-mono text-[10px] font-bold tracking-widest uppercase">
+                <div className="absolute top-4 left-4 flex items-center gap-1.5 text-rose-500 font-mono text-[12px] font-bold tracking-widest uppercase">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
                   <span>REC · {selectedCam.camera_no}</span>
                 </div>
@@ -412,7 +412,7 @@ export default function CameraMonitorPage() {
                     }}
                   >
                     <div className="w-3 h-3 rounded-full bg-rose-500 border-2 border-white scale-100 group-hover/node:scale-125 transition-transform duration-100 shadow-md shadow-rose-500/30 cursor-pointer" />
-                    <span className="absolute -top-4 bg-zinc-900 text-white font-mono text-[8px] font-bold px-1 rounded-sm opacity-0 group-hover/node:opacity-100 transition-opacity">
+                    <span className="absolute -top-4 bg-zinc-900 text-white font-mono text-[11px] font-bold px-1 rounded-sm opacity-0 group-hover/node:opacity-100 transition-opacity">
                       p{idx + 1} ({p.x},{p.y})
                     </span>
                   </div>
@@ -421,8 +421,8 @@ export default function CameraMonitorPage() {
                 {points.length === 0 && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-black/40 backdrop-blur-xs select-none pointer-events-none">
                     <Camera size={28} className="text-zinc-500 mb-2" />
-                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Create Restricted Walkway Polygon</span>
-                    <span className="text-[9px] text-zinc-600 mt-1">Click around the camera frame grid to define polygon nodes</span>
+                    <span className="text-[13px] font-bold text-zinc-400 uppercase tracking-widest">Create Restricted Walkway Polygon</span>
+                    <span className="text-[11px] text-zinc-600 mt-1">Click around the camera frame grid to define polygon nodes</span>
                   </div>
                 )}
               </div>
@@ -433,8 +433,8 @@ export default function CameraMonitorPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-border/60 pb-3">
                   <div>
-                    <h4 className="text-xs font-bold text-ink uppercase tracking-wider">Polygon Settings</h4>
-                    <p className="text-[9px] text-ink-subtle">Assign zone attributes</p>
+                    <h4 className="text-sm font-bold text-ink uppercase tracking-wider">Polygon Settings</h4>
+                    <p className="text-[11px] text-ink-subtle">Assign zone attributes</p>
                   </div>
                   <button
                     onClick={() => { setSelectedCam(null); setPoints([]); }}
@@ -445,32 +445,32 @@ export default function CameraMonitorPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Camera Code:</label>
-                  <strong className="text-xs font-mono text-ink bg-surface border border-border/80 px-2.5 py-1.5 rounded-lg">
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Camera Code:</label>
+                  <strong className="text-sm font-mono text-ink bg-surface border border-border/80 px-2.5 py-1.5 rounded-lg">
                     {selectedCam.camera_no}
                   </strong>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Area/Zone Name:</label>
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Area/Zone Name:</label>
                   <input
                     type="text"
                     value={areaName}
                     onChange={e => setAreaName(e.target.value)}
                     placeholder="Restricted Walkway Zone"
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                    className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                   />
                 </div>
 
                 {/* Node coordinates readout */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Coordinates ({points.length} nodes):</label>
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Coordinates ({points.length} nodes):</label>
                   <div className="max-h-36 overflow-y-auto border border-border rounded-lg bg-surface divide-y divide-border/60 p-1">
                     {points.length === 0 ? (
-                      <span className="text-[10px] text-zinc-500 font-semibold p-2 block text-center">No nodes plotted yet</span>
+                      <span className="text-[12px] text-zinc-500 font-semibold p-2 block text-center">No nodes plotted yet</span>
                     ) : (
                       points.map((p, i) => (
-                        <div key={i} className="flex justify-between px-2.5 py-1 text-[10px] font-mono text-ink-muted">
+                        <div key={i} className="flex justify-between px-2.5 py-1 text-[12px] font-mono text-ink-muted">
                           <span>Node #{i + 1}</span>
                           <span className="font-bold text-ink">X: {p.x} · Y: {p.y}</span>
                         </div>
@@ -486,14 +486,14 @@ export default function CameraMonitorPage() {
                   <button
                     disabled={points.length === 0}
                     onClick={() => setPoints(pts => pts.slice(0, -1))}
-                    className="py-2 px-3 border border-border bg-surface rounded-xl text-[10px] font-bold text-ink-muted hover:text-ink disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    className="py-2 px-3 border border-border bg-surface rounded-xl text-[12px] font-bold text-ink-muted hover:text-ink disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <Undo size={11} /> Undo Point
                   </button>
                   <button
                     disabled={points.length === 0}
                     onClick={() => { setPoints([]); setHoverPt(null); }}
-                    className="py-2 px-3 border border-border bg-surface rounded-xl text-[10px] font-bold text-ink-muted hover:text-ink disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    className="py-2 px-3 border border-border bg-surface rounded-xl text-[12px] font-bold text-ink-muted hover:text-ink disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <Eraser size={11} /> Clear
                   </button>
@@ -502,7 +502,7 @@ export default function CameraMonitorPage() {
                 <button
                   disabled={points.length < 3 || saving}
                   onClick={handleSavePolygon}
-                  className="w-full py-2.5 px-4 bg-primary text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-primary/10 hover:brightness-110 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full py-2.5 px-4 bg-primary text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-primary/10 hover:brightness-110 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   {saving ? (
                     <>
@@ -531,10 +531,10 @@ export default function CameraMonitorPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <div>
-                <h4 className="text-sm font-bold text-ink uppercase tracking-wider">
+                <h4 className="text-base font-bold text-ink uppercase tracking-wider">
                   {formMode === 'add' ? 'Add New Camera' : 'Edit Camera Configuration'}
                 </h4>
-                <p className="text-[10px] text-ink-subtle">Configure connection credentials and details</p>
+                <p className="text-[12px] text-ink-subtle">Configure connection credentials and details</p>
               </div>
               <button
                 onClick={() => setFormOpen(false)}
@@ -545,12 +545,12 @@ export default function CameraMonitorPage() {
             </div>
 
             {/* Modal Body / Form */}
-            <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleFormSubmit} className="space-y-4 text-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
                 {/* Camera ID / Code */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Camera Code / No (e.g. CAM-04):</label>
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Camera Code / No (e.g. CAM-04):</label>
                   <input
                     type="text"
                     required
@@ -564,7 +564,7 @@ export default function CameraMonitorPage() {
 
                 {/* Camera Name */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Camera Name:</label>
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Camera Name:</label>
                   <input
                     type="text"
                     required
@@ -577,7 +577,7 @@ export default function CameraMonitorPage() {
 
                 {/* Location / Site */}
                 <div className="flex flex-col gap-1.5 md:col-span-2">
-                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Install Location:</label>
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Install Location:</label>
                   <input
                     type="text"
                     required
@@ -590,7 +590,7 @@ export default function CameraMonitorPage() {
 
                 {/* Brand */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Brand / Manufacturer:</label>
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Brand / Manufacturer:</label>
                   <select
                     value={formData.brand}
                     onChange={e => setFormData({ ...formData, brand: e.target.value })}
@@ -605,7 +605,7 @@ export default function CameraMonitorPage() {
 
                 {/* Stream Type */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-ink-subtle uppercase">Stream Type:</label>
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Stream Type:</label>
                   <select
                     value={formData.stream_type}
                     onChange={e => setFormData({ ...formData, stream_type: e.target.value })}
@@ -621,7 +621,7 @@ export default function CameraMonitorPage() {
                   <>
                     {/* IP Address */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-ink-subtle uppercase">IP Address:</label>
+                      <label className="text-[12px] font-bold text-ink-subtle uppercase">IP Address:</label>
                       <input
                         type="text"
                         required
@@ -634,7 +634,7 @@ export default function CameraMonitorPage() {
 
                     {/* RTSP Port */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-ink-subtle uppercase">RTSP Port (Default 554):</label>
+                      <label className="text-[12px] font-bold text-ink-subtle uppercase">RTSP Port (Default 554):</label>
                       <input
                         type="number"
                         required
@@ -647,7 +647,7 @@ export default function CameraMonitorPage() {
 
                     {/* Username */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-ink-subtle uppercase">Username:</label>
+                      <label className="text-[12px] font-bold text-ink-subtle uppercase">Username:</label>
                       <input
                         type="text"
                         value={formData.username}
@@ -659,7 +659,7 @@ export default function CameraMonitorPage() {
 
                     {/* Password */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-ink-subtle uppercase">Password:</label>
+                      <label className="text-[12px] font-bold text-ink-subtle uppercase">Password:</label>
                       <input
                         type="password"
                         value={formData.password}
@@ -671,7 +671,7 @@ export default function CameraMonitorPage() {
 
                     {/* Channel */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-ink-subtle uppercase">Channel Number (1, 2, 3...):</label>
+                      <label className="text-[12px] font-bold text-ink-subtle uppercase">Channel Number (1, 2, 3...):</label>
                       <input
                         type="number"
                         required
@@ -685,7 +685,7 @@ export default function CameraMonitorPage() {
                   </>
                 ) : (
                   <div className="flex flex-col gap-1.5 md:col-span-2">
-                    <label className="text-[10px] font-bold text-ink-subtle uppercase">Custom RTSP URL:</label>
+                    <label className="text-[12px] font-bold text-ink-subtle uppercase">Custom RTSP URL:</label>
                     <input
                       type="text"
                       required
@@ -700,20 +700,20 @@ export default function CameraMonitorPage() {
                 {/* Detection Schedules */}
                 <div className="md:col-span-2 border-t border-border/60 pt-4 space-y-4">
                   <div>
-                    <h5 className="text-[11px] font-bold text-ink uppercase tracking-wider">Detection Schedules</h5>
-                    <p className="text-[10px] text-ink-subtle">Set active days and hours. Leave empty for 24/7 detection.</p>
+                    <h5 className="text-[13px] font-bold text-ink uppercase tracking-wider">Detection Schedules</h5>
+                    <p className="text-[12px] text-ink-subtle">Set active days and hours. Leave empty for 24/7 detection.</p>
                   </div>
 
                   {/* List of active rules */}
                   {scheduleRules.length > 0 ? (
                     <div className="grid gap-2 sm:grid-cols-2">
                       {scheduleRules.map((rule, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-2/40 text-[11px]">
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-2/40 text-[13px]">
                           <div className="flex flex-col gap-1 pr-2">
                             <span className="font-bold text-ink">
                               {rule.days.map(d => d.substring(0, 3)).join(', ')}
                             </span>
-                            <span className="text-ink-muted font-mono text-[10px]">
+                            <span className="text-ink-muted font-mono text-[12px]">
                               {rule.start_time} - {rule.end_time}
                             </span>
                           </div>
@@ -729,18 +729,18 @@ export default function CameraMonitorPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="p-3.5 text-center border border-dashed border-border rounded-xl bg-surface-2/10 text-ink-subtle text-[11px] font-semibold tracking-wide">
+                    <div className="p-3.5 text-center border border-dashed border-border rounded-xl bg-surface-2/10 text-ink-subtle text-[13px] font-semibold tracking-wide">
                       ⚡ 24/7 Continuous Detection (No scheduling limits)
                     </div>
                   )}
 
                   {/* Add rule sub-form */}
                   <div className="p-4 rounded-xl border border-border bg-surface-2/20 space-y-3">
-                    <span className="text-[10px] font-bold text-ink uppercase tracking-wider block">Add New Schedule Rule</span>
+                    <span className="text-[12px] font-bold text-ink uppercase tracking-wider block">Add New Schedule Rule</span>
                     
                     {/* Days selector */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] text-ink-subtle font-bold uppercase tracking-wide">Select Days:</label>
+                      <label className="text-[12px] text-ink-subtle font-bold uppercase tracking-wide">Select Days:</label>
                       <div className="flex flex-wrap gap-1">
                         {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => {
                           const isSel = newRuleDays.includes(d);
@@ -750,7 +750,7 @@ export default function CameraMonitorPage() {
                               key={d}
                               type="button"
                               onClick={() => toggleNewRuleDay(d)}
-                              className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold tracking-wider transition-all cursor-pointer ${
+                              className={`px-3 py-1.5 rounded-lg border text-[12px] font-bold tracking-wider transition-all cursor-pointer ${
                                 isSel
                                   ? 'bg-primary border-primary text-white shadow-xs'
                                   : 'bg-surface border-border text-ink-muted hover:text-ink'
@@ -766,7 +766,7 @@ export default function CameraMonitorPage() {
                     {/* Time range */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] text-ink-subtle font-bold uppercase tracking-wide">Start Time:</label>
+                        <label className="text-[12px] text-ink-subtle font-bold uppercase tracking-wide">Start Time:</label>
                         <input
                           type="time"
                           value={newRuleStart}
@@ -775,7 +775,7 @@ export default function CameraMonitorPage() {
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] text-ink-subtle font-bold uppercase tracking-wide">End Time:</label>
+                        <label className="text-[12px] text-ink-subtle font-bold uppercase tracking-wide">End Time:</label>
                         <input
                           type="time"
                           value={newRuleEnd}
@@ -789,7 +789,7 @@ export default function CameraMonitorPage() {
                     <button
                       type="button"
                       onClick={handleAddRule}
-                      className="w-full py-2 px-3 border border-dashed border-primary/30 hover:border-primary text-primary hover:bg-primary/5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="w-full py-2 px-3 border border-dashed border-primary/30 hover:border-primary text-primary hover:bg-primary/5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Plus size={12} /> Add Rule to Schedule
                     </button>
@@ -805,7 +805,7 @@ export default function CameraMonitorPage() {
                     onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
                     className="w-4 h-4 text-primary bg-surface border-border rounded-sm focus:ring-primary cursor-pointer"
                   />
-                  <label htmlFor="camera_is_active" className="text-xs font-bold text-ink select-none cursor-pointer">
+                  <label htmlFor="camera_is_active" className="text-sm font-bold text-ink select-none cursor-pointer">
                     Enable camera detection pipeline (Active)
                   </label>
                 </div>
@@ -817,14 +817,14 @@ export default function CameraMonitorPage() {
                 <button
                   type="button"
                   onClick={() => setFormOpen(false)}
-                  className="px-4 py-2 border border-border hover:bg-surface-2 text-ink-muted hover:text-ink rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  className="px-4 py-2 border border-border hover:bg-surface-2 text-ink-muted hover:text-ink rounded-xl text-sm font-bold transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formSaving}
-                  className="px-5 py-2 bg-primary text-white hover:brightness-110 active:scale-[0.98] rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-primary/10 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="px-5 py-2 bg-primary text-white hover:brightness-110 active:scale-[0.98] rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-primary/10 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
                 >
                   {formSaving ? (
                     <>

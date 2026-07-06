@@ -31,7 +31,7 @@ export default function CameraStatusCard({ camera, onEditPolygon, onEditCamera, 
           )}>
             {isOnline ? <Wifi size={14} className="animate-pulse" /> : <WifiOff size={14} />}
           </div>
-          <span className="text-xs font-bold font-mono text-ink tracking-tight">
+          <span className="text-sm font-bold font-mono text-ink tracking-tight">
             {camera.camera_no}
           </span>
         </div>
@@ -43,24 +43,24 @@ export default function CameraStatusCard({ camera, onEditPolygon, onEditCamera, 
 
       {/* Details */}
       <div className="relative z-10 my-4 space-y-1.5 pl-0.5">
-        <div className="text-[11px] text-ink-muted leading-relaxed font-semibold">
-          <span className="text-[10px] text-ink-subtle uppercase tracking-wider block font-bold">CAMERA NAME:</span>
+        <div className="text-[13px] text-ink-muted leading-relaxed font-semibold">
+          <span className="text-[12px] text-ink-subtle uppercase tracking-wider block font-bold">CAMERA NAME:</span>
           {camera.camera_name || `Camera ${camera.camera_no}`}
         </div>
         {camera.location && (
-          <div className="text-[11px] text-ink-muted leading-relaxed font-semibold">
-            <span className="text-[10px] text-ink-subtle uppercase tracking-wider block font-bold">INSTALL SITE:</span>
+          <div className="text-[13px] text-ink-muted leading-relaxed font-semibold">
+            <span className="text-[12px] text-ink-subtle uppercase tracking-wider block font-bold">INSTALL SITE:</span>
             {camera.location}
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2 mt-2">
           {camera.company_code && (
-            <div className="text-[10px] font-mono text-primary font-bold inline-block bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+            <div className="text-[12px] font-mono text-primary font-bold inline-block bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
               {camera.company_code}
             </div>
           )}
           {camera.brand && (
-            <div className="text-[10px] font-mono text-ink-muted font-bold inline-block bg-surface-2 px-2 py-0.5 rounded-md border border-border">
+            <div className="text-[12px] font-mono text-ink-muted font-bold inline-block bg-surface-2 px-2 py-0.5 rounded-md border border-border">
               {camera.brand} ({camera.stream_type || 'sub'})
             </div>
           )}
@@ -71,7 +71,7 @@ export default function CameraStatusCard({ camera, onEditPolygon, onEditCamera, 
               const rules = JSON.parse(camera.schedule_json);
               if (Array.isArray(rules) && rules.length > 0) {
                 return (
-                  <div className="text-[10px] text-ink-subtle flex items-center gap-1 mt-2.5 font-semibold bg-surface-2/40 px-2 py-1 rounded-md border border-border/40 w-fit">
+                  <div className="text-[12px] text-ink-subtle flex items-center gap-1 mt-2.5 font-semibold bg-surface-2/40 px-2 py-1 rounded-md border border-border/40 w-fit">
                     <Clock size={11} className="text-primary" />
                     <span>Scheduled ({rules.length} {rules.length === 1 ? 'rule' : 'rules'})</span>
                   </div>
@@ -86,7 +86,7 @@ export default function CameraStatusCard({ camera, onEditPolygon, onEditCamera, 
       {/* Footer controls & heartbeat */}
       <div className="relative z-10 pt-3 border-t border-border/60 flex flex-col gap-2.5">
         {camera.last_seen && (
-          <div className="flex items-center gap-1.5 text-[10px] text-ink-subtle">
+          <div className="flex items-center gap-1.5 text-[12px] text-ink-subtle">
             <Clock size={11} className="text-ink-subtle" />
             <span>
               Heartbeat: <span className="font-mono text-ink font-semibold">{formatRelative(camera.last_seen)}</span>
@@ -97,7 +97,7 @@ export default function CameraStatusCard({ camera, onEditPolygon, onEditCamera, 
         <div className="flex gap-2 w-full">
           <button
             onClick={() => onEditPolygon && onEditPolygon(camera)}
-            className="flex-1 py-1.5 px-3 rounded-lg border border-border bg-surface-2 text-[10px] text-ink-muted font-bold hover:text-primary hover:border-primary/50 hover:bg-surface/50 transition-all flex items-center justify-center gap-1 cursor-pointer"
+            className="flex-1 py-1.5 px-3 rounded-lg border border-border bg-surface-2 text-[12px] text-ink-muted font-bold hover:text-primary hover:border-primary/50 hover:bg-surface/50 transition-all flex items-center justify-center gap-1 cursor-pointer"
           >
             <Camera size={11} /> Draw Zone
           </button>

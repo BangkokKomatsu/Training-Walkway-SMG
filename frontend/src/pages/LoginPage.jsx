@@ -1,7 +1,21 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Shield, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
+import {
+  Shield, Eye, EyeOff, AlertCircle, Loader2,
+  User, Lock, ArrowRight, Camera, Bell, LayoutDashboard
+} from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import loginHeroImage from '../assets/login-hero.png'
+
+const FEATURES = [
+  { icon: Camera,          title: 'Live Camera Monitoring', desc: 'RTSP feeds analyzed by YOLO11 detection' },
+  { icon: Bell,            title: 'Instant Alerts',         desc: 'Microsoft Teams and email notifications' },
+  { icon: LayoutDashboard, title: 'Safety Dashboard',        desc: 'Event history, trends and camera health' },
+]
+
+const PUBLISH_DATE = new Date().toLocaleString('en-GB', {
+  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+}).replace(',', '')
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -29,68 +43,115 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-bg text-ink flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden transition-colors duration-300">
-      
-      {/* Decorative ambient light leaks (Glowing effect in the background) */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[350px] h-[350px] bg-primary/15 rounded-full filter blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/3 w-[200px] h-[200px] bg-accent/10 rounded-full filter blur-[80px] pointer-events-none" />
+    <div className="min-h-[100dvh] w-full flex bg-bg text-ink font-sans">
 
-      <div className="w-full max-w-[380px] relative z-10 group">
-        
-        {/* Glow behind the login box */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-2xl filter blur-[12px] opacity-20 group-hover:opacity-30 transition-all duration-700 pointer-events-none" />
+      {/* Left: photographic brand panel, hidden below lg */}
+      <div className="hidden lg:flex lg:w-[46%] xl:w-[44%] relative overflow-hidden flex-shrink-0">
+        <img
+          src={loginHeroImage}
+          alt="Industrial warehouse floor monitored by the walkway safety system"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent" />
 
-        {/* Brand header */}
-        <div className="text-center mb-8 relative">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary to-accent mb-4 shadow-xl shadow-primary/30 relative">
-            <div className="absolute inset-0 rounded-2xl bg-white/20 animate-ping opacity-20 pointer-events-none" />
-            <Shield size={26} className="text-primary-fg" />
+        <div className="relative z-10 flex flex-col justify-between h-full p-10 xl:p-14">
+          {/* Brand + description */}
+          <div>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0">
+                <Shield size={22} className="text-primary-fg" />
+              </div>
+              <span className="text-2xl font-bold tracking-tightest text-white">
+                WalkWay Monitor
+              </span>
+            </div>
+
+            <p className="text-base text-white/75 leading-relaxed max-w-[46ch] mb-10">
+              Real-time walkway safety monitoring for industrial sites. AI-powered person
+              detection identifies restricted-area intrusions, logs every incident, and
+              alerts your team instantly.
+            </p>
+
+            <div className="flex flex-col gap-5">
+              {FEATURES.map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="flex items-start gap-3.5">
+                  <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                    <Icon size={16} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-base font-bold text-white leading-tight">{title}</p>
+                    <p className="text-sm text-white/60 leading-tight mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-ink mb-1">
-            WalkWay Monitor
-          </h1>
-          <p className="text-xs text-ink-muted font-semibold uppercase tracking-wider">
-            Safety Management System
-          </p>
-        </div>
 
-        {/* Foreground card */}
-        <div className="p-7 rounded-2xl border border-border bg-surface/90 backdrop-blur-xl shadow-2xl">
-          <p className="text-[10px] font-bold tracking-widest text-ink-subtle uppercase mb-5">
-            AUTHENTICATION REQUIRED
+          {/* Bottom-left legal / build info */}
+          <div className="text-sm text-white/50 leading-relaxed">
+            <p>© {new Date().getFullYear()} Bangkok Komatsu Co., Ltd.</p>
+            <p>Publish date : {PUBLISH_DATE}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: sign-in form */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-[380px]">
+
+          {/* Compact brand header, mobile only */}
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0">
+              <Shield size={22} className="text-primary-fg" />
+            </div>
+            <span className="text-2xl font-bold tracking-tightest text-ink">
+              WalkWay Monitor
+            </span>
+          </div>
+
+          <h1 className="text-3xl font-bold tracking-tightest text-ink mb-1.5">
+            Sign In
+          </h1>
+          <p className="text-base text-ink-muted mb-8">
+            Enter your credentials to access the safety monitor.
           </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            
+
             {/* Username Input */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-ink-muted tracking-wider">
-                USERNAME
+              <label className="text-sm font-bold text-ink">
+                Username
               </label>
-              <input
-                type="text"
-                autoComplete="username"
-                autoFocus
-                value={username}
-                onChange={e => { setUsername(e.target.value); setError('') }}
-                placeholder="Enter safety ID or username"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-surface-2/60 text-ink text-sm placeholder-ink-subtle focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
-              />
+              <div className="relative">
+                <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-subtle pointer-events-none" />
+                <input
+                  type="text"
+                  autoComplete="username"
+                  autoFocus
+                  value={username}
+                  onChange={e => { setUsername(e.target.value); setError('') }}
+                  placeholder="username"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-border bg-surface-2/60 text-ink text-base placeholder-ink-subtle focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+                />
+              </div>
             </div>
 
             {/* Password Input */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-ink-muted tracking-wider">
-                PASSWORD
+              <label className="text-sm font-bold text-ink">
+                Password
               </label>
               <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-subtle pointer-events-none" />
                 <input
                   type={showPwd ? 'text' : 'password'}
                   autoComplete="current-password"
                   value={password}
                   onChange={e => { setPassword(e.target.value); setError('') }}
-                  placeholder="••••••••"
-                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-surface-2/60 text-ink text-sm placeholder-ink-subtle focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+                  placeholder="password"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-border bg-surface-2/60 text-ink text-base placeholder-ink-subtle focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
                 />
                 <button
                   type="button"
@@ -105,9 +166,9 @@ export default function LoginPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-status-err/10 border border-status-err/20 mt-1">
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-status-err/10 border border-status-err/20">
                 <AlertCircle size={15} className="text-status-err flex-shrink-0" />
-                <span className="text-[11px] text-status-err font-semibold">{error}</span>
+                <span className="text-sm text-status-err font-semibold">{error}</span>
               </div>
             )}
 
@@ -115,24 +176,26 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !username.trim() || !password}
-              className="mt-2 py-2.5 px-4 rounded-xl font-bold text-sm bg-primary text-primary-fg hover:brightness-110 active:scale-[0.98] transition-all shadow-md shadow-primary/20 hover:shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              className="mt-2 py-2.5 px-4 rounded-xl font-bold text-base bg-primary text-primary-fg hover:brightness-110 active:scale-[0.98] transition-all shadow-md shadow-primary/20 hover:shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
             >
               {loading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Verifying Credentials...</span>
+                  <span>Verifying credentials...</span>
                 </>
               ) : (
-                'Secure Sign In'
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight size={16} />
+                </>
               )}
             </button>
           </form>
-        </div>
 
-        {/* Footer info */}
-        <p className="text-center mt-6 text-[10px] text-ink-subtle uppercase tracking-widest font-bold">
-          © {new Date().getFullYear()} SMG · SECURE CONTROL PANEL
-        </p>
+          <p className="mt-8 text-sm text-ink-subtle">
+            Access is provisioned by your system administrator.
+          </p>
+        </div>
       </div>
     </div>
   )

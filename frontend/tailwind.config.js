@@ -5,8 +5,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Roboto', 'system-ui', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
         mono: ['IBM Plex Mono', 'ui-monospace', 'monospace'],
+      },
+      letterSpacing: {
+        tightest: '-0.045em',
       },
       colors: {
         // Design tokens mapped from DESIGN.md

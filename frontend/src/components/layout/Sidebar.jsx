@@ -35,7 +35,7 @@ function CompanySwitcher({ activeCompanyCode, switchCompany, collapsed }) {
   if (collapsed) {
     return (
       <div className="flex justify-center py-2" title="Switch Company">
-        <div className="w-8 h-8 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-[10px] font-mono font-bold text-primary">
+        <div className="w-8 h-8 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-[12px] font-mono font-bold text-primary">
           {activeCompanyCode || 'ALL'}
         </div>
       </div>
@@ -44,14 +44,14 @@ function CompanySwitcher({ activeCompanyCode, switchCompany, collapsed }) {
 
   return (
     <div className="px-4 pt-3 pb-2 transition-all">
-      <div className="text-[10px] font-semibold mb-1 text-ink-subtle tracking-wider flex items-center gap-1">
+      <div className="text-[12px] font-semibold mb-1 text-ink-subtle tracking-wider flex items-center gap-1">
         <Building size={10} />
         VIEW COMPANY
       </div>
       <select
         value={activeCompanyCode || ''}
         onChange={e => switchCompany(e.target.value || null)}
-        className="w-full px-2 py-1.5 rounded-md border border-border bg-surface-2 text-ink text-xs font-mono font-medium cursor-pointer outline-none focus:border-primary transition-all"
+        className="w-full px-2 py-1.5 rounded-md border border-border bg-surface-2 text-ink text-sm font-mono font-medium cursor-pointer outline-none focus:border-primary transition-all"
       >
         <option value="">All Companies</option>
         {companies.map(c => (
@@ -88,7 +88,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
             <Shield size={16} className="text-white" />
           </div>
           {(!collapsed || mobileOpen) && (
-            <span className="text-sm font-bold tracking-tight text-ink whitespace-nowrap animate-fade-in">
+            <span className="text-base font-bold tracking-tight text-ink whitespace-nowrap animate-fade-in">
               WalkWay Monitor
             </span>
           )}
@@ -117,15 +117,15 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
       {/* User profile section */}
       <div className="p-3 border-b border-border flex-shrink-0">
         <div className={clsx("flex items-center gap-2", collapsed && !mobileOpen ? "justify-center" : "px-1")}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-blue-400 flex items-center justify-center font-bold text-white text-xs shadow-md flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center font-bold text-primary-fg text-sm shadow-md shadow-primary/20 flex-shrink-0">
             {(user?.username?.[0] ?? '?').toUpperCase()}
           </div>
           {(!collapsed || mobileOpen) && (
             <div className="min-w-0 animate-fade-in">
-              <p className="text-xs font-bold text-ink truncate leading-tight">
+              <p className="text-sm font-bold text-ink truncate leading-tight">
                 {user?.full_name || user?.username || '—'}
               </p>
-              <span className="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 bg-primary/10 text-primary rounded-full font-semibold border border-primary/20">
+              <span className="inline-block mt-0.5 text-[11px] px-1.5 py-0.2 bg-primary/10 text-primary rounded-full font-semibold border border-primary/20">
                 {user?.is_super_admin ? 'Super Admin' : (user?.role_name || 'viewer')}
               </span>
             </div>
@@ -145,7 +145,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
           <div className={clsx("p-3", collapsed && !mobileOpen ? "flex justify-center" : "")}>
             <div
               className={clsx(
-                "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-mono border border-border bg-surface-2 text-primary",
+                "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[13px] font-mono border border-border bg-surface-2 text-primary",
                 collapsed && !mobileOpen ? "w-8 h-8 justify-center p-0" : "w-full"
               )}
               title={`Active Company: ${activeCompanyCode}`}
@@ -154,7 +154,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
                 <span className="font-bold">{activeCompanyCode.slice(0, 3)}</span>
               ) : (
                 <>
-                  <span className="text-[9px] text-ink-subtle font-sans font-normal">COMP:</span>
+                  <span className="text-[11px] text-ink-subtle font-sans font-normal">COMP:</span>
                   <span className="font-semibold">{activeCompanyCode}</span>
                 </>
               )}
@@ -173,7 +173,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
             title={collapsed && !mobileOpen ? label : undefined}
             className={({ isActive }) =>
               clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200',
                 isActive
                   ? 'bg-primary text-white shadow-md shadow-primary/20'
                   : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
@@ -193,7 +193,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
           onClick={handleLogout}
           title={collapsed && !mobileOpen ? "Sign Out" : undefined}
           className={clsx(
-            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-xs font-semibold text-ink-muted hover:bg-red-500/10 hover:text-red-500 transition-all duration-200",
+            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-semibold text-ink-muted hover:bg-red-500/10 hover:text-red-500 transition-all duration-200",
             collapsed && !mobileOpen ? "justify-center px-0" : ""
           )}
         >

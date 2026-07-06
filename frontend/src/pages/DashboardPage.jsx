@@ -69,11 +69,11 @@ export default function DashboardPage() {
       <div className="py-20">
         <div className="flex flex-col items-center justify-center p-6 border border-dashed border-red-500/20 bg-red-500/5 rounded-2xl max-w-md mx-auto text-center">
           <AlertTriangle className="text-red-500 mb-2" size={32} />
-          <h3 className="text-sm font-bold text-ink mb-1">Failed to fetch dashboard</h3>
-          <p className="text-xs text-ink-muted mb-4">{error}</p>
+          <h3 className="text-base font-bold text-ink mb-1">Failed to fetch dashboard</h3>
+          <p className="text-sm text-ink-muted mb-4">{error}</p>
           <button
             onClick={refetch}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs font-semibold"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-sm font-semibold"
           >
             <RefreshCw size={12} /> Retry
           </button>
@@ -194,14 +194,14 @@ export default function DashboardPage() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          <span className="text-[10px] text-ink-muted font-bold uppercase tracking-wider">
+          <span className="text-[12px] text-ink-muted font-bold uppercase tracking-wider">
             Live Monitoring Active (Auto-refreshes every 30s)
           </span>
         </div>
         <button
           onClick={handleManualRefresh}
           disabled={isRefreshing}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/50 text-ink-muted hover:text-ink hover:bg-surface text-xs font-semibold transition-all select-none cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/50 text-ink-muted hover:text-ink hover:bg-surface text-sm font-semibold transition-all select-none cursor-pointer ${
             isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -216,25 +216,28 @@ export default function DashboardPage() {
           icon={Shield}
           label="Events Today"
           value={d.events_today ?? 0}
-          accent
+          tone="primary"
         />
         <DashboardCard
           icon={Activity}
           label="Events This Month"
           value={d.events_month ?? 0}
           sub={d.events_prev_month != null ? `${d.events_prev_month} last month` : undefined}
+          tone="neutral"
         />
         <DashboardCard
           icon={Camera}
           label="Cameras Online"
           value={`${d.cameras_online ?? 0} / ${d.cameras_total ?? 0}`}
           sub={d.cameras_offline > 0 ? `${d.cameras_offline} offline` : 'All systems operational'}
+          tone={d.cameras_offline > 0 ? 'warn' : 'ok'}
         />
         <DashboardCard
           icon={Bell}
           label="Alerts Success"
           value={`${d.alerts_success ?? 0} / ${d.alerts_total ?? 0}`}
           sub={d.alerts_failed > 0 ? `${d.alerts_failed} notifications failed` : 'All deliveries successful'}
+          tone={d.alerts_failed > 0 ? 'err' : 'ok'}
         />
       </div>
 
@@ -252,7 +255,7 @@ export default function DashboardPage() {
           <StatusBadge status={d.storage_status === 'ok' ? 'ok' : 'warn'} label="Image Storage" />
         </div>
         {d.last_run && (
-          <div className="flex items-center gap-1.5 ml-auto text-xs text-ink-subtle">
+          <div className="flex items-center gap-1.5 ml-auto text-sm text-ink-subtle">
             <Clock size={12} className="text-ink-subtle" />
             <span>
               Last detection loop: <span className="font-mono text-ink font-bold">{formatDateTime(d.last_run)}</span>
@@ -269,15 +272,15 @@ export default function DashboardPage() {
           <div>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Walkway Intrusion Trend</h3>
-                <span className="text-[10px] text-ink-muted">Historical event analytics</span>
+                <h3 className="text-sm font-bold text-ink uppercase tracking-wider">Walkway Intrusion Trend</h3>
+                <span className="text-[12px] text-ink-muted">Historical event analytics</span>
               </div>
               
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={selectedCamera}
                   onChange={e => setSelectedCamera(e.target.value)}
-                  className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-border bg-surface-2 text-ink outline-none cursor-pointer focus:border-primary"
+                  className="px-2.5 py-1 text-[12px] font-bold rounded-lg border border-border bg-surface-2 text-ink outline-none cursor-pointer focus:border-primary"
                 >
                   <option value="ALL">All Cameras</option>
                   {d.by_camera && d.by_camera.map(cam => (
@@ -287,7 +290,7 @@ export default function DashboardPage() {
                   ))}
                 </select>
 
-                <div className="flex items-center gap-1 text-[10px] text-ink-subtle font-semibold">
+                <div className="flex items-center gap-1 text-[12px] text-ink-subtle font-semibold">
                   <input
                     type="date"
                     value={startDate}
@@ -308,7 +311,7 @@ export default function DashboardPage() {
             {/* Custom SVG Line Chart */}
             <div className="w-full h-48 relative">
               {filteredTrend.length === 0 ? (
-                <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-ink-subtle">
+                <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-ink-subtle">
                   No trend logs match selected filters
                 </div>
               ) : (
@@ -332,7 +335,7 @@ export default function DashboardPage() {
                     <path
                       d={linePathD}
                       fill="none"
-                      stroke="var(--color-primary)"
+                      stroke="var(--primary)"
                       strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -354,9 +357,9 @@ export default function DashboardPage() {
                   })}
 
                   {/* Y-Axis Labels */}
-                  <text x={padL - 6} y={padT + 4} textAnchor="end" className="text-[8px] font-mono font-bold fill-ink-subtle">{trendMax}</text>
-                  <text x={padL - 6} y={padT + chartH / 2 + 3} textAnchor="end" className="text-[8px] font-mono font-bold fill-ink-subtle">{Math.round(trendMax / 2)}</text>
-                  <text x={padL - 6} y={lHeight - padB + 3} textAnchor="end" className="text-[8px] font-mono font-bold fill-ink-subtle">0</text>
+                  <text x={padL - 6} y={padT + 4} textAnchor="end" className="text-[11px] font-mono font-bold fill-ink-subtle">{trendMax}</text>
+                  <text x={padL - 6} y={padT + chartH / 2 + 3} textAnchor="end" className="text-[11px] font-mono font-bold fill-ink-subtle">{Math.round(trendMax / 2)}</text>
+                  <text x={padL - 6} y={lHeight - padB + 3} textAnchor="end" className="text-[11px] font-mono font-bold fill-ink-subtle">0</text>
 
                   {/* X-Axis Labels */}
                   {filteredTrend.map((item, idx) => (
@@ -365,7 +368,7 @@ export default function DashboardPage() {
                       x={getX(idx)}
                       y={lHeight - 10}
                       textAnchor="middle"
-                      className="text-[8px] font-mono font-bold fill-ink-subtle"
+                      className="text-[11px] font-mono font-bold fill-ink-subtle"
                     >
                       {item.label}
                     </text>
@@ -374,8 +377,8 @@ export default function DashboardPage() {
                   {/* Gradient definitions */}
                   <defs>
                     <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-primary)" />
-                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
+                      <stop offset="0%" stopColor="var(--primary)" />
+                      <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
                     </linearGradient>
                   </defs>
                 </svg>
@@ -387,8 +390,8 @@ export default function DashboardPage() {
         {/* Pie/Donut Chart Bento Box (Alert Delivery) */}
         <div className="col-span-1 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl flex flex-col justify-between shadow-xs">
           <div>
-            <h3 className="text-xs font-bold text-ink uppercase tracking-wider mb-1">Alert Delivery Health</h3>
-            <p className="text-[10px] text-ink-subtle">Success vs Failures (Teams & Email)</p>
+            <h3 className="text-sm font-bold text-ink uppercase tracking-wider mb-1">Alert Delivery Health</h3>
+            <p className="text-[12px] text-ink-subtle">Success vs Failures (Teams & Email)</p>
           </div>
 
           {/* SVG Donut Chart */}
@@ -431,17 +434,17 @@ export default function DashboardPage() {
               )}
             </svg>
             <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-xl font-bold font-mono text-ink tracking-tighter">
+              <span className="text-2xl font-bold font-mono text-ink tracking-tighter">
                 {successPercentage}%
               </span>
-              <span className="text-[8px] uppercase font-bold text-ink-subtle">
+              <span className="text-[11px] uppercase font-bold text-ink-subtle">
                 DELIVERED
               </span>
             </div>
           </div>
 
           {/* Legend */}
-          <div className="grid grid-cols-2 gap-2 text-[10px] pt-2 border-t border-border/40">
+          <div className="grid grid-cols-2 gap-2 text-[12px] pt-2 border-t border-border/40">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded bg-emerald-500 flex-shrink-0" />
               <span className="text-ink-muted truncate">Success: <strong className="font-mono text-ink">{alertSuccess}</strong></span>
@@ -457,14 +460,14 @@ export default function DashboardPage() {
         <div className="md:col-span-2 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl flex flex-col justify-between shadow-xs">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Violations by Camera Feeds</h3>
-              <span className="text-[10px] text-ink-muted">Reflecting total violations</span>
+              <h3 className="text-sm font-bold text-ink uppercase tracking-wider">Violations by Camera Feeds</h3>
+              <span className="text-[12px] text-ink-muted">Reflecting total violations</span>
             </div>
             
             {/* Custom SVG Bar Chart (Responsive) */}
             <div className="w-full h-48 flex items-end justify-between pt-6 px-2 sm:px-4">
               {barChartData.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-ink-subtle">
+                <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-ink-subtle">
                   No camera violation events recorded
                 </div>
               ) : (
@@ -473,15 +476,15 @@ export default function DashboardPage() {
                   return (
                     <div key={index} className="flex flex-col items-center flex-1 group h-full justify-end">
                       {/* Tooltip value */}
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-surface border border-border text-ink text-[9px] font-bold py-0.5 px-2 rounded-md mb-2 shadow-sm font-mono -translate-y-1">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-surface border border-border text-ink text-[11px] font-bold py-0.5 px-2 rounded-md mb-2 shadow-sm font-mono -translate-y-1">
                         {item.value} ev
                       </span>
                       {/* Bar shape */}
                       <div className="w-6 sm:w-10 md:w-12 bg-surface-2 rounded-t-lg relative overflow-hidden flex items-end justify-center min-h-[4px]" style={{ height: `${barHeightPercent}%` }}>
-                        <div className="absolute inset-0 bg-gradient-to-t from-primary to-blue-400 group-hover:brightness-110 transition-all duration-300 rounded-t-lg" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-primary to-accent group-hover:brightness-110 transition-all duration-300 rounded-t-lg" />
                       </div>
                       {/* Label */}
-                      <span className="mt-2 text-[9px] sm:text-[10px] font-mono font-bold text-ink-muted group-hover:text-ink transition-colors truncate max-w-[50px] sm:max-w-none" title={item.label}>
+                      <span className="mt-2 text-[11px] sm:text-[12px] font-mono font-bold text-ink-muted group-hover:text-ink transition-colors truncate max-w-[50px] sm:max-w-none" title={item.label}>
                         {item.name}
                       </span>
                     </div>
@@ -495,11 +498,11 @@ export default function DashboardPage() {
         {/* Safety Detection Configurations Bento Box */}
         <div className="col-span-1 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl shadow-xs flex flex-col justify-between">
           <div>
-            <h3 className="text-xs font-bold text-ink uppercase tracking-wider mb-3">AI Safety Engine & Breakdown</h3>
+            <h3 className="text-sm font-bold text-ink uppercase tracking-wider mb-3">AI Safety Engine & Breakdown</h3>
             
             {/* Event Type Breakdown Progress Bar */}
             <div className="mb-4 p-3 rounded-lg bg-surface/50 border border-border/60">
-              <span className="text-[8px] font-bold text-ink-subtle uppercase block mb-1.5">Violations Breakdown</span>
+              <span className="text-[11px] font-bold text-ink-subtle uppercase block mb-1.5">Violations Breakdown</span>
               {(() => {
                 const intrusionCount = d.intrusion_count ?? 0
                 const dwellCount = d.dwell_count ?? 0
@@ -515,17 +518,17 @@ export default function DashboardPage() {
                       ) : (
                         <>
                           <div className="bg-primary transition-all duration-500" style={{ width: `${intrusionPercent}%` }} title={`Intrusion: ${intrusionCount}`} />
-                          <div className="bg-purple-500 transition-all duration-500" style={{ width: `${dwellPercent}%` }} title={`Dwell: ${dwellCount}`} />
+                          <div className="bg-ink-subtle transition-all duration-500" style={{ width: `${dwellPercent}%` }} title={`Dwell: ${dwellCount}`} />
                         </>
                       )}
                     </div>
-                    <div className="flex justify-between items-center text-[9px] font-bold text-ink-muted mt-2">
+                    <div className="flex justify-between items-center text-[11px] font-bold text-ink-muted mt-2">
                       <span className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded bg-primary" />
                         <span>Intrusion ({intrusionCount})</span>
                       </span>
                       <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded bg-purple-500" />
+                        <span className="w-2 h-2 rounded bg-ink-subtle" />
                         <span>Dwell ({dwellCount})</span>
                       </span>
                     </div>
@@ -536,20 +539,20 @@ export default function DashboardPage() {
 
             <div className="flex flex-col gap-2">
               <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
-                <span className="text-[8px] font-bold text-ink-subtle uppercase">Scope</span>
-                <strong className="text-ink font-mono text-[11px]">YOLO11 Nano</strong>
+                <span className="text-[11px] font-bold text-ink-subtle uppercase">Scope</span>
+                <strong className="text-ink font-mono text-[13px]">YOLO11 Nano</strong>
               </div>
               <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
-                <span className="text-[8px] font-bold text-ink-subtle uppercase">Hardware</span>
-                <strong className="text-ink font-mono text-[11px] text-primary">CUDA GPU</strong>
+                <span className="text-[11px] font-bold text-ink-subtle uppercase">Hardware</span>
+                <strong className="text-ink font-mono text-[13px] text-primary">CUDA GPU</strong>
               </div>
               <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
-                <span className="text-[8px] font-bold text-ink-subtle uppercase">Dwell Limit</span>
-                <strong className="text-ink font-mono text-[11px]">5 Seconds</strong>
+                <span className="text-[11px] font-bold text-ink-subtle uppercase">Dwell Limit</span>
+                <strong className="text-ink font-mono text-[13px]">5 Seconds</strong>
               </div>
               <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
-                <span className="text-[8px] font-bold text-ink-subtle uppercase">Cooldown</span>
-                <strong className="text-ink font-mono text-[11px]">60 Seconds</strong>
+                <span className="text-[11px] font-bold text-ink-subtle uppercase">Cooldown</span>
+                <strong className="text-ink font-mono text-[13px]">60 Seconds</strong>
               </div>
             </div>
           </div>
@@ -560,12 +563,12 @@ export default function DashboardPage() {
       {/* Recent Events Table */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-bold text-ink uppercase tracking-wider">
+          <h2 className="text-sm font-bold text-ink uppercase tracking-wider">
             Recent Walkway Detection Events
           </h2>
           <Link
             to="/events"
-            className="flex items-center gap-1 text-xs text-primary font-bold hover:underline"
+            className="flex items-center gap-1 text-sm text-primary font-bold hover:underline"
           >
             Open Complete Logs <ChevronRight size={13} />
           </Link>
@@ -573,14 +576,14 @@ export default function DashboardPage() {
 
         <div className="border border-border rounded-xl bg-surface/40 overflow-hidden shadow-xs">
           {!events.length ? (
-            <div className="py-12 text-center text-xs font-medium text-ink-subtle">
+            <div className="py-12 text-center text-sm font-medium text-ink-subtle">
               No walkway violations recorded today
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
+              <table className="w-full text-sm text-left border-collapse">
                 <thead>
-                  <tr className="bg-surface-2/60 border-b border-border text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
+                  <tr className="bg-surface-2/60 border-b border-border text-[12px] font-bold text-ink-subtle uppercase tracking-wider">
                     <th className="px-5 py-3">Preview</th>
                     <th className="px-5 py-3">Timestamp</th>
                     <th className="px-5 py-3">Camera ID</th>
