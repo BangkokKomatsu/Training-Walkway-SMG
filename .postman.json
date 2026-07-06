@@ -1,0 +1,576 @@
+{
+  "info": {
+    "_postman_id": "b3f1b6b0-2f1e-4b7b-9c2a-walkway0001",
+    "name": "WalkWay Detection System - data-api",
+    "description": "ทดสอบ data-api (Node.js) ของระบบ WalkWay Detection\n\nมี 2 ระบบ auth แยกกัน:\n1. **JWT (Bearer token)** — ใช้กับ endpoint ภายในเกือบทั้งหมด (Dashboard, Events, Cameras, Alerts, User Management ฯลฯ) ต้อง `Login` ก่อน 1 ครั้ง แล้ว token จะถูกเซ็ตให้อัตโนมัติผ่าน test script\n2. **x-api-key** — ใช้กับ `Public API v1` เท่านั้น (endpoint สำหรับให้บริษัทภายนอกดึงข้อมูลของตัวเอง) ตั้งค่าไว้ล่วงหน้าเป็น API key ของ BKC แล้วในตัวแปร `x_api_key`\n\nขั้นตอนแนะนำ: เปิดโฟลเดอร์ `Auth` -> รัน `Login` (ใส่ password จาก CLAUDE.md) -> jwt_token จะถูกเซ็ตอัตโนมัติ -> ทดสอบโฟลเดอร์อื่นได้ทันที",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{jwt_token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3001", "type": "string", "description": "URL ของ data-api (ดู PORT ใน data-api/.env)" },
+    { "key": "x_api_key", "value": "830ee6db19e1f813855c4fe9fa1a17a7278cc1875adb9303bb4306e0f092fca7", "type": "string", "description": "API key ของบริษัท BKC (ใช้กับโฟลเดอร์ Public API v1 เท่านั้น) — ถ้ามีคนกด Regenerate ทับ ต้องเอาคีย์ใหม่มาแทนที่นี่" },
+    { "key": "jwt_token", "value": "", "type": "string", "description": "เซ็ตอัตโนมัติหลังรัน Auth > Login สำเร็จ" },
+    { "key": "login_username", "value": "bkc_admin", "type": "string" },
+    { "key": "login_password", "value": "", "type": "string", "description": "ดูรหัสผ่านเริ่มต้นได้ที่ CLAUDE.md หัวข้อ Default accounts — ห้าม commit ค่าจริงกลับเข้า repo" },
+    { "key": "filter_company_code", "value": "", "type": "string", "description": "ใช้กับ header x-company (Super Admin เท่านั้น) — เว้นว่าง = ทุกบริษัท" },
+    { "key": "user_id", "value": "1", "type": "string" },
+    { "key": "event_id", "value": "1", "type": "string" },
+    { "key": "camera_no", "value": "CAM-01", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔑 Auth",
+      "description": "Login เพื่อขอ JWT token — ต้องรันก่อนโฟลเดอร์อื่นเสมอ",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{login_username}}\",\n  \"password\": \"{{login_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "auth": { "type": "noauth" },
+            "description": "POST /api/auth/login — public, ไม่ต้องใช้ token\nสำเร็จ: คืน { token, user } — token จะถูกเซ็ตเข้า collection variable jwt_token อัตโนมัติผ่าน test script ด้านล่าง"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt_token', body.token);",
+                  "    console.log('jwt_token updated for user:', body.user && body.user.username);",
+                  "} else {",
+                  "    console.warn('Login failed:', pm.response.code, pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"{{login_password}}\",\n  \"new_password\": \"NewPass#2026\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "change-password"]
+            },
+            "description": "POST /api/auth/change-password — ต้อง login ก่อน (Bearer token)\nนโยบายรหัสผ่านใหม่: 8+ ตัวอักษร, พิมพ์ใหญ่, พิมพ์เล็ก, ตัวเลข, อักขระพิเศษ อย่างน้อยอย่างละ 1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 Companies & Roles",
+      "description": "ข้อมูลอ้างอิงสำหรับ dropdown (บริษัท / role) — ใช้ตอนสร้าง user ใหม่",
+      "item": [
+        {
+          "name": "List Companies",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/companies",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies"]
+            },
+            "description": "GET /api/companies — Super Admin เท่านั้น"
+          }
+        },
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/roles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "roles"]
+            },
+            "description": "GET /api/roles — Admin/Super Admin เท่านั้น"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 User Management",
+      "description": "Admin/Super Admin จัดการ user ภายในบริษัทตัวเอง (Super Admin จัดการได้ทุกบริษัท)",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-company", "value": "{{filter_company_code}}", "disabled": true, "description": "Super Admin เท่านั้น — กรองเฉพาะบริษัทนี้" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newco_admin\",\n  \"full_name\": \"New Co Admin\",\n  \"role_id\": 1,\n  \"company_code\": \"DEMO\",\n  \"is_super_admin\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            },
+            "description": "role_id: 1 = admin, 2 = viewer (เช็คลำดับจริงจาก List Roles ก่อน)\ncompany_code: Admin ทั่วไปส่งมาก็ไม่มีผล เพราะ server บังคับใช้บริษัทตัวเองเสมอ — ใช้ได้เฉพาะ Super Admin\nresponse จะมี temp_password กลับมาครั้งเดียว เก็บให้ดี"
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Updated Name\",\n  \"role_id\": 1,\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}/update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}", "update"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}", "reset-password"]
+            },
+            "description": "ปล่อย body ว่างไว้ = ระบบสุ่ม temp_password ให้เอง (แนะนำ) หรือส่ง { \"temp_password\": \"...\" } เองก็ได้ถ้าต้องผ่าน policy 8+/upper/lower/digit/special\nresponse คืน temp_password กลับมาครั้งเดียว — must_change_password จะถูกตั้งเป็น 1 ให้อัตโนมัติ"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Dashboard",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-company", "value": "{{filter_company_code}}", "disabled": true, "description": "Super Admin เท่านั้น" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚨 Events",
+      "item": [
+        {
+          "name": "List Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-company", "value": "{{filter_company_code}}", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/events?page=1&page_size=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "50" },
+                { "key": "camera_no", "value": "", "disabled": true },
+                { "key": "status", "value": "NEW", "disabled": true, "description": "NEW | REVIEWED | DISMISSED | CLOSED" },
+                { "key": "event_type", "value": "", "disabled": true, "description": "INTRUSION | DWELL" },
+                { "key": "date_from", "value": "", "disabled": true, "description": "YYYY-MM-DD" },
+                { "key": "date_to", "value": "", "disabled": true, "description": "YYYY-MM-DD" },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Event Detail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/events/{{event_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events", "{{event_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Close / Resolve Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CLOSED\",\n  \"resolved_by\": \"bkc_admin\",\n  \"resolution_desc\": \"Worker guided back to safe path.\",\n  \"resolution_image\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/events/{{event_id}}/close",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events", "{{event_id}}", "close"]
+            },
+            "description": "status: CLOSED (แก้ไขแล้ว) หรือ DISMISSED (ปฏิเสธ/false alarm)\nresolution_image: ใส่ base64 data URL ได้ถ้าต้องแนบรูปยืนยัน"
+          }
+        },
+        {
+          "name": "Bulk Update Events",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [1, 2, 3],\n  \"status\": \"REVIEWED\",\n  \"resolved_by\": \"bkc_admin\",\n  \"resolution_desc\": \"Reviewed in batch.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/events/bulk-update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "events", "bulk-update"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📷 Cameras",
+      "item": [
+        {
+          "name": "List Cameras",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-company", "value": "{{filter_company_code}}", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cameras",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cameras"]
+            }
+          }
+        },
+        {
+          "name": "Create Camera",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_no\": \"CAM-99\",\n  \"camera_name\": \"Test Camera 99\",\n  \"location_name\": \"Test Zone\",\n  \"brand\": \"hikvision\",\n  \"ip_address\": \"192.168.1.199\",\n  \"rtsp_port\": 554,\n  \"username\": \"admin\",\n  \"password\": \"changeme\",\n  \"channel\": 1,\n  \"stream_type\": \"sub\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/cameras",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cameras"]
+            },
+            "description": "brand: hikvision | dahua | panasonic | generic (generic ต้องส่ง custom_rtsp_url แทน ip/port/username/password/channel)"
+          }
+        },
+        {
+          "name": "Update Camera",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_name\": \"Test Camera 99 (Updated)\",\n  \"location_name\": \"Test Zone B\",\n  \"brand\": \"hikvision\",\n  \"ip_address\": \"192.168.1.199\",\n  \"rtsp_port\": 554,\n  \"username\": \"admin\",\n  \"password\": \"\",\n  \"channel\": 1,\n  \"stream_type\": \"sub\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_no}}/update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cameras", "{{camera_no}}", "update"]
+            },
+            "description": "password: เว้นว่าง = คงรหัสผ่านเดิมไว้ (ไม่เปลี่ยน)"
+          }
+        },
+        {
+          "name": "Delete Camera",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_no}}/delete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cameras", "{{camera_no}}", "delete"]
+            },
+            "description": "ลบกล้อง + polygon พื้นที่อันตรายทั้งหมดของกล้องนี้ (destructive — ระวังก่อนรันจริง)"
+          }
+        },
+        {
+          "name": "Get Camera Polygons",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_no}}/polygons",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cameras", "{{camera_no}}", "polygons"]
+            }
+          }
+        },
+        {
+          "name": "Save Camera Polygon",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"area_name\": \"Restricted Walkway Zone\",\n  \"polygon_json\": \"[[100,200],[500,200],[500,600],[100,600]]\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/cameras/{{camera_no}}/polygons",
+              "host": ["{{base_url}}"],
+              "path": ["api", "cameras", "{{camera_no}}", "polygons"]
+            },
+            "description": "polygon_json เป็น JSON string (ไม่ใช่ array ตรงๆ) ของพิกัด [x,y] ตามลำดับจุด — upsert อัตโนมัติ (มีอยู่แล้วจะ update, ไม่มีจะ insert)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Alerts",
+      "item": [
+        {
+          "name": "List Alert Log",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-company", "value": "{{filter_company_code}}", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/alerts?page=1&page_size=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "alerts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "50" },
+                { "key": "status", "value": "sent", "disabled": true, "description": "sent | failed" },
+                { "key": "date_from", "value": "", "disabled": true },
+                { "key": "date_to", "value": "", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❤️ System Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            },
+            "description": "เช็ค MSSQL connectivity, สถานะกล้อง, และ alert delivery ล่าสุด 24 ชม."
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Company Settings (API Key & Usage)",
+      "description": "Admin จัดการ API key ของบริษัทตัวเอง สำหรับให้ระบบภายนอกเรียก Public API v1",
+      "item": [
+        {
+          "name": "Get API Key Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/company/api-key",
+              "host": ["{{base_url}}"],
+              "path": ["api", "company", "api-key"]
+            },
+            "description": "คืนแค่สถานะ (created_at, is_active) — ไม่คืน key จริงหรือ hash"
+          }
+        },
+        {
+          "name": "Regenerate API Key",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/company/api-key/regenerate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "company", "api-key", "regenerate"]
+            },
+            "description": "⚠️ Destructive: คีย์เดิม (รวมถึงค่าที่อยู่ใน variable x_api_key ตอนนี้) จะใช้งานไม่ได้ทันที คีย์ใหม่โชว์ในนี้ครั้งเดียว ไม่มีวันดึงคืนซ้ำได้"
+          }
+        },
+        {
+          "name": "Get Usage Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/company/usage",
+              "host": ["{{base_url}}"],
+              "path": ["api", "company", "usage"],
+              "query": [
+                { "key": "date_from", "value": "", "disabled": true },
+                { "key": "date_to", "value": "", "disabled": true }
+              ]
+            },
+            "description": "สรุปจำนวนครั้งที่เรียก Public API v1 แยกตาม endpoint ของบริษัทตัวเอง (180 วันล่าสุด)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👑 Admin (Super Admin Only)",
+      "item": [
+        {
+          "name": "Billing Overview",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/billing-overview",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "billing-overview"]
+            },
+            "description": "ภาพรวมทุกบริษัท (สถานะ API key, จำนวนกล้อง active) สำหรับคิดค่าบริการ — bkc_admin (is_super_admin=1) เท่านั้นที่เรียกได้"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌐 Public API v1 (External - x-api-key Auth)",
+      "description": "Endpoint สำหรับให้ระบบภายนอกของแต่ละบริษัทดึงข้อมูลของตัวเอง — ใช้ header x-api-key แทน JWT, จำกัด 60 req/min ต่อ 1 key, log ทุกครั้งที่เรียก",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          { "key": "key", "value": "x-api-key", "type": "string" },
+          { "key": "value", "value": "{{x_api_key}}", "type": "string" },
+          { "key": "in", "value": "header", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Public - List Events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/public/v1/events?page_no=1&page_size=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "public", "v1", "events"],
+              "query": [
+                { "key": "page_no", "value": "1" },
+                { "key": "page_size", "value": "50" },
+                { "key": "camera_no", "value": "", "disabled": true },
+                { "key": "event_status", "value": "", "disabled": true },
+                { "key": "event_type", "value": "", "disabled": true },
+                { "key": "date_from", "value": "", "disabled": true },
+                { "key": "date_to", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Public - List Cameras",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/public/v1/cameras",
+              "host": ["{{base_url}}"],
+              "path": ["api", "public", "v1", "cameras"]
+            },
+            "description": "ไม่คืน rtsp_url/ip/username/password ของกล้อง (ตัดข้อมูล credential ออกก่อนส่งออกนอกระบบ)"
+          }
+        },
+        {
+          "name": "Public - Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/public/v1/dashboard-summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "public", "v1", "dashboard-summary"],
+              "query": [
+                { "key": "date_from", "value": "", "disabled": true },
+                { "key": "date_to", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Public - List Alerts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/public/v1/alerts?page_no=1&page_size=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "public", "v1", "alerts"],
+              "query": [
+                { "key": "page_no", "value": "1" },
+                { "key": "page_size", "value": "50" },
+                { "key": "alert_channel", "value": "", "disabled": true, "description": "TEAMS | EMAIL" },
+                { "key": "alert_status", "value": "", "disabled": true, "description": "SENT | FAILED" },
+                { "key": "date_from", "value": "", "disabled": true },
+                { "key": "date_to", "value": "", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
