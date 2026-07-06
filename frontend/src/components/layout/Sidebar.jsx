@@ -11,7 +11,9 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Building
+  Building,
+  KeyRound,
+  Users
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../services/api'
@@ -24,6 +26,8 @@ const NAV = [
   { to: '/alerts',    icon: Bell,             label: 'Alerts' },
   { to: '/health',    icon: Activity,         label: 'System Health' },
 ]
+
+const ADMIN_NAV = { to: '/users', icon: Users, label: 'User Management' }
 
 function CompanySwitcher({ activeCompanyCode, switchCompany, collapsed }) {
   const [companies, setCompanies] = useState([])
@@ -67,6 +71,8 @@ function CompanySwitcher({ activeCompanyCode, switchCompany, collapsed }) {
 export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggleCollapse }) {
   const { user, activeCompanyCode, logout, switchCompany } = useAuth()
   const navigate = useNavigate()
+  const isAdmin = user?.is_super_admin || user?.role_name === 'admin'
+  const navItems = isAdmin ? [...NAV, ADMIN_NAV] : NAV
 
   const handleLogout = () => {
     logout()
@@ -165,7 +171,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
 
       {/* Navigation menu */}
       <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
-        {NAV.map(({ to, icon: Icon, label }) => (
+        {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -187,8 +193,25 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
         ))}
       </nav>
 
-      {/* Sign out bar */}
-      <div className="p-2 border-t border-border flex-shrink-0">
+      {/* Account actions */}
+      <div className="p-2 border-t border-border flex-shrink-0 space-y-1">
+        <NavLink
+          to="/change-password"
+          onClick={onCloseMobile}
+          title={collapsed && !mobileOpen ? 'Change Password' : undefined}
+          className={({ isActive }) =>
+            clsx(
+              'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200',
+              isActive
+                ? 'bg-primary text-white shadow-md shadow-primary/20'
+                : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
+              collapsed && !mobileOpen ? 'justify-center px-0' : ''
+            )
+          }
+        >
+          <KeyRound size={16} className="flex-shrink-0" />
+          {(!collapsed || mobileOpen) && <span>Change Password</span>}
+        </NavLink>
         <button
           onClick={handleLogout}
           title={collapsed && !mobileOpen ? "Sign Out" : undefined}

@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import crypto from 'crypto'
 import express from 'express'
 import cors from 'cors'
 import bcrypt from 'bcryptjs'
@@ -21,6 +22,41 @@ async function execSP(spName, params = []) {
     req.input(name, type, value)
   }
   return req.execute(spName)
+}
+
+// ─── Helper: password policy ──────────────────────────
+// 8+ chars, uppercase, lowercase, number, special char — returns list of
+// violation messages, or [] when the password satisfies every rule.
+const SPECIAL_CHAR_RE = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/
+function validatePasswordPolicy(password) {
+  const errors = []
+  if (!password || password.length < 8) errors.push('At least 8 characters')
+  if (!/[A-Z]/.test(password || '')) errors.push('At least one uppercase letter')
+  if (!/[a-z]/.test(password || '')) errors.push('At least one lowercase letter')
+  if (!/[0-9]/.test(password || '')) errors.push('At least one number')
+  if (!SPECIAL_CHAR_RE.test(password || '')) errors.push('At least one special character')
+  return errors
+}
+
+// ─── Helper: generate a temp password that satisfies the policy above ─
+// Excludes visually ambiguous characters (0/O, 1/l/I) since admins retype
+// or read these aloud when handing them to a new user.
+const TEMP_PW_UPPER   = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+const TEMP_PW_LOWER   = 'abcdefghijkmnopqrstuvwxyz'
+const TEMP_PW_DIGIT   = '23456789'
+const TEMP_PW_SPECIAL = '!@#$%^&*'
+function randomChar(charset) {
+  return charset[crypto.randomInt(charset.length)]
+}
+function generateTempPassword(length = 12) {
+  const required = [randomChar(TEMP_PW_UPPER), randomChar(TEMP_PW_LOWER), randomChar(TEMP_PW_DIGIT), randomChar(TEMP_PW_SPECIAL)]
+  const all = TEMP_PW_UPPER + TEMP_PW_LOWER + TEMP_PW_DIGIT + TEMP_PW_SPECIAL
+  const chars = [...required, ...Array.from({ length: length - required.length }, () => randomChar(all))]
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1)
+    ;[chars[i], chars[j]] = [chars[j], chars[i]]
+  }
+  return chars.join('')
 }
 
 // ─── Helper: BKC image signed URL ────────────────────
@@ -72,6 +108,13 @@ function requireAuth(req, res, next) {
   }
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.user?.is_super_admin && req.user?.role_name !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden — admin role required' })
+  }
+  next()
+}
+
 // ─── POST /api/auth/login ─────────────────────────────
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -102,9 +145,59 @@ app.post('/api/auth/login', async (req, res) => {
       role_id:       user.role_id,
       role_name:     user.role_name,
       is_super_admin: user.is_super_admin === true || user.is_super_admin === 1,
+      must_change_password: user.must_change_password === true || user.must_change_password === 1,
     }
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES })
     res.json({ token, user: payload })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/auth/change-password ───────────────────
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body || {}
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'current_password and new_password are required' })
+    }
+
+    const pool = await getPool()
+    const result = await pool.request()
+      .input('user_id', sql.Int, req.user.user_id)
+      .query('SELECT password_hash FROM smg.mst_user WHERE user_id = @user_id')
+
+    const row = result.recordset[0]
+    if (!row) return res.status(404).json({ error: 'User not found' })
+
+    const currentMatches = await bcrypt.compare(current_password, row.password_hash)
+    if (!currentMatches) {
+      return res.status(401).json({ error: 'Current password is incorrect' })
+    }
+
+    const policyErrors = validatePasswordPolicy(new_password)
+    if (policyErrors.length > 0) {
+      return res.status(400).json({ error: 'Password does not meet the security requirements', details: policyErrors })
+    }
+
+    const sameAsOld = await bcrypt.compare(new_password, row.password_hash)
+    if (sameAsOld) {
+      return res.status(400).json({ error: 'New password must be different from the current password' })
+    }
+
+    const newHash = await bcrypt.hash(new_password, 10)
+    await execSP('smg.sp_change_password', [
+      { name: 'user_id',           type: sql.Int,             value: req.user.user_id },
+      { name: 'new_password_hash', type: sql.NVarChar(256),   value: newHash },
+    ])
+
+    // Re-sign the token so the client no longer sees must_change_password = true
+    const payload = { ...req.user, must_change_password: false }
+    delete payload.iat
+    delete payload.exp
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES })
+
+    res.json({ success: true, token, user: payload })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -116,6 +209,146 @@ app.get('/api/companies', requireAuth, async (req, res) => {
   try {
     const result = await execSP('smg.sp_get_company_list', [])
     res.json(result.recordset)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/roles  (dropdown for user management) ───
+app.get('/api/roles', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await execSP('smg.sp_get_role_list', [])
+    res.json(result.recordset)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/users  (Admin / Super Admin) ────────────
+app.get('/api/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await execSP('smg.sp_user_list', [
+      { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
+    ])
+    res.json(result.recordset)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/users  (Create) ────────────────────────
+app.post('/api/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { username, full_name, role_id, company_code: bodyCompanyCode, is_super_admin, temp_password } = req.body || {}
+    if (!username || !role_id) {
+      return res.status(400).json({ error: 'username and role_id are required' })
+    }
+
+    // Server-enforced scoping: regular admins can only create users in their own company
+    const company_code = req.user.is_super_admin ? (bodyCompanyCode || req.companyCode) : req.user.company_code
+    if (!company_code) {
+      return res.status(400).json({ error: 'company_code is required' })
+    }
+    const grantSuperAdmin = req.user.is_super_admin && company_code === 'BKC' && !!is_super_admin
+
+    const pool = await getPool()
+    const existing = await pool.request()
+      .input('username', sql.NVarChar(100), username)
+      .query('SELECT 1 FROM smg.mst_user WHERE username = @username')
+    if (existing.recordset.length > 0) {
+      return res.status(400).json({ error: `Username "${username}" is already taken` })
+    }
+
+    const plainPassword = temp_password || generateTempPassword()
+    const policyErrors = validatePasswordPolicy(plainPassword)
+    if (policyErrors.length > 0) {
+      return res.status(400).json({ error: 'temp_password does not meet the security requirements', details: policyErrors })
+    }
+    const passwordHash = await bcrypt.hash(plainPassword, 10)
+
+    const request = pool.request()
+    request.input('company_code', sql.NVarChar(20), company_code)
+    request.input('username', sql.NVarChar(100), username)
+    request.input('full_name', sql.NVarChar(200), full_name || null)
+    request.input('password_hash', sql.NVarChar(256), passwordHash)
+    request.input('role_id', sql.Int, parseInt(role_id))
+    request.input('is_super_admin', sql.Bit, grantSuperAdmin ? 1 : 0)
+    request.output('user_id', sql.Int)
+    const result = await request.execute('smg.sp_user_create')
+
+    // temp_password is returned once — it is never stored in plaintext anywhere
+    res.status(201).json({
+      success: true,
+      user_id: result.output.user_id,
+      username,
+      temp_password: plainPassword,
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/users/:id/update ────────────────────────
+app.post('/api/users/:id/update', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id)
+    const { full_name, role_id, is_active } = req.body || {}
+    if (!role_id) return res.status(400).json({ error: 'role_id is required' })
+
+    const pool = await getPool()
+    const existing = await pool.request()
+      .input('user_id', sql.Int, userId)
+      .query('SELECT company_code FROM smg.mst_user WHERE user_id = @user_id')
+    const target = existing.recordset[0]
+    if (!target) return res.status(404).json({ error: 'User not found' })
+
+    if (!req.user.is_super_admin && target.company_code !== req.user.company_code) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+
+    await execSP('smg.sp_user_update', [
+      { name: 'user_id',   type: sql.Int,           value: userId },
+      { name: 'full_name', type: sql.NVarChar(200), value: full_name || null },
+      { name: 'role_id',   type: sql.Int,           value: parseInt(role_id) },
+      { name: 'is_active', type: sql.Bit,           value: is_active !== false ? 1 : 0 },
+    ])
+
+    res.json({ success: true, message: 'User updated successfully' })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/users/:id/reset-password ────────────────
+app.post('/api/users/:id/reset-password', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id)
+    const { temp_password } = req.body || {}
+
+    const pool = await getPool()
+    const existing = await pool.request()
+      .input('user_id', sql.Int, userId)
+      .query('SELECT company_code, username FROM smg.mst_user WHERE user_id = @user_id')
+    const target = existing.recordset[0]
+    if (!target) return res.status(404).json({ error: 'User not found' })
+
+    if (!req.user.is_super_admin && target.company_code !== req.user.company_code) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+
+    const plainPassword = temp_password || generateTempPassword()
+    const policyErrors = validatePasswordPolicy(plainPassword)
+    if (policyErrors.length > 0) {
+      return res.status(400).json({ error: 'temp_password does not meet the security requirements', details: policyErrors })
+    }
+    const passwordHash = await bcrypt.hash(plainPassword, 10)
+
+    await execSP('smg.sp_user_reset_password', [
+      { name: 'user_id',           type: sql.Int,           value: userId },
+      { name: 'new_password_hash', type: sql.NVarChar(256), value: passwordHash },
+    ])
+
+    res.json({ success: true, username: target.username, temp_password: plainPassword })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -874,6 +1107,125 @@ async function runMigrations() {
       END;
     `)
     console.log('Migration: Stored procedure sp_get_detection_events updated successfully')
+
+    // Check which columns exist in mst_user
+    const checkUserCols = await pool.request().query(`
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = 'smg'
+        AND TABLE_NAME = 'mst_user'
+        AND COLUMN_NAME IN ('must_change_password')
+    `)
+    const existingUser = checkUserCols.recordset.map(r => r.COLUMN_NAME)
+
+    if (!existingUser.includes('must_change_password')) {
+      await pool.request().query(`ALTER TABLE smg.mst_user ADD must_change_password BIT NOT NULL DEFAULT 0`)
+      console.log('Migration: Added column must_change_password to mst_user')
+    }
+
+    // Compile password-change and user-management stored procedures
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_login
+          @username NVARCHAR(100)
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+          SELECT
+              u.user_id, u.company_code, u.username, u.full_name, u.password_hash,
+              u.role_id, r.role_name, u.is_super_admin, u.is_active, u.must_change_password
+          FROM smg.mst_user u
+          JOIN smg.mst_role r ON u.role_id = r.role_id
+          WHERE u.username = @username;
+      END;
+    `)
+
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_change_password
+          @user_id            INT,
+          @new_password_hash  NVARCHAR(256)
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+          UPDATE smg.mst_user
+          SET password_hash = @new_password_hash, must_change_password = 0
+          WHERE user_id = @user_id;
+      END;
+    `)
+
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_get_role_list
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+          SELECT role_id, role_name FROM smg.mst_role ORDER BY role_id;
+      END;
+    `)
+
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_user_list
+          @company_code   NVARCHAR(20)    = NULL
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+          SELECT
+              u.user_id, u.company_code, u.username, u.full_name,
+              u.role_id, r.role_name, u.is_super_admin, u.is_active,
+              u.must_change_password, u.created_at
+          FROM smg.mst_user u
+          JOIN smg.mst_role r ON u.role_id = r.role_id
+          WHERE (@company_code IS NULL OR u.company_code = @company_code)
+          ORDER BY u.company_code, u.username;
+      END;
+    `)
+
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_user_create
+          @company_code   NVARCHAR(20),
+          @username       NVARCHAR(100),
+          @full_name      NVARCHAR(200)   = NULL,
+          @password_hash  NVARCHAR(256),
+          @role_id        INT,
+          @is_super_admin BIT             = 0,
+          @user_id        INT             OUTPUT
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+          INSERT INTO smg.mst_user
+              (company_code, username, full_name, password_hash, role_id, is_super_admin, must_change_password)
+          VALUES
+              (@company_code, @username, @full_name, @password_hash, @role_id, @is_super_admin, 1);
+          SET @user_id = SCOPE_IDENTITY();
+      END;
+    `)
+
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_user_update
+          @user_id    INT,
+          @full_name  NVARCHAR(200)   = NULL,
+          @role_id    INT,
+          @is_active  BIT
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+          UPDATE smg.mst_user
+          SET full_name = @full_name, role_id = @role_id, is_active = @is_active
+          WHERE user_id = @user_id;
+      END;
+    `)
+
+    await pool.request().query(`
+      CREATE OR ALTER PROCEDURE smg.sp_user_reset_password
+          @user_id            INT,
+          @new_password_hash  NVARCHAR(256)
+      AS
+      BEGIN
+          SET NOCOUNT ON;
+          UPDATE smg.mst_user
+          SET password_hash = @new_password_hash, must_change_password = 1
+          WHERE user_id = @user_id;
+      END;
+    `)
+    console.log('Migration: User management stored procedures updated successfully')
   } catch (err) {
     console.error('Migration failed:', err.message)
   }

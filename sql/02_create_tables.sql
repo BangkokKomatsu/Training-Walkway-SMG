@@ -47,6 +47,7 @@ CREATE TABLE smg.mst_user (
     role_id         INT             NOT NULL DEFAULT 2,   -- 1=admin, 2=viewer
     is_super_admin  BIT             NOT NULL DEFAULT 0,   -- 1 = เห็นข้อมูลทุกบริษัท (BKC เท่านั้น)
     is_active       BIT             NOT NULL DEFAULT 1,
+    must_change_password BIT        NOT NULL DEFAULT 0,   -- 1 = บังคับเปลี่ยนรหัสผ่านก่อนใช้งานหน้าอื่น (ตั้งเมื่อ admin สร้าง/reset รหัสให้)
     created_at      DATETIME2       NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT PK_mst_user PRIMARY KEY (user_id),
     CONSTRAINT UQ_mst_user_username UNIQUE (username),    -- username ต้อง unique ทั้งระบบ

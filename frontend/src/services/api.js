@@ -53,6 +53,7 @@ async function post(path, body = {}) {
 }
 
 export const api = {
+  changePassword: (payload)     => post('/api/auth/change-password', payload),
   getDashboard:   (params = {}) => get('/api/dashboard', params),
   getEvents:      (params = {}) => get('/api/events',    params),
   getEventDetail: (id)          => get(`/api/events/${id}`),
@@ -67,4 +68,9 @@ export const api = {
   createCamera:      (payload)  => post('/api/cameras', payload),
   updateCamera:      (camera_no, payload) => post(`/api/cameras/${camera_no}/update`, payload),
   deleteCamera:      (camera_no) => post(`/api/cameras/${camera_no}/delete`),
+  getRoles:          ()          => get('/api/roles'),
+  getUsers:          (params = {}) => get('/api/users', params),
+  createUser:        (payload)  => post('/api/users', payload),
+  updateUser:        (id, payload) => post(`/api/users/${id}/update`, payload),
+  resetUserPassword: (id, payload = {}) => post(`/api/users/${id}/reset-password`, payload),
 }

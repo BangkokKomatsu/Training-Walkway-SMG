@@ -61,6 +61,14 @@ export function AuthProvider({ children }) {
     return userData
   }, [])
 
+  // Called after a successful password change — server re-signs the JWT with
+  // must_change_password cleared, so the forced-change gate lifts immediately.
+  const applyNewToken = useCallback((newToken) => {
+    localStorage.setItem(TOKEN_KEY, newToken)
+    setToken(newToken)
+    setUser(decodeJwt(newToken))
+  }, [])
+
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(COMPANY_KEY)
@@ -82,7 +90,7 @@ export function AuthProvider({ children }) {
   }, [user])
 
   return (
-    <AuthContext.Provider value={{ token, user, activeCompanyCode, login, logout, switchCompany }}>
+    <AuthContext.Provider value={{ token, user, activeCompanyCode, login, logout, switchCompany, applyNewToken }}>
       {children}
     </AuthContext.Provider>
   )

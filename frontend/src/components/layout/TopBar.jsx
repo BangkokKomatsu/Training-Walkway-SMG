@@ -10,6 +10,8 @@ const PAGE_TITLES = {
   '/cameras':   'Camera Monitor Feeds',
   '/alerts':    'Notification Alerts',
   '/health':    'System Health Diagnostics',
+  '/users':     'User Management',
+  '/change-password': 'Change Password',
 }
 
 export default function TopBar({ onMenuClick }) {

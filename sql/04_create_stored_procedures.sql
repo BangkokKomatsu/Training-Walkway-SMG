@@ -304,10 +304,131 @@ BEGIN
         u.role_id,
         r.role_name,
         u.is_super_admin,
-        u.is_active
+        u.is_active,
+        u.must_change_password
     FROM smg.mst_user u
     JOIN smg.mst_role r ON u.role_id = r.role_id
     WHERE u.username = @username;
+END;
+GO
+
+
+-- ===========================================================================
+-- smg.sp_change_password
+-- ผู้ใช้เปลี่ยนรหัสผ่านตัวเอง (บังคับครั้งแรก หรือเปลี่ยนเองภายหลัง)
+-- bcrypt hash ทำใน Node.js — SP รับ hash ที่ hash แล้วมาบันทึกเท่านั้น
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE smg.sp_change_password
+    @user_id            INT,
+    @new_password_hash  NVARCHAR(256)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE smg.mst_user
+    SET password_hash = @new_password_hash,
+        must_change_password = 0
+    WHERE user_id = @user_id;
+END;
+GO
+
+
+-- ===========================================================================
+-- smg.sp_get_role_list
+-- โหลด dropdown role สำหรับหน้า admin จัดการ user
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE smg.sp_get_role_list
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT role_id, role_name
+    FROM smg.mst_role
+    ORDER BY role_id;
+END;
+GO
+
+
+-- ===========================================================================
+-- smg.sp_user_list
+-- รายชื่อ user — @company_code = NULL คือ Super Admin เห็นทุกบริษัท
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE smg.sp_user_list
+    @company_code   NVARCHAR(20)    = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        u.user_id, u.company_code, u.username, u.full_name,
+        u.role_id, r.role_name, u.is_super_admin, u.is_active,
+        u.must_change_password, u.created_at
+    FROM smg.mst_user u
+    JOIN smg.mst_role r ON u.role_id = r.role_id
+    WHERE (@company_code IS NULL OR u.company_code = @company_code)
+    ORDER BY u.company_code, u.username;
+END;
+GO
+
+
+-- ===========================================================================
+-- smg.sp_user_create
+-- Admin สร้าง user ใหม่ — คืน user_id ที่เพิ่งสร้าง
+-- password_hash = temp password ที่ hash แล้วจาก Node.js, must_change_password บังคับ = 1 เสมอ
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE smg.sp_user_create
+    @company_code   NVARCHAR(20),
+    @username       NVARCHAR(100),
+    @full_name      NVARCHAR(200)   = NULL,
+    @password_hash  NVARCHAR(256),
+    @role_id        INT,
+    @is_super_admin BIT             = 0,
+    @user_id        INT             OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO smg.mst_user
+        (company_code, username, full_name, password_hash, role_id, is_super_admin, must_change_password)
+    VALUES
+        (@company_code, @username, @full_name, @password_hash, @role_id, @is_super_admin, 1);
+
+    SET @user_id = SCOPE_IDENTITY();
+END;
+GO
+
+
+-- ===========================================================================
+-- smg.sp_user_update
+-- Admin แก้ไขข้อมูล user (ไม่รวม username / company_code / password)
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE smg.sp_user_update
+    @user_id    INT,
+    @full_name  NVARCHAR(200)   = NULL,
+    @role_id    INT,
+    @is_active  BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE smg.mst_user
+    SET full_name = @full_name,
+        role_id   = @role_id,
+        is_active = @is_active
+    WHERE user_id = @user_id;
+END;
+GO
+
+
+-- ===========================================================================
+-- smg.sp_user_reset_password
+-- Admin สุ่มรหัสผ่านใหม่ให้ user — บังคับเปลี่ยนตอน login ครั้งถัดไปเสมอ
+-- ===========================================================================
+CREATE OR ALTER PROCEDURE smg.sp_user_reset_password
+    @user_id            INT,
+    @new_password_hash  NVARCHAR(256)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE smg.mst_user
+    SET password_hash = @new_password_hash,
+        must_change_password = 1
+    WHERE user_id = @user_id;
 END;
 GO
 
