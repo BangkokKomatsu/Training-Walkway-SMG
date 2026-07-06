@@ -9,8 +9,7 @@ import {
   Shield,
   LogOut,
   X,
-  ChevronLeft,
-  ChevronRight,
+  Menu,
   Building,
   KeyRound,
   Users
@@ -92,35 +91,38 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
     >
       {/* Brand logo bar */}
       <div className="flex items-center justify-between px-4 h-14 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/25">
-            <Shield size={16} className="text-white" />
-          </div>
-          {(!collapsed || mobileOpen) && (
+        {(!collapsed || mobileOpen) && (
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/25">
+              <Shield size={16} className="text-white" />
+            </div>
             <span className="text-base font-bold tracking-tight text-ink whitespace-nowrap animate-fade-in">
               WalkWay Monitor
             </span>
+          </div>
+        )}
+
+        {/* Desktop collapse/expand toggle — hamburger */}
+        <button
+          onClick={onToggleCollapse}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className={clsx(
+            'hidden lg:flex items-center justify-center w-9 h-9 rounded-lg text-ink-muted hover:bg-surface-2 hover:text-ink transition-colors duration-150 cursor-pointer flex-shrink-0',
+            collapsed && !mobileOpen && 'mx-auto'
           )}
-        </div>
-        
+        >
+          <Menu size={18} />
+        </button>
+
         {/* Mobile close button */}
         <button
-          className="lg:hidden p-1 rounded-md text-ink-muted hover:bg-surface-2"
+          className="lg:hidden p-2 rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink transition-colors"
           onClick={onCloseMobile}
           aria-label="Close sidebar"
         >
           <X size={16} />
         </button>
-
-        {/* Desktop collapse toggle button */}
-        {(!mobileOpen) && (
-          <button
-            onClick={onToggleCollapse}
-            className="hidden lg:flex items-center justify-center w-6 h-6 rounded-md border border-border bg-surface-2 text-ink-muted hover:text-ink absolute -right-3 top-4 shadow-sm z-40 hover:bg-surface"
-          >
-            {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-          </button>
-        )}
       </div>
 
       {/* User profile section */}

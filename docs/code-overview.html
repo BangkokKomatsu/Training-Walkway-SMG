@@ -512,8 +512,17 @@
   <section>
     <h2><span class="icon">🔧</span> 4. การตั้งค่า (.env และ Config)</h2>
     
+    <p style="font-size:0.82rem;color:#64748b;margin-bottom:16px">
+      โปรเจกต์นี้มี <b style="color:#94a3b8">3 ไฟล์ .env แยกกัน</b> คนละส่วน คนละ process — ห้ามปนกัน:
+      <span class="badge" style="margin-left:6px">.env (root) → Python</span>
+      <span class="badge">data-api/.env → Node.js</span>
+      <span class="badge">frontend/.env.local → Vite</span>
+    </p>
+
     <div class="tabs">
-      <button class="tab-btn active" onclick="openTab(event, 'tab-env')">.env (Environment)</button>
+      <button class="tab-btn active" onclick="openTab(event, 'tab-env')">.env (Python Detection)</button>
+      <button class="tab-btn" onclick="openTab(event, 'tab-dataapi-env')">data-api/.env (Backend API)</button>
+      <button class="tab-btn" onclick="openTab(event, 'tab-frontend-env')">frontend/.env.local (Web Dashboard)</button>
       <button class="tab-btn" onclick="openTab(event, 'tab-cameras')">cameras.json (Camera Config)</button>
       <button class="tab-btn" onclick="openTab(event, 'tab-settings')">settings.py (Python Config)</button>
     </div>
@@ -521,8 +530,8 @@
     <!-- Tab: .env -->
     <div id="tab-env" class="tab-content active">
       <div class="config-block">
-        <h3>ไฟล์ <span class="tag">.env</span> (ระบบอ่านค่าจากไฟล์นี้เป็นหลัก)</h3>
-        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">เพิ่มค่าใหม่สำหรับ Backend API และ JWT (สร้างจาก .env.example)</p>
+        <h3>ไฟล์ <span class="tag">.env</span> (root — อ่านโดย <code>config/settings.py</code> เท่านั้น)</h3>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">ค่าตั้งค่าของฝั่ง Python Detection Service เท่านั้น — Backend API (Node.js) และ Web Dashboard มี .env ของตัวเองแยกต่างหาก (ดูแท็บถัดไป)</p>
         <table>
           <thead>
             <tr>
@@ -564,6 +573,16 @@
               <td>SCHEDULE_SOURCE</td>
               <td>hardcoded</td>
               <td>วิธีการดึงข้อมูลตารางเวลาของกล้อง (เช่น hardcoded)</td>
+            </tr>
+            <tr>
+              <td>MAX_CONCURRENT_CAMERAS</td>
+              <td>2</td>
+              <td>จำนวนกล้องสูงสุดที่ประมวลผลพร้อมกันในรอบเดียว (จำกัดโหลด CPU/GPU)</td>
+            </tr>
+            <tr>
+              <td>ROTATION_INTERVAL_SECONDS</td>
+              <td>60</td>
+              <td>เวลา (วินาที) ก่อนสลับไปประมวลผลกล้องชุดถัดไป เมื่อกล้องทั้งหมดเกิน MAX_CONCURRENT_CAMERAS</td>
             </tr>
 
             <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">AI / Detection</td></tr>
@@ -621,10 +640,115 @@
               <td>safety@...</td>
               <td>ที่อยู่อีเมลผู้รับการแจ้งเตือนเตือนภัย</td>
             </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: data-api/.env -->
+    <div id="tab-dataapi-env" class="tab-content">
+      <div class="config-block">
+        <h3>ไฟล์ <span class="tag">data-api/.env</span> (อ่านโดย <code>data-api/server.js</code> ผ่าน dotenv)</h3>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">ค่าตั้งค่าของ Backend API (Node.js) — คนละไฟล์กับ Python .env ด้านบนเด็ดขาด คัดลอกจาก <code>data-api/.env.example</code></p>
+        <table>
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>ค่าตัวอย่าง</th>
+              <th>คำอธิบาย</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">Database (MSSQL)</td></tr>
+            <tr>
+              <td>DB_SERVER</td>
+              <td>BKCSR093\SQLPRO</td>
+              <td>ชื่อเซิร์ฟเวอร์ MSSQL (ใช้ <code>mssql</code> npm package เชื่อมต่อ — คนละ driver กับฝั่ง Python)</td>
+            </tr>
+            <tr>
+              <td>DB_PORT</td>
+              <td>1433</td>
+              <td>พอร์ตเชื่อมต่อ MSSQL</td>
+            </tr>
+            <tr>
+              <td>DB_NAME<br>DB_USER<br>DB_PASSWORD</td>
+              <td>IOT / iotconnect</td>
+              <td>ชื่อฐานข้อมูลและรหัสผ่านเพื่อเข้าใช้งาน</td>
+            </tr>
+            <tr>
+              <td>DB_ENCRYPT</td>
+              <td>false</td>
+              <td>เปิด/ปิดการเข้ารหัสการเชื่อมต่อ (ตั้ง true เมื่อ SQL Server บังคับ TLS)</td>
+            </tr>
+            <tr>
+              <td>DB_TRUST_CERT</td>
+              <td>true</td>
+              <td>ยอมรับ self-signed certificate (สำหรับ dev/internal server)</td>
+            </tr>
+
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">Server</td></tr>
+            <tr>
+              <td>PORT</td>
+              <td>3001</td>
+              <td>พอร์ตที่ Express server รอรับ request</td>
+            </tr>
+            <tr>
+              <td>ALLOWED_ORIGIN</td>
+              <td>http://localhost:5173</td>
+              <td>Origin ที่อนุญาตผ่าน CORS (URL ของ frontend)</td>
+            </tr>
+
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">JWT Auth</td></tr>
             <tr>
               <td>JWT_SECRET</td>
               <td>your_secret_key</td>
-              <td>รหัสลับสำหรับเข้ารหัส JWT Token ฝั่ง Web Dashboard (Backend API)</td>
+              <td>รหัสลับสำหรับเซ็น/ตรวจสอบ JWT Token — <span class="must">MUST</span> เปลี่ยนก่อน deploy จริง</td>
+            </tr>
+            <tr>
+              <td>JWT_EXPIRES</td>
+              <td>8h</td>
+              <td>อายุของ JWT token ก่อนหมดอายุ ต้อง login ใหม่</td>
+            </tr>
+
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">BKC Image API</td></tr>
+            <tr>
+              <td>BKC_IMAGE_API_URL</td>
+              <td>https://iapi.bkc.co.th/...</td>
+              <td>Endpoint ขอ signed URL รูปหลักฐาน (ดู CLAUDE.md ข้อ 9)</td>
+            </tr>
+            <tr>
+              <td>BKC_IMAGE_API_KEY</td>
+              <td>your-bkc-api-key-here</td>
+              <td><span class="opt">OPTIONAL</span> ถ้าไม่ตั้งค่า ระบบจะ skip การแสดงรูป (training mode) — ห้ามส่งค่านี้ไปฝั่ง browser เด็ดขาด</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: frontend/.env.local -->
+    <div id="tab-frontend-env" class="tab-content">
+      <div class="config-block">
+        <h3>ไฟล์ <span class="tag">frontend/.env.local</span> (อ่านโดย Vite ผ่าน <code>import.meta.env</code>)</h3>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">ตัวแปรต้องขึ้นต้นด้วย <code>VITE_</code> เท่านั้น Vite ถึงจะฝังให้ในโค้ด frontend ได้ คัดลอกจาก <code>frontend/.env.example</code></p>
+        <table>
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>ค่าตัวอย่าง</th>
+              <th>คำอธิบาย</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>VITE_API_BASE_URL</td>
+              <td>http://localhost:3001</td>
+              <td>URL ของ data-api ที่ frontend เรียกใช้ทุก request</td>
+            </tr>
+            <tr>
+              <td>VITE_CLOSE_CASE_MODE</td>
+              <td>true</td>
+              <td>เปิด/ปิดฟีเจอร์ปิดเคส (Case Resolution) ในหน้า Event Detail</td>
             </tr>
           </tbody>
         </table>
@@ -655,7 +779,7 @@
     <div id="tab-settings" class="tab-content">
       <div class="config-block">
         <h3>ไฟล์ <span class="tag">config/settings.py</span></h3>
-        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">คลาส <code>Settings</code> (ใช้ Pydantic) สำหรับโหลดค่าจาก .env และกำหนดค่าเริ่มต้นให้กับตัวแปรในระบบ Python</p>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">คลาส <code>Settings</code> เป็น <code>@dataclass(frozen=True)</code> ธรรมดา (ไม่ใช่ Pydantic) โหลดค่าจาก .env ด้วย <code>os.getenv()</code> ครั้งเดียวตอน import แล้วสร้าง instance เดียวใช้ร่วมกันทั้งโปรเจกต์ (<code>settings = Settings()</code>)</p>
         <table>
           <thead>
             <tr>
@@ -671,14 +795,24 @@
               <td>ระยะเวลาที่บุคคลต้องอยู่ในพื้นที่อันตรายอย่างต่อเนื่อง ก่อนที่ระบบจะตัดสินว่าเป็น Event (Dwell)</td>
             </tr>
             <tr>
-              <td>COOLDOWN_SECONDS</td>
-              <td>int (default: 60)</td>
+              <td>ALERT_COOLDOWN_SECONDS</td>
+              <td>int (default: 120)</td>
               <td>ระยะเวลาหน่วง (Cooldown) ก่อนที่จะทริกเกอร์ Event ใหม่ในกล้องตัวเดิม</td>
+            </tr>
+            <tr>
+              <td>MAX_CONCURRENT_CAMERAS</td>
+              <td>int (default: 2)</td>
+              <td>จำนวนกล้องสูงสุดที่ประมวลผลพร้อมกันในรอบเดียว</td>
+            </tr>
+            <tr>
+              <td>ROTATION_INTERVAL_SECONDS</td>
+              <td>int (default: 60)</td>
+              <td>เวลา (วินาที) ก่อนสลับไปประมวลผลกล้องชุดถัดไป</td>
             </tr>
             <tr>
               <td>YOLO_MODEL_PATH</td>
               <td>str</td>
-              <td>พาธไปยังไฟล์โมเดล YOLO (เช่น <code>models/yolo11n.pt</code>)</td>
+              <td>พาธไปยังไฟล์โมเดล YOLO (เช่น <code>Models/yolo11n.pt</code>)</td>
             </tr>
             <tr>
               <td>IMAGE_SHARED_DRIVE</td>
