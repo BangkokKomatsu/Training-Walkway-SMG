@@ -27,7 +27,10 @@ const NAV = [
   { to: '/health',    icon: Activity,         label: 'System Health' },
 ]
 
-const ADMIN_NAV = { to: '/users', icon: Users, label: 'User Management' }
+const ADMIN_NAV = [
+  { to: '/users',      icon: Users,     label: 'User Management' },
+  { to: '/api-access', icon: KeyRound,  label: 'API Access & Billing' },
+]
 
 function CompanySwitcher({ activeCompanyCode, switchCompany, collapsed }) {
   const [companies, setCompanies] = useState([])
@@ -72,7 +75,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
   const { user, activeCompanyCode, logout, switchCompany } = useAuth()
   const navigate = useNavigate()
   const isAdmin = user?.is_super_admin || user?.role_name === 'admin'
-  const navItems = isAdmin ? [...NAV, ADMIN_NAV] : NAV
+  const navItems = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV
 
   const handleLogout = () => {
     logout()

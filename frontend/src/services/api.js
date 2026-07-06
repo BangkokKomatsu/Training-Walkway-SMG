@@ -73,4 +73,8 @@ export const api = {
   createUser:        (payload)  => post('/api/users', payload),
   updateUser:        (id, payload) => post(`/api/users/${id}/update`, payload),
   resetUserPassword: (id, payload = {}) => post(`/api/users/${id}/reset-password`, payload),
+  getCompanyApiKey:  ()          => get('/api/company/api-key'),
+  regenerateApiKey:  ()          => post('/api/company/api-key/regenerate'),
+  getCompanyUsage:   (params = {}) => get('/api/company/usage', params),
+  getBillingOverview: ()         => get('/api/admin/billing-overview'),
 }
