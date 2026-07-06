@@ -91,7 +91,7 @@ export default function ChangePasswordPage() {
               autoFocus
               value={currentPassword}
               onChange={e => { setCurrentPassword(e.target.value); setError('') }}
-              placeholder="••••••••"
+              placeholder=""
               className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-surface-2/60 text-ink text-base placeholder-ink-subtle focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
             />
             <button
@@ -113,7 +113,7 @@ export default function ChangePasswordPage() {
               autoComplete="new-password"
               value={newPassword}
               onChange={e => { setNewPassword(e.target.value); setError('') }}
-              placeholder="••••••••"
+              placeholder=""
               className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-surface-2/60 text-ink text-base placeholder-ink-subtle focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
             />
             <button
@@ -134,7 +134,7 @@ export default function ChangePasswordPage() {
             autoComplete="new-password"
             value={confirmPassword}
             onChange={e => { setConfirmPassword(e.target.value); setError('') }}
-            placeholder="••••••••"
+            placeholder=""
             className={clsx(
               'w-full px-3.5 py-2.5 rounded-xl border bg-surface-2/60 text-ink text-base placeholder-ink-subtle focus:ring-1 outline-none transition-all',
               confirmPassword.length === 0
