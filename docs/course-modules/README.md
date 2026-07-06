@@ -18,3 +18,5 @@
 11. [Module 11 — ใช้งานเว็บ Monitor ระบบ](./11-monitoring-website.md)
 12. [Module 12 — CPU/GPU Performance Tuning](./12-cpu-gpu-performance-tuning.md)
 13. [Module 13 — Final Project: ประกอบทุกส่วนเป็นระบบจริง](./13-final-project.md)
+14. [Module 14 — Unit Testing และการวิเคราะห์ AI (Model Debugging)](./14-unit-testing-and-debugging.md)
+
