@@ -103,13 +103,17 @@ function generateTempPassword(length = 12) {
 }
 
 // ─── Helper: BKC image signed URL ────────────────────
-// image_path รูปแบบ: \\10.145.250.26\000-CenterApp\053-SMG-Walkway\DEMO\CAM-01\20260616\detection__xxx.jpg
-// imageFolder ที่ BKC API รับ: 000-CenterApp\053-SMG-Walkway\DEMO\CAM-01\20260616  (ตัด \\SERVER\ ออก + ตัด filename)
+// image_path จริงมี share name แทรกอยู่ (เช่น \\10.145.250.26\DataCenter\000-CenterApp\053-SMG-Walkway\DEMO\CAM-01\20260616\detection__xxx.jpg)
+// แต่ BKC API รับ imageFolder แบบ relative จาก "000-CenterApp" เท่านั้น (ไม่รวม server/share name ข้างหน้า)
+// ตัดทุกอย่างก่อน "000-CenterApp" ทิ้ง แทนที่จะสมมติจำนวน path segment ตายตัว
+const BKC_IMAGE_ROOT_MARKER = '000-CenterApp'
 function extractImageFolder(imagePath) {
   if (!imagePath) return null
-  const withoutServer = imagePath.replace(/^\\\\[^\\]+\\/, '')
-  const lastSep = withoutServer.lastIndexOf('\\')
-  return lastSep !== -1 ? withoutServer.substring(0, lastSep) : null
+  const markerIndex = imagePath.indexOf(BKC_IMAGE_ROOT_MARKER)
+  if (markerIndex === -1) return null
+  const fromMarker = imagePath.substring(markerIndex)
+  const lastSep = fromMarker.lastIndexOf('\\')
+  return lastSep !== -1 ? fromMarker.substring(0, lastSep) : null
 }
 
 async function getBkcSignedUrl(imagePath, imageName) {
@@ -130,6 +134,16 @@ async function getBkcSignedUrl(imagePath, imageName) {
   } catch {
     return null
   }
+}
+
+// ─── Internal key middleware (server-to-server, /api/internal) ───────
+// ใช้แยกจาก JWT/x-api-key เดิม — เฉพาะ Python detection service เรียกเท่านั้น
+function requireInternalKey(req, res, next) {
+  const key = req.headers['x-internal-key']
+  if (!key || key !== process.env.INTERNAL_SERVICE_KEY) {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+  next()
 }
 
 // ─── Auth middleware ──────────────────────────────────
@@ -518,9 +532,15 @@ app.get('/api/events', requireAuth, async (req, res) => {
       { name: 'page_no',       type: sql.Int,            value: parseInt(page      || '1') },
       { name: 'page_size',     type: sql.Int,            value: parseInt(page_size || '50') },
     ])
+    const rows = result.recordsets[0] || []
+    // ponytail: page_size is capped at 50, so N parallel BKC calls per list load is fine — revisit with a cache if this list is ever unpaginated
+    const data = await Promise.all(rows.map(async (row) => ({
+      ...row,
+      image_url: await getBkcSignedUrl(row.image_path, row.image_name),
+    })))
     res.json({
-      data:  result.recordsets[0] || [],
-      total: result.recordsets[1]?.[0]?.total ?? (result.recordsets[0]?.length ?? 0),
+      data,
+      total: result.recordsets[1]?.[0]?.total ?? rows.length,
     })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -1065,6 +1085,14 @@ app.get('/api/admin/billing-overview', requireAuth, requireSuperAdmin, async (re
   }
 })
 
+// ─── /api/internal/*  — server-to-server only (Python detection service) ──
+// ให้ Teams alert ฝั่ง Python ขอ signedUrl รูปโดยไม่ต้องถือ BKC_IMAGE_API_KEY เอง
+app.post('/api/internal/image-url', requireInternalKey, async (req, res) => {
+  const { image_path, image_name } = req.body
+  const image_url = await getBkcSignedUrl(image_path, image_name)
+  res.json({ image_url })
+})
+
 // ─── /api/public/v1/*  — external, read-only, API-key auth ────────────
 // Separate from the JWT-protected routes above: its own auth (x-api-key),
 // its own rate limit, and a contract that can evolve independently of the
@@ -1311,7 +1339,7 @@ async function runMigrations() {
           SELECT
               event_id, company_code, camera_no, camera_name, location_name,
               detected_class, confidence, event_type, event_status,
-              detected_at, image_name,
+              detected_at, image_path, image_name,
               alert_teams_status, alert_email_status,
               created_at, created_by
           FROM smg.trn_detection_event

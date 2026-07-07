@@ -20,6 +20,32 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = 10  # วินาที
 
 
+def _get_image_url(image_path: str, image_name: str) -> str | None:
+    """
+    ขอ signed URL ของรูปจาก data-api (data-api เป็นคนถือ BKC_IMAGE_API_KEY จริง)
+    คืน None ถ้า config ไม่ครบ หรือเรียกไม่สำเร็จ/timeout — ไม่ throw เพื่อไม่ block การส่ง Teams alert
+    """
+    if not image_path or not image_name:
+        return None
+    if not settings.DATA_API_INTERNAL_URL or not settings.INTERNAL_SERVICE_KEY:
+        return None
+
+    try:
+        resp = requests.post(
+            f"{settings.DATA_API_INTERNAL_URL}/api/internal/image-url",
+            json={"image_path": image_path, "image_name": image_name},
+            headers={"x-internal-key": settings.INTERNAL_SERVICE_KEY},
+            timeout=settings.IMAGE_URL_TIMEOUT_SECONDS,
+        )
+        if not resp.ok:
+            logger.warning("ขอ image_url จาก data-api ไม่สำเร็จ: %d", resp.status_code)
+            return None
+        return resp.json().get("image_url")
+    except requests.RequestException as exc:
+        logger.warning("ขอ image_url จาก data-api ล้มเหลว/timeout: %s", exc)
+        return None
+
+
 def send_teams_alert(event: dict) -> tuple[bool, int, str]:
     """
     ส่ง POST ไปยัง Power Automate webhook
@@ -34,6 +60,7 @@ def send_teams_alert(event: dict) -> tuple[bool, int, str]:
         return False, 0, "TEAMS_WEBHOOK_URL not configured"
 
     confidence_pct = round(float(event.get("confidence", 0)) * 100, 1)
+    image_url = _get_image_url(event.get("image_path", ""), event.get("image_name", ""))
 
     payload = {
         "company_code":  event.get("company_code", ""),
@@ -45,6 +72,7 @@ def send_teams_alert(event: dict) -> tuple[bool, int, str]:
         "detected_at":   event.get("detected_at", ""),
         "image_name":    event.get("image_name", ""),
         "image_path":    event.get("image_path", ""),
+        "image_url":     image_url or "",
         "message": (
             f"⚠️ ตรวจพบคนในพื้นที่อันตราย\n"
             f"บริษัท: {event.get('company_code')}\n"

@@ -164,12 +164,12 @@ export default function EventDetailPage() {
             alt={`Safety breach on camera ${ev.camera_no}`}
             className="w-full shadow-lg"
           />
-          {ev.image_path && (
+          {/* {ev.image_path && (
             <div className="p-3 rounded-lg border border-border bg-surface-2/40 text-[12px] text-ink-subtle font-mono break-all">
               <span className="font-bold text-ink block mb-0.5">IMAGE FILEPATH:</span>
               {ev.image_path}
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Right: Technical stats, Webhook logs, and Case Closure */}

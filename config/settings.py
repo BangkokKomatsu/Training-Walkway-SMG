@@ -53,6 +53,11 @@ class Settings:
     ENABLE_TEAMS_ALERT: bool = os.getenv("ENABLE_TEAMS_ALERT", "true").lower() == "true"
     TEAMS_WEBHOOK_URL: str = os.getenv("TEAMS_WEBHOOK_URL", "")
 
+    # ---- data-api internal call (ขอ signed image URL ก่อนส่ง Teams alert) ----
+    DATA_API_INTERNAL_URL: str = os.getenv("DATA_API_INTERNAL_URL", "http://localhost:3001")
+    INTERNAL_SERVICE_KEY: str = os.getenv("INTERNAL_SERVICE_KEY", "")
+    IMAGE_URL_TIMEOUT_SECONDS: int = int(os.getenv("IMAGE_URL_TIMEOUT_SECONDS", "3"))
+
     # ---- Alert: Email (SMTP M365) ----
     ENABLE_EMAIL_ALERT: bool = os.getenv("ENABLE_EMAIL_ALERT", "true").lower() == "true"
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.office365.com")

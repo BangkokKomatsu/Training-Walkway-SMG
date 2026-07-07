@@ -60,7 +60,7 @@ BEGIN
     SELECT
         event_id, company_code, camera_no, camera_name, location_name,
         detected_class, confidence, event_type, event_status,
-        detected_at, image_name,
+        detected_at, image_path, image_name,
         alert_teams_status, alert_email_status,
         created_at, created_by
     FROM smg.trn_detection_event
