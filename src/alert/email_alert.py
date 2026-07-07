@@ -21,6 +21,10 @@ def send_email_alert(event: dict) -> tuple[bool, str]:
     ส่งอีเมลผ่าน SMTP M365
     คืน (success: bool, message: str)
     """
+    if not settings.ENABLE_EMAIL_ALERT:
+        logger.info("ENABLE_EMAIL_ALERT=false — ข้ามการส่งอีเมล")
+        return False, "Email alert disabled"
+
     if not all([settings.SMTP_USER, settings.SMTP_PASSWORD, settings.ALERT_EMAIL_TO]):
         logger.warning("Email config ไม่ครบ (SMTP_USER / SMTP_PASSWORD / ALERT_EMAIL_TO) — ข้ามการส่ง")
         return False, "Email not configured"

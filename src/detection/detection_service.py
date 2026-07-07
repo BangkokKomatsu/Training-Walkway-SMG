@@ -168,10 +168,10 @@ def _run_multi_camera(detector: YoloDetector, cam_configs: list[CameraConfig]) -
         _run_all_simultaneously(detector, cam_configs)
         return
 
-    logger.info(
-        "ระบบเริ่มทำงานโหมดสลับกล้อง (รันพร้อมกันไม่เกิน %d ตัว ทุกๆ %d วินาทีจากทั้งหมด %d ตัว)", 
-        max_concurrent, rotation_interval, total_cameras
-    )
+    # logger.info(
+    #     "ระบบเริ่มทำงานโหมดสลับกล้อง (รันพร้อมกันไม่เกิน %d ตัว ทุกๆ %d วินาทีจากทั้งหมด %d ตัว)", 
+    #     max_concurrent, rotation_interval, total_cameras
+    # )
                 
     current_index = 0
     global_stop = threading.Event()

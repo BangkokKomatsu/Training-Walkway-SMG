@@ -206,9 +206,11 @@ DB_PASSWORD=
 IMAGE_SHARED_DRIVE=
 
 # ---- Alert: Teams ----
+ENABLE_TEAMS_ALERT=true
 TEAMS_WEBHOOK_URL=
 
 # ---- Alert: Email (SMTP M365) ----
+ENABLE_EMAIL_ALERT=true
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
 SMTP_USER=

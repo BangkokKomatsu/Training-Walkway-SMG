@@ -50,9 +50,11 @@ class Settings:
     IMAGE_SHARED_DRIVE: str = os.getenv("IMAGE_SHARED_DRIVE", "")
 
     # ---- Alert: Teams ----
+    ENABLE_TEAMS_ALERT: bool = os.getenv("ENABLE_TEAMS_ALERT", "true").lower() == "true"
     TEAMS_WEBHOOK_URL: str = os.getenv("TEAMS_WEBHOOK_URL", "")
 
     # ---- Alert: Email (SMTP M365) ----
+    ENABLE_EMAIL_ALERT: bool = os.getenv("ENABLE_EMAIL_ALERT", "true").lower() == "true"
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.office365.com")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USER: str = os.getenv("SMTP_USER", "")

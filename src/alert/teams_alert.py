@@ -25,6 +25,10 @@ def send_teams_alert(event: dict) -> tuple[bool, int, str]:
     ส่ง POST ไปยัง Power Automate webhook
     คืน (success: bool, http_status_code: int, response_text: str)
     """
+    if not settings.ENABLE_TEAMS_ALERT:
+        logger.info("ENABLE_TEAMS_ALERT=false — ข้ามการส่ง Teams")
+        return False, 0, "Teams alert disabled"
+
     if not settings.TEAMS_WEBHOOK_URL:
         logger.warning("TEAMS_WEBHOOK_URL ไม่ได้ตั้งค่า — ข้ามการส่ง Teams")
         return False, 0, "TEAMS_WEBHOOK_URL not configured"

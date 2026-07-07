@@ -31,7 +31,7 @@ def save_detection_image(frame, company_code: str, camera_no: str) -> tuple[str,
     now = datetime.now()
     date_str = now.strftime("%Y%m%d")
     ts_str   = now.strftime("%Y%m%d_%H%M%S")
-    image_name = f"detection__{ts_str}.jpg"
+    image_name = f"detection_{ts_str}.jpg"
 
     folder = os.path.join(
         settings.IMAGE_SHARED_DRIVE,
