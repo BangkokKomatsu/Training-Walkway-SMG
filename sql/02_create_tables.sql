@@ -77,6 +77,8 @@ CREATE TABLE smg.mst_camera (
     brand           NVARCHAR(50)    NULL,
     stream_type     NVARCHAR(20)    NOT NULL DEFAULT 'sub',
     schedule_json   NVARCHAR(MAX)   NULL,   -- ตารางเวลาเปิด/ปิดตรวจจับของกล้อง (เก็บเป็น JSON) ดู Module 06
+    snapshot_requested_at  DATETIME2   NULL,   -- data-api set ตอน admin กด "Sync ภาพล่าสุด"
+    last_snapshot_at       DATETIME2   NULL,   -- Python set หลัง capture snapshot สำเร็จ ดู sql/09
     CONSTRAINT PK_mst_camera PRIMARY KEY (company_code, camera_no),
     CONSTRAINT FK_mst_camera_company FOREIGN KEY (company_code) REFERENCES smg.mst_company(company_code)
 );

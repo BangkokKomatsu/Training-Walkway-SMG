@@ -1,5 +1,7 @@
 import 'dotenv/config'
 import crypto from 'crypto'
+import fs from 'fs'
+import path from 'path'
 import express from 'express'
 import cors from 'cors'
 import bcrypt from 'bcryptjs'
@@ -134,6 +136,29 @@ async function getBkcSignedUrl(imagePath, imageName) {
   } catch {
     return null
   }
+}
+
+// ─── Helper: camera snapshot (Draw Polygon "Sync ภาพล่าสุด") ─────────
+// path segments (company_code/camera_no) ต้องผ่าน regex นี้ก่อนถูกใช้สร้าง fs path เสมอ —
+// นี่เป็น route เดียวใน data-api ที่แตะ local filesystem ตรงๆ
+const SAFE_PATH_SEGMENT = /^[A-Za-z0-9_-]+$/
+
+// resolve company_code จริงจาก DB เสมอ — ห้ามเชื่อ req.companyCode ตอนสร้าง fs path
+// (Super Admin ที่ไม่ได้ระบุ x-company จะได้ company_code ของกล้องตัวแรกที่ตรง camera_no)
+async function resolveCameraSnapshotRow(pool, cameraNo, requestedCompanyCode) {
+  const result = await pool.request()
+    .input('camera_no', sql.NVarChar(20), cameraNo)
+    .input('company_code', sql.NVarChar(20), requestedCompanyCode)
+    .query(`
+      SELECT TOP 1 company_code, last_snapshot_at
+      FROM smg.mst_camera
+      WHERE camera_no = @camera_no AND (@company_code IS NULL OR company_code = @company_code)
+    `)
+  return result.recordset[0] || null
+}
+
+function localSnapshotPath(sharedDrive, companyCode, cameraNo) {
+  return path.join(sharedDrive, '_snapshots', companyCode, `${cameraNo}.jpg`)
 }
 
 // ─── Internal key middleware (server-to-server, /api/internal) ───────
@@ -1028,6 +1053,90 @@ app.post('/api/cameras/:camera_no/polygons', requireAuth, async (req, res) => {
       `)
 
     res.json({ success: true, message: 'Polygon saved successfully' })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── POST /api/cameras/:camera_no/snapshot/sync ─────
+// Admin กดปุ่ม "Sync ภาพล่าสุด" ใน Draw Polygon modal — แค่ตั้ง flag คำขอ
+// detection_service.py (Python) ที่รันอยู่จะเช็ค flag นี้เองแล้ว capture ให้ ดู CLAUDE.md §2
+app.post('/api/cameras/:camera_no/snapshot/sync', requireAuth, async (req, res) => {
+  try {
+    const { camera_no } = req.params
+    const pool = await getPool()
+    const cam = await resolveCameraSnapshotRow(pool, camera_no, req.companyCode)
+    if (!cam) return res.status(404).json({ error: 'Camera not found' })
+
+    await pool.request()
+      .input('camera_no', sql.NVarChar(20), camera_no)
+      .input('company_code', sql.NVarChar(20), cam.company_code)
+      .query(`
+        UPDATE smg.mst_camera
+        SET snapshot_requested_at = SYSUTCDATETIME()
+        WHERE camera_no = @camera_no AND company_code = @company_code
+      `)
+
+    res.json({ success: true, message: 'Snapshot sync requested' })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/cameras/:camera_no/snapshot ───────────
+// คืนสถานะ snapshot ล่าสุด — mode 'bkc' (signed URL ใช้ตรงได้), 'local' (ต้อง fetch /raw
+// พร้อม bearer token), หรือ 'none' (ยังไม่เคย capture)
+app.get('/api/cameras/:camera_no/snapshot', requireAuth, async (req, res) => {
+  try {
+    const { camera_no } = req.params
+    const pool = await getPool()
+    const cam = await resolveCameraSnapshotRow(pool, camera_no, req.companyCode)
+    if (!cam) return res.status(404).json({ error: 'Camera not found' })
+
+    const last_snapshot_at = cam.last_snapshot_at || null
+
+    if (process.env.BKC_IMAGE_API_KEY) {
+      // image_path จำลองตาม convention เดียวกับที่ save_camera_snapshot() ฝั่ง Python ใช้เขียนไฟล์จริง
+      const bkcImagePath = `${process.env.IMAGE_SHARED_DRIVE || ''}\\_snapshots\\${cam.company_code}\\${camera_no}.jpg`
+      const snapshot_url = await getBkcSignedUrl(bkcImagePath, `${camera_no}.jpg`)
+      return res.json({ mode: snapshot_url ? 'bkc' : 'none', snapshot_url, last_snapshot_at })
+    }
+
+    const sharedDrive = process.env.IMAGE_SHARED_DRIVE
+    if (sharedDrive && SAFE_PATH_SEGMENT.test(cam.company_code) && SAFE_PATH_SEGMENT.test(camera_no)) {
+      const localPath = localSnapshotPath(sharedDrive, cam.company_code, camera_no)
+      if (fs.existsSync(localPath)) {
+        return res.json({ mode: 'local', snapshot_url: `/api/cameras/${camera_no}/snapshot/raw`, last_snapshot_at })
+      }
+    }
+
+    res.json({ mode: 'none', snapshot_url: null, last_snapshot_at })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/cameras/:camera_no/snapshot/raw ───────
+// ใช้เฉพาะโหมด local (ไม่ได้ตั้งค่า BKC_IMAGE_API_KEY) — route เดียวใน data-api ที่แตะ
+// local filesystem ตรงๆ จึงตรวจสอบ path segment ด้วย SAFE_PATH_SEGMENT ก่อนเสมอ
+app.get('/api/cameras/:camera_no/snapshot/raw', requireAuth, async (req, res) => {
+  try {
+    const { camera_no } = req.params
+    const sharedDrive = process.env.IMAGE_SHARED_DRIVE
+    if (!sharedDrive) return res.status(404).json({ error: 'Snapshot not available' })
+
+    const pool = await getPool()
+    const cam = await resolveCameraSnapshotRow(pool, camera_no, req.companyCode)
+    if (!cam) return res.status(404).json({ error: 'Camera not found' })
+
+    if (!SAFE_PATH_SEGMENT.test(cam.company_code) || !SAFE_PATH_SEGMENT.test(camera_no)) {
+      return res.status(400).json({ error: 'Invalid camera_no' })
+    }
+
+    const localPath = localSnapshotPath(sharedDrive, cam.company_code, camera_no)
+    if (!fs.existsSync(localPath)) return res.status(404).json({ error: 'Snapshot not available' })
+
+    res.type('image/jpeg').sendFile(path.resolve(localPath))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 LOOP_DELAY_SECONDS = 0.03
 NO_FRAME_RETRY_SECONDS = 0.1
+SNAPSHOT_CHECK_INTERVAL_SECONDS = 1.0   # เช็คคำขอ "Sync ภาพล่าสุด" ทุกกี่วินาที (แยกจาก frame loop)
 
 COLOR_SAFE = (0, 255, 0)      # เขียว — นอกพื้นที่อันตราย
 COLOR_DANGER = (0, 0, 255)    # แดง — ในพื้นที่อันตราย
@@ -148,24 +149,62 @@ def run_detection_service() -> None:
         conf_threshold=settings.CONF_THRESHOLD,
     )
 
-    if len(camera_configs) == 1:
-        logger.info("โหมดกล้องเดียว: %s", camera_configs[0].camera_no)
-        _camera_loop(detector, camera_configs[0], stop_event=None)
-    else:
-        logger.info("โหมดหลายกล้อง: %d ตัว", len(camera_configs))
-        _run_multi_camera(detector, camera_configs)
+    logger.info("จำนวนกล้องทั้งหมด: %d ตัว", len(camera_configs))
+
+    # เฟรมล่าสุดของแต่ละกล้อง (camera_no -> (window_name, frame)) — worker thread เขียนใส่ตรงนี้เท่านั้น
+    # ส่วน main thread (ผ่าน _pump_display) เป็นคนเดียวที่เรียก cv2.imshow()/waitKey()/destroyWindow()
+    # เพราะ OpenCV HighGUI ไม่ thread-safe — เรียกจาก thread อื่นที่ไม่ใช่ thread แรกที่เคยเรียก
+    # จะทำให้หน้าต่างค้าง/ไม่อัปเดตภาพ โดยไม่มี error ใดๆ ให้เห็นเลย
+    display_frames: dict = {}
+    display_lock = threading.Lock()
+
+    _run_multi_camera(detector, camera_configs, display_frames, display_lock)
 
 
-def _run_multi_camera(detector: YoloDetector, cam_configs: list[CameraConfig]) -> None:
+def _pump_display(display_frames: dict, display_lock: threading.Lock, shown_windows: set) -> bool:
+    """
+    เรียก cv2.imshow()/waitKey()/destroyWindow() จาก main thread เท่านั้น — ต้องเรียกฟังก์ชันนี้
+    วนซ้ำจาก main thread เสมอ (ไม่ใช่จาก thread ของกล้อง) คืน True ถ้าผู้ใช้กด 'q'
+    """
+    with display_lock:
+        snapshot = dict(display_frames)
+
+    current_windows = set()
+    for window_name, frame in snapshot.values():
+        cv2.imshow(window_name, frame)
+        current_windows.add(window_name)
+
+    # ปิดหน้าต่างของกล้องที่หยุดไปแล้ว (นอกตาราง schedule / หมุนออกจากรอบ)
+    stale = shown_windows - current_windows
+    if stale:
+        logger.info("[DBG-disp] shown=%s current=%s stale=%s", shown_windows, current_windows, stale)
+    for stale_window in stale:
+        try:
+            cv2.destroyWindow(stale_window)
+            logger.info("[DBG-disp] destroyWindow ok: %s", stale_window)
+        except cv2.error as exc:
+            logger.info("[DBG-disp] destroyWindow FAILED: %s (%s)", stale_window, exc)
+    shown_windows.clear()
+    shown_windows.update(current_windows)
+
+    return cv2.waitKey(1) & 0xFF == ord("q")
+
+
+def _run_multi_camera(
+    detector: YoloDetector,
+    cam_configs: list[CameraConfig],
+    display_frames: dict,
+    display_lock: threading.Lock,
+) -> None:
     """รัน detection loop แบบสลับกล้องทีละ N ตัว ทุกๆ M วินาที"""
     max_concurrent = settings.MAX_CONCURRENT_CAMERAS
     rotation_interval = settings.ROTATION_INTERVAL_SECONDS
     total_cameras = len(cam_configs)
-    
+
     # กรณีจำนวนกล้องมีน้อยกว่าหรือเท่ากับที่กำหนด ให้รันพร้อมกันตามปกติไปเลย
     if total_cameras <= max_concurrent:
         logger.info("จำนวนกล้อง (%d) <= ขีดจำกัดพร้อมกัน (%d) — รันพร้อมกันทั้งหมด", total_cameras, max_concurrent)
-        _run_all_simultaneously(detector, cam_configs)
+        _run_all_simultaneously(detector, cam_configs, display_frames, display_lock)
         return
 
     # logger.info(
@@ -175,7 +214,8 @@ def _run_multi_camera(detector: YoloDetector, cam_configs: list[CameraConfig]) -
                 
     current_index = 0
     global_stop = threading.Event()
-    
+    shown_windows: set = set()
+
     try:
         while not global_stop.is_set():
             # 1. คัดกรองกล้องที่จะนำมารันในรอบนี้
@@ -184,57 +224,69 @@ def _run_multi_camera(detector: YoloDetector, cam_configs: list[CameraConfig]) -
                 idx = (current_index + i) % total_cameras
                 if cam_configs[idx] not in active_configs:
                     active_configs.append(cam_configs[idx])
-            
+
             logger.info(
-                "=== [เริ่มรอบการทำงาน] เปิดใช้งานกล้อง: %s ===", 
+                "=== [เริ่มรอบการทำงาน] เปิดใช้งานกล้อง: %s ===",
                 ", ".join([c.camera_no for c in active_configs])
             )
-            
+
             local_stop = threading.Event()
             threads = []
-            
+
             # ใช้ try...finally เพื่อให้แน่ใจว่าลูป Thread จะถูกเคลียร์/หยุดสนิทเสมอ
             try:
                 for cam_config in active_configs:
                     t = threading.Thread(
                         target=_camera_loop,
-                        args=(detector, cam_config, local_stop),
+                        args=(detector, cam_config, local_stop, display_frames, display_lock),
                         name=f"cam-{cam_config.camera_no}",
                         daemon=True,
                     )
                     threads.append(t)
                     t.start()
                     logger.info("เริ่ม thread กล้อง %s", cam_config.camera_no)
-                
-                # 2. นอนรอจนครบระยะเวลาสลับกล้อง
+
+                # 2. รอจนครบระยะเวลาสลับกล้อง — ระหว่างนี้ main thread เป็นคนแสดงผล imshow ให้ทุกกล้อง
                 start_time = time.monotonic()
                 while time.monotonic() - start_time < rotation_interval:
-                    time.sleep(0.5)
-                    
+                    if _pump_display(display_frames, display_lock, shown_windows):
+                        logger.info("ผู้ใช้กด q — กำลังหยุดทั้งระบบ")
+                        local_stop.set()
+                        global_stop.set()
+                        break
+
             finally:
                 # 3. ส่งสัญญาณหยุดการทำงาน และปิดกล้องกลุ่มนี้เพื่อสลับไปกลุ่มถัดไป
                 logger.info("=== [สลับกล้อง] กำลังปิดการเชื่อมต่อกล้องกลุ่มปัจจุบัน... ===")
                 local_stop.set()
                 for t in threads:
                     t.join(timeout=5)
-            
+
             # 4. เลื่อน Index ไปยังกล้องกลุ่มถัดไป
             current_index = (current_index + max_concurrent) % total_cameras
-            
+
     except KeyboardInterrupt:
         logger.info("ได้รับคำสั่งหยุดการทำงาน (Ctrl+C) — กำลังหยุดระบบ")
         global_stop.set()
+    finally:
+        cv2.destroyAllWindows()
 
 
-def _run_all_simultaneously(detector: YoloDetector, cam_configs: list[CameraConfig]) -> None:
+def _run_all_simultaneously(
+    detector: YoloDetector,
+    cam_configs: list[CameraConfig],
+    display_frames: dict,
+    display_lock: threading.Lock,
+) -> None:
     """รันกล้องทั้งหมดพร้อมกันโดยไม่มีการหมุนเวียน"""
     stop_event = threading.Event()
     threads: list[threading.Thread] = []
+    shown_windows: set = set()
 
     for cam_config in cam_configs:
         t = threading.Thread(
             target=_camera_loop,
-            args=(detector, cam_config, stop_event),
+            args=(detector, cam_config, stop_event, display_frames, display_lock),
             name=f"cam-{cam_config.camera_no}",
             daemon=True,
         )
@@ -244,31 +296,47 @@ def _run_all_simultaneously(detector: YoloDetector, cam_configs: list[CameraConf
 
     try:
         while True:
-            time.sleep(1)
+            if _pump_display(display_frames, display_lock, shown_windows):
+                logger.info("ผู้ใช้กด q — กำลังหยุดทุกกล้อง")
+                stop_event.set()
+                break
     except KeyboardInterrupt:
         logger.info("ได้รับคำสั่งหยุดการทำงาน (Ctrl+C) — กำลังหยุดทุกกล้อง")
         stop_event.set()
-
-    for t in threads:
-        t.join(timeout=5)
+    finally:
+        for t in threads:
+            t.join(timeout=5)
+        cv2.destroyAllWindows()
 
 
 def _camera_loop(
     detector: YoloDetector,
     cam_config: CameraConfig,
     stop_event: threading.Event | None,
+    display_frames: dict,
+    display_lock: threading.Lock,
 ) -> None:
     """detection loop ของกล้อง 1 ตัว — ใช้ได้ทั้งแบบเดี่ยวและใน thread"""
     tag = f"[cam-{cam_config.camera_no}]"
+    window_name = f"Camera {cam_config.camera_no} - {cam_config.camera_name}"
 
     logger.info(
         "%s เริ่ม detection: company=%s, camera_no=%s, danger_zones=%d เส้น",
         tag, cam_config.company_code, cam_config.camera_no, len(cam_config.danger_zones),
     )
 
+    from src.storage.image_storage import save_camera_snapshot
+    from src.database.detection_repository import has_pending_snapshot_request, update_camera_snapshot_time
+
     area_checker = AreaChecker(cam_config.danger_zones)
     tracker = CameraEventTracker(settings.DWELL_SECONDS, settings.ALERT_COOLDOWN_SECONDS)
     camera = None
+    last_snapshot_check_time = 0.0
+
+    def clear_display():
+        # เอาเฟรมของกล้องนี้ออกจากคิวแสดงผล — main thread จะเห็นแล้วปิดหน้าต่างให้เอง (ดู _pump_display)
+        with display_lock:
+            display_frames.pop(cam_config.camera_no, None)
 
     try:
         while True:
@@ -277,18 +345,15 @@ def _camera_loop(
 
             # ตรวจสอบว่าอยู่ในช่วงเวลาทำงานหรือไม่
             in_schedule = is_camera_in_schedule(cam_config)
-            
+
             if not in_schedule:
                 # ถ้าอยู่นอกเวลาทำงาน และเปิดกล้องอยู่ ให้ปิดการเชื่อมต่อกล้องและหน้าต่าง
                 if camera is not None:
                     logger.info("%s อยู่นอกตารางการทำงานตาม Schedule — ปิดการสตรีมเพื่อลดภาระของระบบ", tag)
                     camera.stop()
                     camera = None
-                    try:
-                        cv2.destroyWindow(f"Camera {cam_config.camera_no} - {cam_config.camera_name}")
-                    except cv2.error:
-                        pass
-                
+                    clear_display()
+
                 # นอนหลับนานขึ้นเป็นเวลา 5 วินาทีก่อนวนมาตรวจสอบเวลาทำงานอีกครั้ง
                 time.sleep(5.0)
                 continue
@@ -304,6 +369,14 @@ def _camera_loop(
                 continue
 
             frame = cv2.resize(frame, (500, 400), interpolation=cv2.INTER_AREA)
+
+            # เช็คคำขอ "Sync ภาพล่าสุด" จากหน้า Draw Polygon (throttle แยกจาก frame loop)
+            now_mono = time.monotonic()
+            if now_mono - last_snapshot_check_time >= SNAPSHOT_CHECK_INTERVAL_SECONDS:
+                last_snapshot_check_time = now_mono
+                if has_pending_snapshot_request(cam_config.company_code, cam_config.camera_no):
+                    if save_camera_snapshot(frame, cam_config.company_code, cam_config.camera_no):
+                        update_camera_snapshot_time(cam_config.company_code, cam_config.camera_no)
 
             # ตรวจจับ person + bicycle
             all_detections = detector.detect(frame)
@@ -324,23 +397,16 @@ def _camera_loop(
                 )
                 _handle_event(frame, matched, all_detections, area_checker, cam_config)
 
-            # แสดงภาพ live stream (กด q เพื่อหยุดกล้องนี้)
-            window_name = f"Camera {cam_config.camera_no} - {cam_config.camera_name}"
-            cv2.imshow(window_name, display_frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                logger.info("%s ผู้ใช้กด q — หยุดกล้องนี้", tag)
-                break
+            # ส่งเฟรมล่าสุดให้ main thread แสดงผล — ห้ามเรียก cv2.imshow()/waitKey() จาก thread นี้เอง
+            # เพราะ OpenCV HighGUI ไม่ thread-safe (ดูเหตุผลเต็มๆ ใน _pump_display)
+            with display_lock:
+                display_frames[cam_config.camera_no] = (window_name, display_frame)
 
             time.sleep(LOOP_DELAY_SECONDS)
-    except KeyboardInterrupt:
-        logger.info("%s ได้รับ Ctrl+C", tag)
     finally:
         if camera is not None:
             camera.stop()
-        try:
-            cv2.destroyWindow(f"Camera {cam_config.camera_no} - {cam_config.camera_name}")
-        except cv2.error:
-            pass
+        clear_display()
         logger.info("%s หยุดทำงาน", tag)
 
 

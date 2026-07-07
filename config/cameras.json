@@ -13,17 +13,17 @@
       {
         "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
         "start_time": "08:00",
-        "end_time": "17:00"
+        "end_time": "20:00"
       }
     ]
   },
   {
-    "camera_no": "2",
+    "camera_no": "8",
     "camera_name": "กล้อง อาคาร 2",
     "location_name": "อาคาร 2 ทางเดิน B",
     "company_code": "DEMO",
     "enabled": true,
-    "rtsp_url": "rtsp://{user}:{password}@192.168.0.20:554/Streaming/Channels/102",
+    "rtsp_url": "rtsp://{user}:{password}@192.168.0.8:554/Streaming/Channels/102",
     "danger_zones": [
       [[121,398],[263,398],[334,398],[243,242],[211,188],[103,202],[109,284]],
       [[103,168],[193,161],[165,111],[156,94],[101,98],[101,122]]
@@ -35,14 +35,15 @@
         "end_time": "23:59"
       }
     ]
-  },
+  }
+  ,
   {
     "camera_no": "28",
-    "camera_name": "กล้อง โซน Forklift",
-    "location_name": "โซน Forklift หลัก",
+    "camera_name": "กล้อง โซน Forklift Casting",
+    "location_name": "โซน Forklift Casting",
     "company_code": "DEMO",
     "enabled": true,
-    "rtsp_url": "rtsp://{user}:{password}@192.168.0.28:554/Streaming/Channels/102",
+    "rtsp_url": "rtsp://{user}:{password}@192.168.1.88:554/Streaming/Channels/102",
     "danger_zones": [
       [[4,318],[83,342],[171,353],[191,239],[204,177],[128,174],[116,198],[2,189],[2,253]],
       [[274,395],[270,326],[231,324],[233,243],[237,193],[346,203],[438,210],[469,250],[497,291],[496,397],[370,398]],

@@ -206,23 +206,15 @@ IF NOT EXISTS (SELECT 1 FROM smg.mst_camera WHERE company_code = 'ACME' AND came
 GO
 
 -- -----------------------------------------------------------------------
--- Detection Areas (polygon ตัวอย่าง — พิกัด pixel สมมติ 1920x1080)
+-- Detection Areas: ไม่ seed พิกัด polygon ตัวอย่าง — แต่ละกล้องมีมุมมองจริงต่างกัน
+-- ให้ admin sync snapshot จริงแล้ววาดโซนเองผ่านหน้า Draw Zone (พิกัดอ้างอิง canvas 500x400)
+--
+-- ถ้า DB นี้เคย run เวอร์ชันเก่ามาแล้ว (มีพิกัดสมมติ 1920x1080 ค้างอยู่ ทำให้ frame
+-- ในหน้า Draw Zone บัค) ให้รันลบทิ้งครั้งเดียว:
+--   DELETE FROM smg.mst_detection_area
+--   WHERE company_code = 'DEMO' AND camera_no IN ('CAM-01', 'CAM-02')
+--     AND area_name IN (N'พื้นที่อันตราย A1', N'โซน Forklift หลัก', N'โซน Forklift สำรอง');
 -- -----------------------------------------------------------------------
-IF NOT EXISTS (SELECT 1 FROM smg.mst_detection_area WHERE company_code = 'DEMO' AND camera_no = 'CAM-01' AND area_name = N'พื้นที่อันตราย A1')
-    INSERT INTO smg.mst_detection_area (company_code, camera_no, area_name, polygon_json)
-    VALUES ('DEMO', 'CAM-01', N'พื้นที่อันตราย A1',
-            '[[100,200],[500,200],[500,600],[100,600]]');
-
-IF NOT EXISTS (SELECT 1 FROM smg.mst_detection_area WHERE company_code = 'DEMO' AND camera_no = 'CAM-02' AND area_name = N'โซน Forklift หลัก')
-    INSERT INTO smg.mst_detection_area (company_code, camera_no, area_name, polygon_json)
-    VALUES ('DEMO', 'CAM-02', N'โซน Forklift หลัก',
-            '[[200,150],[900,150],[900,700],[200,700]]');
-
-IF NOT EXISTS (SELECT 1 FROM smg.mst_detection_area WHERE company_code = 'DEMO' AND camera_no = 'CAM-02' AND area_name = N'โซน Forklift สำรอง')
-    INSERT INTO smg.mst_detection_area (company_code, camera_no, area_name, polygon_json)
-    VALUES ('DEMO', 'CAM-02', N'โซน Forklift สำรอง',
-            '[[1000,150],[1700,150],[1700,500],[1000,500]]');
-GO
 
 -- -----------------------------------------------------------------------
 -- Config

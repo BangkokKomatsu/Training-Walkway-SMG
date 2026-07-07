@@ -75,6 +75,30 @@ mst_role ──┐
 
 ---
 
+## คอลัมน์เสริม Camera Snapshot Sync (09_add_camera_snapshot_sync.sql)
+
+ปุ่ม "Sync ภาพล่าสุด" ในหน้า Draw Polygon (frontend) ใช้กลไก request-flag ผ่าน DB แทนการให้
+Python กับ frontend คุยกันตรงๆ:
+
+| ตาราง | คอลัมน์ที่เพิ่ม | หน้าที่ |
+|---|---|---|
+| `mst_camera` | `snapshot_requested_at` | data-api set เมื่อ admin กด Sync (`POST /api/cameras/:camera_no/snapshot/sync`) |
+| `mst_camera` | `last_snapshot_at` | Python (`detection_service.py::_camera_loop`) set หลัง capture snapshot สำเร็จ ผ่าน `smg.sp_update_camera_snapshot_time` |
+
+เช็คว่า capture เสร็จหรือยัง = เทียบ `last_snapshot_at > snapshot_requested_at` เท่านั้น ไม่ต้องเคลียร์ flag แยก
+ไฟล์ภาพจริงเก็บที่ `{IMAGE_SHARED_DRIVE}\_snapshots\{company_code}\{camera_no}.jpg` (ทับไฟล์เดิมทุกครั้ง)
+
+`data-api` มี 3 endpoint ใหม่ (`server.js`, ใกล้ polygon routes):
+
+- `POST /api/cameras/:camera_no/snapshot/sync` — ตั้ง flag คำขอ
+- `GET /api/cameras/:camera_no/snapshot` — คืน `{ mode: 'bkc'|'local'|'none', snapshot_url, last_snapshot_at }`
+- `GET /api/cameras/:camera_no/snapshot/raw` — เสิร์ฟไฟล์ตรง (เฉพาะ `mode: 'local'` — ไม่ได้ตั้งค่า `BKC_IMAGE_API_KEY`)
+
+`mode: 'bkc'` ใช้ `getBkcSignedUrl()` เดิม (เหมือนรูป event) ถ้าตั้งค่า `BKC_IMAGE_API_KEY`;
+ถ้าไม่ตั้งค่า data-api จะ fallback ไปอ่านไฟล์ local ตรงจาก `IMAGE_SHARED_DRIVE` (env var ใหม่ใน `data-api/.env`)
+
+---
+
 ## Indexes (อยู่ใน 03_create_indexes.sql + 07_api_key_and_login_security.sql)
 
 | Index | Table | Column |

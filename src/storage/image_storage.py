@@ -52,3 +52,27 @@ def save_detection_image(frame, company_code: str, camera_no: str) -> tuple[str,
 
     logger.info("เซฟรูปสำเร็จ: %s", image_path)
     return image_path, image_name
+
+
+def save_camera_snapshot(frame, company_code: str, camera_no: str) -> str:
+    """
+    เซฟภาพ snapshot ล่าสุดของกล้อง 1 ตัว ไว้ให้หน้า Draw Polygon ใช้อ้างอิง
+    ทับไฟล์เดิมทุกครั้ง (ไม่ใช่รูปหลักฐาน เก็บแค่ภาพเดียวต่อกล้อง ไม่ใช่ timestamped เหมือน event)
+
+    path = {IMAGE_SHARED_DRIVE}\\_snapshots\\{company_code}\\{camera_no}.jpg
+    คืน full path หรือ "" ถ้าเซฟไม่สำเร็จ
+    """
+    folder = os.path.join(settings.IMAGE_SHARED_DRIVE, "_snapshots", company_code)
+
+    try:
+        os.makedirs(folder, exist_ok=True)
+        snapshot_path = os.path.join(folder, f"{camera_no}.jpg")
+        success = cv2.imwrite(snapshot_path, frame)
+        if not success:
+            raise OSError("cv2.imwrite คืนค่า False — ตรวจสอบ path และ permission ของ shared drive")
+    except Exception as exc:
+        logger.error("เซฟ camera snapshot ไม่สำเร็จ: %s", exc)
+        return ""
+
+    logger.info("เซฟ camera snapshot สำเร็จ: %s", snapshot_path)
+    return snapshot_path

@@ -16,6 +16,11 @@ import cv2
 
 logger = logging.getLogger(__name__)
 
+# FFmpeg backend ของ OpenCV ใช้ default ~30 วิ ในการรอเชื่อมต่อ/อ่านเฟรม — นานเกินไปเมื่อเทียบกับ
+# ROTATION_INTERVAL_SECONDS (มักตั้งไว้ 60 วิ) ลดลงให้ attempt ที่ล้มเหลวคืนค่าเร็วขึ้น จะได้ retry ทันภายในรอบเดียว
+OPEN_TIMEOUT_MSEC = 8000
+READ_TIMEOUT_MSEC = 8000
+
 
 class CameraReader:
     """เปิด stream วิดีโอและอ่านเฟรมล่าสุดให้ผู้ใช้ดึงไปประมวลผล"""
@@ -57,7 +62,13 @@ class CameraReader:
     def _open_capture(self) -> cv2.VideoCapture:
         # รองรับกรณีตั้ง source เป็นเลข webcam index ผ่าน .env (ค่าจาก .env เป็น string เสมอ)
         source = int(self.source) if isinstance(self.source, str) and self.source.isdigit() else self.source
-        cap = cv2.VideoCapture(source)
+
+        # ต้องตั้ง OPEN_TIMEOUT/READ_TIMEOUT ก่อนเรียก .open() ถึงจะมีผล — เลยสร้าง VideoCapture()
+        # เปล่าๆ ก่อน แทนที่จะส่ง source เข้า constructor ตรงๆ
+        cap = cv2.VideoCapture()
+        cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, OPEN_TIMEOUT_MSEC)
+        cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, READ_TIMEOUT_MSEC)
+        cap.open(source)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return cap
 

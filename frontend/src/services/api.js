@@ -65,6 +65,15 @@ export const api = {
   bulkUpdateEvents:  (payload)  => post('/api/events/bulk-update', payload),
   getCameraPolygons: (camera_no) => get(`/api/cameras/${camera_no}/polygons`),
   saveCameraPolygons:(camera_no, payload) => post(`/api/cameras/${camera_no}/polygons`, payload),
+  getCameraSnapshot: (camera_no) => get(`/api/cameras/${camera_no}/snapshot`),
+  requestCameraSnapshotSync: (camera_no) => post(`/api/cameras/${camera_no}/snapshot/sync`),
+  // mode: 'local' ต้องแนบ bearer token เอง ใช้ <img src> ตรงๆ ไม่ได้ — คืน blob object URL แทน
+  getCameraSnapshotBlobUrl: async (camera_no) => {
+    const res = await fetch(`${BASE}/api/cameras/${camera_no}/snapshot/raw`, { headers: authHeaders() })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    return URL.createObjectURL(blob)
+  },
   createCamera:      (payload)  => post('/api/cameras', payload),
   updateCamera:      (camera_no, payload) => post(`/api/cameras/${camera_no}/update`, payload),
   deleteCamera:      (camera_no) => post(`/api/cameras/${camera_no}/delete`),

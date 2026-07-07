@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react'
-import { Camera, Wifi, WifiOff, Search, RefreshCw, AlertTriangle, X, Undo, Eraser, Save, Plus, Edit, Trash2 } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Camera, Wifi, WifiOff, Search, RefreshCw, AlertTriangle, X, Undo, Eraser, Save, Plus, Edit, Trash2, ImageOff } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import CameraStatusCard from '../components/ui/CameraStatusCard'
 import { SkeletonGrid } from '../components/ui/LoadingState'
+import { formatRelative } from '../utils/format'
+
+const SNAPSHOT_SYNC_POLL_MS = 1000
+const SNAPSHOT_SYNC_TIMEOUT_MS = 10000
 
 export default function CameraMonitorPage() {
   const [search, setSearch] = useState('')
@@ -166,7 +170,40 @@ export default function CameraMonitorPage() {
   const [hoverPt, setHoverPt] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  // Fetch existing polygon data when camera changes
+  // Camera snapshot preview states (Draw Polygon background)
+  const [snapshotUrl, setSnapshotUrl] = useState(null)
+  const [snapshotAt, setSnapshotAt] = useState(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncError, setSyncError] = useState(null)
+  const snapshotBlobUrlRef = useRef(null)
+  const syncPollRef = useRef(null)
+
+  const revokeSnapshotBlobUrl = () => {
+    if (snapshotBlobUrlRef.current) {
+      URL.revokeObjectURL(snapshotBlobUrlRef.current)
+      snapshotBlobUrlRef.current = null
+    }
+  }
+
+  const applySnapshotInfo = async (info) => {
+    revokeSnapshotBlobUrl()
+    setSnapshotAt(info?.last_snapshot_at || null)
+    if (info?.mode === 'bkc' && info.snapshot_url) {
+      setSnapshotUrl(info.snapshot_url)
+    } else if (info?.mode === 'local' && info.snapshot_url) {
+      try {
+        const blobUrl = await api.getCameraSnapshotBlobUrl(selectedCam.camera_no)
+        snapshotBlobUrlRef.current = blobUrl
+        setSnapshotUrl(blobUrl)
+      } catch {
+        setSnapshotUrl(null)
+      }
+    } else {
+      setSnapshotUrl(null)
+    }
+  }
+
+  // Fetch existing polygon data + snapshot preview when camera changes
   useEffect(() => {
     if (selectedCam) {
       api.getCameraPolygons(selectedCam.camera_no)
@@ -188,8 +225,64 @@ export default function CameraMonitorPage() {
           setAreaName('Restricted Area')
           setPoints([])
         })
+
+      setSyncError(null)
+      api.getCameraSnapshot(selectedCam.camera_no)
+        .then(applySnapshotInfo)
+        .catch(() => applySnapshotInfo(null))
+    } else {
+      revokeSnapshotBlobUrl()
+      setSnapshotUrl(null)
+      setSnapshotAt(null)
+      setSyncError(null)
+      clearInterval(syncPollRef.current)
+      setSyncing(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCam])
+
+  // เคลียร์ blob URL + poll timer ตอน component unmount
+  useEffect(() => {
+    return () => {
+      revokeSnapshotBlobUrl()
+      clearInterval(syncPollRef.current)
+    }
+  }, [])
+
+  const handleSyncSnapshot = async () => {
+    if (!selectedCam || syncing) return
+    setSyncing(true)
+    setSyncError(null)
+    const baselineAt = snapshotAt
+
+    try {
+      await api.requestCameraSnapshotSync(selectedCam.camera_no)
+    } catch (err) {
+      setSyncing(false)
+      setSyncError(err.message || 'Failed to request snapshot sync')
+      return
+    }
+
+    const startedAt = Date.now()
+    syncPollRef.current = setInterval(async () => {
+      if (Date.now() - startedAt >= SNAPSHOT_SYNC_TIMEOUT_MS) {
+        clearInterval(syncPollRef.current)
+        setSyncing(false)
+        setSyncError('ขอภาพสดไม่สำเร็จ (บริการตรวจจับอาจไม่ได้ทำงาน หรือกล้องนี้อยู่ระหว่างสลับคิว) — แสดงภาพล่าสุดที่มีอยู่แทน')
+        return
+      }
+      try {
+        const info = await api.getCameraSnapshot(selectedCam.camera_no)
+        if (info?.last_snapshot_at && info.last_snapshot_at !== baselineAt) {
+          clearInterval(syncPollRef.current)
+          await applySnapshotInfo(info)
+          setSyncing(false)
+        }
+      } catch {
+        // ข้าม tick นี้ไป ลอง poll รอบถัดไป จนกว่าจะ timeout
+      }
+    }, SNAPSHOT_SYNC_POLL_MS)
+  }
 
   const filtered = (cameras ?? []).filter(c => {
     if (filter === 'online'  && c.status !== 'online')  return false
@@ -365,16 +458,28 @@ export default function CameraMonitorPage() {
               {/* Clickable Frame container */}
               <div
                 style={{ width: '500px', height: '400px' }}
-                className="relative border border-border rounded-xl bg-zinc-950 overflow-hidden cursor-crosshair select-none shadow-inner"
+                className="relative border border-border bg-zinc-950 overflow-hidden cursor-crosshair select-none shadow-inner"
                 onClick={handleCanvasClick}
                 onMouseMove={handleCanvasMouseMove}
                 onMouseLeave={() => setHoverPt(null)}
               >
-                {/* Visual Camera lens / grid mesh */}
+                {/* ภาพ snapshot จริงจากกล้อง (ถ้ามี) — ไม่ใช่ live stream แค่ภาพนิ่งที่ sync ล่าสุด */}
+                {snapshotUrl && (
+                  <img
+                    src={snapshotUrl}
+                    alt={`Snapshot ${selectedCam.camera_no}`}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
+
+                {/* Visual grid mesh — ช่วยกะระยะตอนปักจุด polygon */}
                 <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
-                <div className="absolute top-4 left-4 flex items-center gap-1.5 text-rose-500 font-mono text-[12px] font-bold tracking-widest uppercase">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
-                  <span>REC · {selectedCam.camera_no}</span>
+                <div className="absolute top-4 left-4 flex items-center gap-1.5 text-[12px] font-bold tracking-widest uppercase bg-black/40 px-2 py-1 rounded-md">
+                  <span className={`w-2 h-2 rounded-full ${snapshotUrl ? 'bg-emerald-500' : 'bg-zinc-500'}`} />
+                  <span className="text-white font-mono">{selectedCam.camera_no}</span>
+                  <span className="text-zinc-400 font-mono normal-case tracking-normal">
+                    · {snapshotAt ? `อัปเดตล่าสุด ${formatRelative(snapshotAt)}` : 'ยังไม่มีภาพ'}
+                  </span>
                 </div>
 
                 {/* SVG lines */}
@@ -418,11 +523,16 @@ export default function CameraMonitorPage() {
                   </div>
                 ))}
 
-                {points.length === 0 && (
+                {points.length === 0 && !snapshotUrl && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-black/40 backdrop-blur-xs select-none pointer-events-none">
-                    <Camera size={28} className="text-zinc-500 mb-2" />
-                    <span className="text-[13px] font-bold text-zinc-400 uppercase tracking-widest">Create Restricted Walkway Polygon</span>
-                    <span className="text-[11px] text-zinc-600 mt-1">Click around the camera frame grid to define polygon nodes</span>
+                    <ImageOff size={28} className="text-zinc-500 mb-2" />
+                    <span className="text-[13px] font-bold text-zinc-400 uppercase tracking-widest">ยังไม่มีภาพจากกล้องนี้</span>
+                    <span className="text-[11px] text-zinc-600 mt-1">กดปุ่ม "Sync ภาพล่าสุด" ด้านขวาเพื่อขอภาพจริงจากกล้อง</span>
+                  </div>
+                )}
+                {points.length === 0 && snapshotUrl && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur-xs select-none pointer-events-none">
+                    <span className="text-[11px] font-bold text-zinc-200 uppercase tracking-widest">คลิกบนภาพเพื่อปักจุด Polygon</span>
                   </div>
                 )}
               </div>
@@ -449,6 +559,20 @@ export default function CameraMonitorPage() {
                   <strong className="text-sm font-mono text-ink bg-surface border border-border/80 px-2.5 py-1.5 rounded-lg">
                     {selectedCam.camera_no}
                   </strong>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    disabled={syncing}
+                    onClick={handleSyncSnapshot}
+                    className="w-full py-2 px-3 rounded-lg border border-border bg-surface text-[12px] font-bold text-ink-muted hover:text-primary hover:border-primary/50 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
+                    <span>{syncing ? 'กำลังขอภาพสด...' : 'Sync ภาพล่าสุด'}</span>
+                  </button>
+                  {syncError && (
+                    <p className="text-[11px] text-rose-500 font-semibold leading-relaxed">{syncError}</p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1.5">

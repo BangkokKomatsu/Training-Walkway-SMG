@@ -110,3 +110,40 @@ def insert_system_log(
         logger.error("insert_system_log ล้มเหลว: %s", exc)
     finally:
         conn.close()
+
+
+def has_pending_snapshot_request(company_code: str, camera_no: str) -> bool:
+    """
+    เช็คว่า data-api ตั้งคำขอ "Sync ภาพล่าสุด" ค้างอยู่ไหม (snapshot_requested_at ใหม่กว่า last_snapshot_at)
+    เป็น read-only เลยใช้ raw parameterized SELECT ตรงๆ ไม่ผ่าน SP (ตาม pattern เดียวกับ camera_config.py)
+    """
+    sql = """
+        SELECT 1
+        FROM smg.mst_camera
+        WHERE company_code = ? AND camera_no = ?
+          AND snapshot_requested_at IS NOT NULL
+          AND (last_snapshot_at IS NULL OR snapshot_requested_at > last_snapshot_at)
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(sql, [company_code, camera_no])
+        return cursor.fetchone() is not None
+    finally:
+        conn.close()
+
+
+def update_camera_snapshot_time(company_code: str, camera_no: str) -> None:
+    """เรียก smg.sp_update_camera_snapshot_time หลัง capture snapshot สำเร็จ"""
+    sql = """
+        EXEC smg.sp_update_camera_snapshot_time
+            @company_code = ?,
+            @camera_no    = ?
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(sql, [company_code, camera_no])
+        conn.commit()
+    finally:
+        conn.close()
