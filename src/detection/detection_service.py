@@ -175,15 +175,11 @@ def _pump_display(display_frames: dict, display_lock: threading.Lock, shown_wind
         current_windows.add(window_name)
 
     # ปิดหน้าต่างของกล้องที่หยุดไปแล้ว (นอกตาราง schedule / หมุนออกจากรอบ)
-    stale = shown_windows - current_windows
-    if stale:
-        logger.info("[DBG-disp] shown=%s current=%s stale=%s", shown_windows, current_windows, stale)
-    for stale_window in stale:
+    for stale_window in shown_windows - current_windows:
         try:
             cv2.destroyWindow(stale_window)
-            logger.info("[DBG-disp] destroyWindow ok: %s", stale_window)
-        except cv2.error as exc:
-            logger.info("[DBG-disp] destroyWindow FAILED: %s (%s)", stale_window, exc)
+        except cv2.error:
+            pass
     shown_windows.clear()
     shown_windows.update(current_windows)
 
@@ -318,7 +314,10 @@ def _camera_loop(
 ) -> None:
     """detection loop ของกล้อง 1 ตัว — ใช้ได้ทั้งแบบเดี่ยวและใน thread"""
     tag = f"[cam-{cam_config.camera_no}]"
-    window_name = f"Camera {cam_config.camera_no} - {cam_config.camera_name}"
+    # ชื่อหน้าต่างต้องเป็น ASCII ล้วน — OpenCV HighGUI บน Windows จัดการชื่อภาษาไทยไม่ได้
+    # (title bar เพี้ยน + destroyWindow หาหน้าต่างไม่เจอ ทำให้ปิดไม่ลง หน้าต่างค้างบนจอ)
+    # ชื่อกล้องภาษาไทยจริงมีเบิร์นอยู่ในภาพจากตัวกล้องอยู่แล้ว
+    window_name = f"Camera {cam_config.camera_no}"
 
     logger.info(
         "%s เริ่ม detection: company=%s, camera_no=%s, danger_zones=%d เส้น",

@@ -136,7 +136,7 @@ def _load_from_json(path: str) -> list[CameraConfig]:
             camera_no=str(entry["camera_no"]),
             camera_name=entry.get("camera_name", f"Camera-{entry['camera_no']}"),
             location_name=entry.get("location_name", ""),
-            company_code=entry.get("company_code", settings.COMPANY_CODE),
+            company_code=settings.COMPANY_CODE,  # ดึงจาก .env (COMPANY_CODE) เสมอ
             source=rtsp_url,
             danger_zones=zones,
             schedule_rules=entry.get("schedule_rules", []),

@@ -3,7 +3,6 @@
     "camera_no": "1",
     "camera_name": "กล้อง อาคาร 1",
     "location_name": "อาคาร 1 ทางเดิน A",
-    "company_code": "DEMO",
     "enabled": true,
     "rtsp_url": "rtsp://{user}:{password}@192.168.0.1:554/Streaming/Channels/102",
     "danger_zones": [
@@ -21,7 +20,6 @@
     "camera_no": "8",
     "camera_name": "กล้อง อาคาร 2",
     "location_name": "อาคาร 2 ทางเดิน B",
-    "company_code": "DEMO",
     "enabled": true,
     "rtsp_url": "rtsp://{user}:{password}@192.168.0.8:554/Streaming/Channels/102",
     "danger_zones": [
@@ -41,7 +39,6 @@
     "camera_no": "28",
     "camera_name": "กล้อง โซน Forklift Casting",
     "location_name": "โซน Forklift Casting",
-    "company_code": "DEMO",
     "enabled": true,
     "rtsp_url": "rtsp://{user}:{password}@192.168.1.88:554/Streaming/Channels/102",
     "danger_zones": [
