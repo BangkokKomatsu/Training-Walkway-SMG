@@ -19,7 +19,7 @@ const FILTERS = [
   { key: 'date_to',   label: 'To',   type: 'date' },
 ]
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 30
 
 export default function EventLogPage() {
   const { user } = useAuth()
@@ -97,7 +97,7 @@ export default function EventLogPage() {
   }
 
   return (
-    <div className="space-y-4 w-full max-w-[1360px] mx-auto">
+    <div className="space-y-4 w-full max-w-[1600px] mx-auto">
       
       {/* Filters block */}
       <FilterPanel
@@ -112,7 +112,7 @@ export default function EventLogPage() {
       <div className="border border-border rounded-xl bg-surface/40 overflow-hidden shadow-xs relative">
         
         {/* Table Header Section */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface-2/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-2/40">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-ink uppercase tracking-wider">
               Recorded Safety Events
@@ -149,7 +149,7 @@ export default function EventLogPage() {
             <table className="w-full text-sm text-left border-collapse min-w-[850px]">
               <thead>
                 <tr className="bg-surface-2/30 border-b border-border text-[12px] font-bold text-ink-subtle uppercase tracking-wider">
-                  <th className="px-5 py-3 w-10">
+                  <th className="px-6 py-3 w-10">
                     <input
                       type="checkbox"
                       checked={events.length > 0 && selectedIds.length === events.length}
@@ -157,14 +157,14 @@ export default function EventLogPage() {
                       className="rounded border-border bg-surface text-primary focus:ring-primary w-3.5 h-3.5 cursor-pointer accent-primary"
                     />
                   </th>
-                  <th className="px-5 py-3">Event ID</th>
-                  <th className="px-5 py-3">Preview</th>
-                  <th className="px-5 py-3">Timestamp</th>
-                  <th className="px-5 py-3">Camera</th>
-                  <th className="px-5 py-3">Company</th>
-                  <th className="px-5 py-3">Area Name</th>
-                  <th className="px-5 py-3">Case Status</th>
-                  <th className="px-5 py-3 text-right">View Detail</th>
+                  <th className="px-6 py-3">Event ID</th>
+                  <th className="px-6 py-3">Preview</th>
+                  <th className="px-6 py-3">Timestamp</th>
+                  <th className="px-6 py-3">Camera</th>
+                  <th className="px-6 py-3">Company</th>
+                  <th className="px-6 py-3">Area Name</th>
+                  <th className="px-6 py-3">Case Status</th>
+                  <th className="px-6 py-3 text-right">View Detail</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -175,7 +175,7 @@ export default function EventLogPage() {
                       key={ev.event_id ?? i}
                       className={`transition-colors duration-150 hover:bg-surface-2/40 ${isChecked ? 'bg-primary/5 hover:bg-primary/10' : ''}`}
                     >
-                      <td className="px-5 py-3 w-10">
+                      <td className="px-6 py-3 w-10">
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -183,10 +183,10 @@ export default function EventLogPage() {
                           className="rounded border-border bg-surface text-primary focus:ring-primary w-3.5 h-3.5 cursor-pointer accent-primary"
                         />
                       </td>
-                      <td className="px-5 py-3 font-mono font-bold text-ink-subtle">
+                      <td className="px-6 py-3 font-mono font-bold text-ink-subtle">
                         #{ev.event_id}
                       </td>
-                      <td className="px-5 py-2">
+                      <td className="px-6 py-2">
                         <div className="w-12 h-8 rounded-lg overflow-hidden border border-border bg-surface-2 flex items-center justify-center">
                           {ev.image_url ? (
                             <img src={ev.image_url} className="w-full h-full object-cover" alt="Event capture" />
@@ -195,19 +195,19 @@ export default function EventLogPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-3 font-mono text-ink-muted">
+                      <td className="px-6 py-3 font-mono text-ink-muted">
                         {formatDateTime(ev.detected_at)}
                       </td>
-                      <td className="px-5 py-3 font-mono font-bold text-ink">
+                      <td className="px-6 py-3 font-mono font-bold text-ink">
                         {ev.camera_no}
                       </td>
-                      <td className="px-5 py-3 font-mono text-ink-subtle">
+                      <td className="px-6 py-3 font-mono text-ink-subtle">
                         {ev.company_code}
                       </td>
-                      <td className="px-5 py-3 text-ink-muted font-medium">
+                      <td className="px-6 py-3 text-ink-muted font-medium">
                         {ev.area_name ?? '—'}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-6 py-3">
                         <StatusBadge
                           status={
                             ev.event_status === 'CLOSED' ? 'ok' :
@@ -221,7 +221,7 @@ export default function EventLogPage() {
                           }
                         />
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-6 py-3 text-right">
                         <Link
                           to={`/events/${ev.event_id}`}
                           className="inline-flex items-center justify-center px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all font-semibold"
@@ -239,7 +239,7 @@ export default function EventLogPage() {
 
         {/* Pagination Bar */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3.5 border-t border-border bg-surface-2/20">
+          <div className="flex items-center justify-between px-6 py-3.5 border-t border-border bg-surface-2/20">
             <span className="text-[13px] text-ink-muted font-medium">
               Showing page <strong className="text-ink font-bold font-mono">{page}</strong> of <strong className="text-ink font-bold font-mono">{totalPages}</strong>
             </span>

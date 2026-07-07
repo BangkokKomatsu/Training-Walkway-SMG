@@ -17,7 +17,7 @@ export default function DashboardPage() {
     []
   )
   const { data: recentData, loading: recentLoading, refetch: refetchEvents } = useAsync(
-    () => api.getEvents({ page: 1, page_size: 8 }),
+    () => api.getEvents({ page: 1, page_size: 10 }),
     []
   )
 
@@ -52,7 +52,7 @@ export default function DashboardPage() {
 
   if (isInitialLoading) {
     return (
-      <div className="space-y-6 w-full max-w-[1360px] mx-auto">
+      <div className="space-y-6 w-full max-w-[1600px] mx-auto">
         <SkeletonMetrics />
         <div className="h-14 rounded-xl bg-surface/30 animate-pulse border border-border" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -185,7 +185,7 @@ export default function DashboardPage() {
   const isRefreshing = loading || recentLoading || manualRefreshing
 
   return (
-    <div className="space-y-6 w-full max-w-[1360px] mx-auto">
+    <div className="space-y-6 w-full max-w-[1600px] mx-auto">
       
       {/* Top Controls Bar */}
       <div className="flex items-center justify-between pb-1">
@@ -584,12 +584,12 @@ export default function DashboardPage() {
               <table className="w-full text-sm text-left border-collapse">
                 <thead>
                   <tr className="bg-surface-2/60 border-b border-border text-[12px] font-bold text-ink-subtle uppercase tracking-wider">
-                    <th className="px-5 py-3">Preview</th>
-                    <th className="px-5 py-3">Timestamp</th>
-                    <th className="px-5 py-3">Camera ID</th>
-                    <th className="px-5 py-3">Detection Area</th>
-                    <th className="px-5 py-3">Webhook Delivery</th>
-                    <th className="px-5 py-3 text-right">Action</th>
+                    <th className="px-6 py-3">Preview</th>
+                    <th className="px-6 py-3">Timestamp</th>
+                    <th className="px-6 py-3">Camera ID</th>
+                    <th className="px-6 py-3">Detection Area</th>
+                    <th className="px-6 py-3">Webhook Delivery</th>
+                    <th className="px-6 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -599,7 +599,7 @@ export default function DashboardPage() {
                       className="hover:bg-surface-2/50 transition-colors duration-150"
                     >
                       {/* Image Thumbnail Column */}
-                      <td className="px-5 py-2">
+                      <td className="px-6 py-2">
                         <div className="w-12 h-8 rounded-lg overflow-hidden border border-border bg-surface-2 flex items-center justify-center">
                           {ev.image_url ? (
                             <img src={ev.image_url} className="w-full h-full object-cover" alt="Event preview" />
@@ -608,22 +608,22 @@ export default function DashboardPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-3 font-mono text-ink-muted">
+                      <td className="px-6 py-3 font-mono text-ink-muted">
                         {formatDateTime(ev.detected_at)}
                       </td>
-                      <td className="px-5 py-3 font-mono font-bold text-ink">
+                      <td className="px-6 py-3 font-mono font-bold text-ink">
                         {ev.camera_no}
                       </td>
-                      <td className="px-5 py-3 text-ink-muted font-medium">
+                      <td className="px-6 py-3 text-ink-muted font-medium">
                         {ev.area_name ?? '—'}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-6 py-3">
                         <StatusBadge
                           status={ev.event_status === 'CLOSED' ? 'ok' : ev.alert_sent ? 'ok' : 'warn'}
                           label={ev.event_status === 'CLOSED' ? 'Resolved' : ev.alert_sent ? 'Sent' : 'Pending'}
                         />
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-6 py-3 text-right">
                         <Link
                           to={`/events/${ev.event_id}`}
                           className="inline-flex items-center justify-center px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all font-semibold"
