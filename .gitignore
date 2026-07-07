@@ -4,11 +4,15 @@
 .env.*.local
 **/.env.local
 
+# ---- Agent rules (local only, ไม่ต้อง commit) ----
+CLAUDE.md
+
 # ---- Python ----
 __pycache__/
 *.pyc
 venv/
 .venv/
+walkway/
 *.egg-info/
 
 # ---- Logs ----

@@ -214,11 +214,11 @@ from src.camera.camera_reader import CameraReader   # ✅
 ```text
 ทีมพัฒนา (Dev):
   DB_SERVER=dev-sql-01
-  CAMERA_RTSP_URL=rtsp://192.168.0.100/test
+  CAMERA_RTSP_USER=test_user
 
 Production:
   DB_SERVER=prod-sql-cluster
-  CAMERA_RTSP_URL=rtsp://10.0.1.50/stream1
+  CAMERA_RTSP_USER=prod_user
 ```
 ถ้าไม่ใช้ `.env` ต้องแก้โค้ดทุกครั้งที่ deploy ซึ่งเสี่ยง และต้องระวังไม่ให้ push password จริงขึ้น Git
 
@@ -366,7 +366,7 @@ copy .env.example .env   # Windows
 ```text
 ❌ ห้าม commit:
 ├── .env                  ← secret / รหัสผ่าน
-├── venv/                 ← ขนาดใหญ่ สร้างใหม่ได้
+├── walkway/              ← ขนาดใหญ่ สร้างใหม่ได้
 ├── __pycache__/          ← Python auto-generate
 ├── *.pyc, *.pyo          ← Python compiled
 ├── logs/                 ← log ใช้งาน (อาจมีข้อมูลสำคัญ)

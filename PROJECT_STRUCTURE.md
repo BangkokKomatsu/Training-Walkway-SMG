@@ -5,8 +5,7 @@
 
 ```text
 Training-WalkWay-SMG/
-├── 00_MASTER_CONTEXT.md          # บริบท/สถาปัตยกรรมรวมของทั้งระบบ
-├── CLAUDE.md                      # กฎประจำโปรเจกต์
+├── CLAUDE.md                      # กฎประจำโปรเจกต์ (local only — ไม่ commit ขึ้น Git)
 ├── README.md                      # อธิบายการเริ่มต้นใช้งานระบบ
 ├── PROJECT_STRUCTURE.md           # ไฟล์อธิบายโครงสร้าง (ไฟล์นี้)
 ├── main.py                        # จุดเริ่มต้นของระบบ Python ตรวจจับ AI
@@ -47,72 +46,57 @@ Training-WalkWay-SMG/
 │   ├── 03_create_indexes.sql
 │   ├── 04_create_stored_procedures.sql
 │   ├── 05_insert_sample_data.sql
-│   └── 06_sample_exec_commands.sql
+│   ├── 06_sample_exec_commands.sql
+│   ├── 07_api_key_and_login_security.sql   # ตาราง/SP สำหรับ API Key + login security
+│   └── 08_seed_api_keys.sql                # seed ตัวอย่าง API Key
 │
 ├── data-api/                      # Backend API (Node.js) ให้บริการ Frontend
 │   ├── server.js                  # ระบบ API ให้บริการและ JWT Authentication
+│   ├── db.js                      # การเชื่อมต่อ MSSQL (connection pool)
+│   ├── package.json
+│   ├── .env.example
 │   └── README.md
 │
 ├── frontend/                      # Web Dashboard (React + Vite + Tailwind)
-│   ├── src/                       # หน้าต่างแสดงผล (Dashboard, Event, Monitoring)
+│   ├── src/
+│   │   ├── components/            # UI components (รวม components/ui, components/layout)
+│   │   ├── context/                # AuthContext (จัดการ JWT/company state)
+│   │   ├── hooks/
+│   │   ├── pages/                 # หน้าต่าง ๆ (Dashboard, Event, Monitoring, ...)
+│   │   ├── services/               # เรียก data-api (api.js)
+│   │   └── utils/
 │   └── README.md
 │
 ├── docs/                          # เอกสารคู่มือของโปรเจกต์
-│   ├── course-modules/            # บทเรียนสำหรับผู้ใช้งานและผู้ฝึกอบรม (13 บท)
+│   ├── course-modules/            # บทเรียนสำหรับผู้ใช้งานและผู้ฝึกอบรม (14 บท, 01-14)
+│   ├── course-slides/             # สไลด์ประกอบบทเรียน (.pptx บางโมดูล)
 │   ├── admin-backend/             # คู่มือสำหรับ Admin และ Database
 │   └── code-overview.html         # หน้าเว็บแสดงแผนภาพและโฟลว์การทำงาน
 │
-├── playground/                    # พื้นที่ทดลองเขียนโค้ดและเรียนรู้แบบ Sandbox
+├── playground/                    # พื้นที่ทดลองเขียนโค้ดและเรียนรู้แบบ Sandbox (01-09)
 │   ├── 01-python-basic/
 │   ├── 02-opencv-camera/
 │   ├── 03-yolo-detection/
 │   ├── 04-area-detection/
 │   ├── 05-mssql-database/
 │   ├── 06-alerts-teams-email/
-│   └── 07-frontend-ui/
+│   ├── 07-frontend-ui/
+│   ├── 08-image-storage/
+│   └── 09-unit-testing/
 │
 ├── assets/
 │   └── sample-images/             # รูปตัวอย่างประกอบบทเรียน
 │
-└── Models/                        # โฟลเดอร์เก็บโมเดล AI (ต้องดาวน์โหลด/ใส่เอง)
-    └── yolo11n.pt
+├── Models/                        # โฟลเดอร์เก็บโมเดล AI (.pt) — ห้าม commit ตาม CLAUDE.md §5
+│   └── yolo11n.pt                 # ดาวน์โหลด/ใส่เอง ดูวิธีใน Module 05
+│
+└── Final_WalkWay_Detection_GPU.py  # สคริปต์ต้นฉบับเดิม (legacy/reference, ใช้ cvzone) — ไม่ใช่ production path
 ```
 
 ## สถานะปัจจุบัน
 
-- โครงสร้างและโค้ดของระบบพัฒนาเสร็จสมบูรณ์ร้อยเปอร์เซ็นต์
-- บทเรียน, แบบฝึกหัดใน `playground/`, และคู่มือที่จำเป็นใน `docs/` ถูกเขียนอธิบายอย่างครบถ้วน
-- พร้อมสำหรับการนำไป Deploy หรือใช้ฝึกอบรมบุคลากร (OJT) ต่อได้ทันที)
-│   ├── 01-python-basic/           # variable, type, list/dict, if/else, loop, function, class, import, try/except, logging
-│   │   └── README.md
-│   ├── 02-opencv-camera/          # อ่าน RTSP/วิดีโอด้วย OpenCV
-│   │   └── README.md
-│   ├── 03-yolo-detection/         # ตรวจจับคนด้วย YOLO
-│   │   └── README.md
-│   ├── 04-area-detection/         # polygon + dwell time
-│   │   └── README.md
-│   ├── 05-mssql-database/         # เชื่อม MSSQL + insert ผ่าน SP
-│   │   └── README.md
-│   ├── 06-alerts-teams-email/     # Teams (Power Automate) + Email (SMTP M365)
-│   │   └── README.md
-│   └── 07-frontend-ui/            # React อ่านข้อมูลจาก data-api
-│       └── README.md
-│
-├── assets/
-│   └── sample-images/             # ตัวอย่างรูปภาพ (README อธิบายการใช้งาน)
-│       └── README.md
-│
-├── Models/                        # ไฟล์โมเดล YOLO (.pt) — ห้าม commit ตาม CLAUDE.md §5
-│   ├── BKC_PPE_Detection_V29-16-May.pt
-│   ├── folklift_person_detect_v2.pt
-│   └── yolo11n.pt
-│
-└── Final_WalkWay_Detection_GPU.py  # สคริปต์ต้นฉบับเดิม (legacy/reference)
-```
-
-## สถานะปัจจุบัน
-
-- โครงสร้างหลัก (`config/`, `src/*`, `sql/`, `data-api/`, `frontend/`, `docs/`) ถูก scaffold ไว้ครบแล้ว
-  แต่หลายไฟล์ยังเป็น README/placeholder รอเนื้อหาตามลำดับเฟสใน §8 ของ [CLAUDE.md](CLAUDE.md)
-- โฟลเดอร์ `playground/01-07` ทุกโฟลเดอร์ตอนนี้มีแค่ `README.md` — ยังไม่มีไฟล์ตัวอย่าง/exercise ให้ผู้เรียนลองรัน
-- `Models/*.pt` และ `*.pdf` มีอยู่ในเครื่องแต่ถูก ignore จาก git ตาม `.gitignore`
+- โครงสร้างและโค้ดหลักของระบบ (`config/`, `src/*`, `sql/`, `data-api/`, `frontend/`) พัฒนาเสร็จและใช้งานได้ครบ flow
+- บทเรียนใน `docs/course-modules/` (14 โมดูล) และคู่มือ admin ใน `docs/admin-backend/` เขียนอธิบายครบถ้วน
+- `playground/01-09` มีทั้ง README/lab instructions และไฟล์ตัวอย่างให้ผู้เรียนฝึกรัน
+- `Models/*.pt` มีอยู่ในเครื่องแต่ถูก ignore จาก git ตาม `.gitignore` (ต้องดาวน์โหลด/คัดลอกเองตามคู่มือ)
+- `CLAUDE.md` เก็บไว้ใช้งานในเครื่อง (local) เท่านั้น ไม่ commit ขึ้น Git ตาม `.gitignore`

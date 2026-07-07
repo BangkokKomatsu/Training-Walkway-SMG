@@ -46,7 +46,7 @@ sql/            → SQL script สร้าง schema/table/SP (ฝั่ง adm
 data-api/       → Backend Node.js API (ใช้ JWT Auth) สำหรับ Frontend
 frontend/       → เว็บ React + Vite + Tailwind สำหรับ monitor ผล
 docs/           → เอกสารคอร์ส (course-modules) และเอกสาร admin (admin-backend)
-playground/     → ที่ฝึกของผู้เรียน (01-07) สำหรับฝึกเขียนโค้ด
+playground/     → ที่ฝึกของผู้เรียน (01-09) สำหรับฝึกเขียนโค้ด
 main.py         → จุดเริ่มต้นโปรแกรม Detection ฝั่ง Python
 ```
 
@@ -61,10 +61,19 @@ main.py         → จุดเริ่มต้นโปรแกรม Detec
 ### ขั้นตอน
 1. **Clone โปรเจกต์** แล้วเข้าโฟลเดอร์นี้
 2. **สร้าง virtual environment** (แนะนำ):
+
+   **Virtual environment คืออะไร ทำไมต้องสร้าง:** เป็น "กล่องแยก" สำหรับติดตั้งไลบรารี Python เฉพาะโปรเจกต์นี้
+   แยกออกจาก Python ที่ติดตั้งในเครื่อง (global) เพื่อไม่ให้เวอร์ชันไลบรารีของโปรเจกต์นี้ (เช่น `ultralytics`, `opencv-python`)
+   ไปชนกับโปรเจกต์อื่นที่อาจต้องการคนละเวอร์ชัน และทำให้ทีมทุกคนติดตั้งไลบรารีชุดเดียวกันตรงกับ `requirements.txt` เป๊ะ ๆ
+
+   ตั้งชื่อ virtual environment ว่า **`walkway`**:
    ```bash
-   python -m venv venv
-   venv\Scripts\activate        # Windows
+   python -m venv walkway
+   walkway\Scripts\activate     # Windows
+   # source walkway/bin/activate   # macOS/Linux
    ```
+   เมื่อ activate สำเร็จ จะเห็นคำว่า `(walkway)` โผล่หน้า prompt ใน terminal — แปลว่ากำลังใช้งานอยู่ใน environment นี้
+   (ใช้ `deactivate` เพื่อออกจาก environment เมื่อเลิกใช้งาน)
 3. **ติดตั้ง dependencies:**
    ```bash
    pip install -r requirements.txt
@@ -100,7 +109,7 @@ main.py         → จุดเริ่มต้นโปรแกรม Detec
 ## คอร์สเรียนและคู่มือ
 
 ระบบนี้มาพร้อมกับเอกสารบทเรียนและแบบฝึกหัดสำหรับ OJT (On-the-Job Training):
-- **สำหรับผู้เรียน:** เปิดดูที่ [`docs/course-modules/`](docs/course-modules/) ซึ่งมีบทเรียน 13 โมดูลและแบบฝึกหัดใน `playground/`
+- **สำหรับผู้เรียน:** เปิดดูที่ [`docs/course-modules/`](docs/course-modules/) ซึ่งมีบทเรียน 14 โมดูลและแบบฝึกหัดใน `playground/` (01-09)
 - **สำหรับผู้ดูแลระบบ:** เปิดดูที่ [`docs/admin-backend/`](docs/admin-backend/) สำหรับการจัดการฐานข้อมูลและ API
 - **ดูภาพรวมโค้ดแบบแผนภาพ:** เปิดไฟล์ [`docs/code-overview.html`](docs/code-overview.html) ในเว็บบราวเซอร์ของคุณ
 

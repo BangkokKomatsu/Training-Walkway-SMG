@@ -149,7 +149,7 @@ frontend/
     │   └── CompanyContext.jsx  ← ไฟล์เก่า ไม่มีที่ไหน import ใช้งานแล้ว (dead code) — ห้ามยึดเป็น pattern ปัจจุบัน
     │
     ├── services/
-    │   └── api.js              ← ฟังก์ชัน fetch ทุกอย่าง (~14 methods)
+    │   └── api.js              ← ฟังก์ชัน fetch ทุกอย่าง (~24 methods)
     │
     ├── hooks/
     │   └── useAsync.js         ← custom hook มาตรฐานสำหรับดึงข้อมูล async (loading/error/refetch)
@@ -224,6 +224,7 @@ async function post(path, body = {}) {
 }
 
 export const api = {
+  changePassword:     (payload)     => post('/api/auth/change-password', payload),
   getDashboard:       (params = {}) => get('/api/dashboard', params),
   getEvents:          (params = {}) => get('/api/events',    params),
   getEventDetail:     (id)          => get(`/api/events/${id}`),
@@ -238,42 +239,63 @@ export const api = {
   createCamera:       (payload)     => post('/api/cameras', payload),
   updateCamera:       (camera_no, payload) => post(`/api/cameras/${camera_no}/update`, payload),
   deleteCamera:       (camera_no)   => post(`/api/cameras/${camera_no}/delete`),
+  getRoles:           ()            => get('/api/roles'),
+  getUsers:           (params = {}) => get('/api/users', params),
+  createUser:         (payload)     => post('/api/users', payload),
+  updateUser:         (id, payload) => post(`/api/users/${id}/update`, payload),
+  resetUserPassword:  (id, payload = {}) => post(`/api/users/${id}/reset-password`, payload),
+  getCompanyApiKey:   ()            => get('/api/company/api-key'),
+  regenerateApiKey:   ()            => post('/api/company/api-key/regenerate'),
+  getCompanyUsage:    (params = {}) => get('/api/company/usage', params),
+  getBillingOverview: ()            => get('/api/admin/billing-overview'),
 }
 ```
-**14 methods ทั้งหมด** ครอบคลุม 3 กลุ่ม: dashboard/events/alerts/health (อ่านอย่างเดียว), companies (สำหรับ super admin switcher), และ cameras/polygons (CRUD เต็มรูปแบบ — ดูรายละเอียดกลไก camera CRUD + polygon editor ใน Module 06)
+**24 methods ทั้งหมด** (ไฟล์จริงมีมากกว่านี้แล้วจากตอนที่เขียนคอร์สนี้ครั้งแรก) ครอบคลุม 5 กลุ่ม: dashboard/events/alerts/health (อ่านอย่างเดียว), companies (สำหรับ super admin switcher), cameras/polygons (CRUD เต็มรูปแบบ — ดูรายละเอียดกลไก camera CRUD + polygon editor ใน Module 06), user management (`getRoles`/`getUsers`/`createUser`/`updateUser`/`resetUserPassword` — สำหรับหน้า `UserManagementPage.jsx`), และ API access/billing (`getCompanyApiKey`/`regenerateApiKey`/`getCompanyUsage`/`getBillingOverview` — สำหรับหน้า `ApiAccessPage.jsx`)
 ### 5.5 `App.jsx` — Routing
 
 โค้ดจาก [frontend/src/App.jsx](../../frontend/src/App.jsx) (ของจริงทั้งไฟล์ — ไฟล์นี้สั้นมาก):
 
 ```jsx
 import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import AppShell from './components/layout/AppShell'
 import LoginPage from './pages/LoginPage'
+import ChangePasswordPage from './pages/ChangePasswordPage'
 import DashboardPage from './pages/DashboardPage'
 import EventLogPage from './pages/EventLogPage'
 import EventDetailPage from './pages/EventDetailPage'
 import CameraMonitorPage from './pages/CameraMonitorPage'
 import AlertMonitorPage from './pages/AlertMonitorPage'
 import SystemHealthPage from './pages/SystemHealthPage'
+import UserManagementPage from './pages/UserManagementPage'
+import ApiAccessPage from './pages/ApiAccessPage'
 
 function ProtectedRoutes() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const location = useLocation()
   // ถ้าไม่มี JWT token (ยังไม่ login หรือ token หมดอายุ) → redirect ไป /login
   if (!token) return <Navigate to="/login" replace />
+
+  // บังคับให้เปลี่ยนรหัสผ่านก่อน ถ้า user ยังไม่เคยเปลี่ยน (must_change_password = true ใน JWT)
+  if (user?.must_change_password && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />
+  }
 
   return (
     <AppShell>
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/events" element={<EventLogPage />} />
         <Route path="/events/:id" element={<EventDetailPage />} />
         <Route path="/cameras" element={<CameraMonitorPage />} />
         <Route path="/alerts" element={<AlertMonitorPage />} />
         <Route path="/health" element={<SystemHealthPage />} />
+        <Route path="/users" element={<UserManagementPage />} />
+        <Route path="/api-access" element={<ApiAccessPage />} />
       </Routes>
     </AppShell>
   )
@@ -299,14 +321,17 @@ export default function App() {
 | Path | Component | ต้อง login ไหม |
 |------|-----------|----------------|
 | `/login` | `LoginPage` | ไม่ต้อง |
+| `/change-password` | `ChangePasswordPage` | ต้อง (บังคับถ้า `must_change_password = true`) |
 | `/dashboard` | `DashboardPage` | ต้อง |
 | `/events` | `EventLogPage` | ต้อง |
 | `/events/:id` | `EventDetailPage` | ต้อง |
 | `/cameras` | `CameraMonitorPage` | ต้อง |
 | `/alerts` | `AlertMonitorPage` | ต้อง |
 | `/health` | `SystemHealthPage` | ต้อง |
+| `/users` | `UserManagementPage` | ต้อง (admin/super admin) |
+| `/api-access` | `ApiAccessPage` | ต้อง (admin/super admin) |
 
-**จุดสำคัญ:** guard ใช้ `const { token } = useAuth()` ตรง ๆ ไม่ใช่ `companyCode` — เพราะการมี/ไม่มี token คือตัวบอกว่า login แล้วหรือยัง ส่วนบริษัทไหนจะเห็นข้อมูลอะไรเป็นเรื่องที่ server ตัดสินจาก JWT (อ่านต่อหัวข้อ 5.6)
+**จุดสำคัญ:** guard ใช้ `const { token } = useAuth()` ตรง ๆ ไม่ใช่ `companyCode` — เพราะการมี/ไม่มี token คือตัวบอกว่า login แล้วหรือยัง ส่วนบริษัทไหนจะเห็นข้อมูลอะไรเป็นเรื่องที่ server ตัดสินจาก JWT (อ่านต่อหัวข้อ 5.6) นอกจากนี้ guard ยังเช็ค `user?.must_change_password` เพื่อบังคับเปลี่ยนรหัสผ่านครั้งแรกก่อนเข้าหน้าอื่นได้ (ดู `ChangePasswordPage.jsx`)
 
 ---
 
@@ -547,7 +572,7 @@ npm run build
 - [ ] รัน `npm run dev` ได้ เปิดเว็บที่ port 5173 ได้
 - [ ] Login ด้วย username/password ได้ (ไม่มี company_code ที่หน้า login)
 - [ ] เห็น Dashboard page (แม้จะ error เพราะ data-api ไม่รัน ก็ยังเห็น UI)
-- [ ] เข้าใจว่า `api.js` เป็นตัวกลางเรียกทุก endpoint (~14 methods)
+- [ ] เข้าใจว่า `api.js` เป็นตัวกลางเรียกทุก endpoint (~24 methods)
 - [ ] เข้าใจ structure: Pages → Component → api.js → data-api → MSSQL
 - [ ] เข้าใจว่า `AuthContext.jsx`/`useAuth()` คือกลไก auth จริง ไม่ใช่ `CompanyContext`/`useCompany()`
 - [ ] อธิบายได้ว่าทำไม bcrypt ปลอดภัยกว่า SHA-256 สำหรับเก็บรหัสผ่าน

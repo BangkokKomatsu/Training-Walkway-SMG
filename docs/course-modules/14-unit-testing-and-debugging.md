@@ -84,7 +84,7 @@ def test_get_bbox_bottom_center():
 from unittest.mock import patch
 from src.detection.detection_service import CameraEventTracker
 
-def test_tracker_dwell_time():
+def test_tracker_dwell_time_trigger():
     tracker = CameraEventTracker(dwell_seconds=5, cooldown_seconds=60)
     
     with patch("time.monotonic") as mock_time:

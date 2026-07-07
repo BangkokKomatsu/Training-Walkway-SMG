@@ -20,7 +20,7 @@
 ## ส่วนที่ 2 — สิ่งที่ต้องเตรียม
 
 - ผ่าน Module 01–03
-- `venv` activated, library ติดตั้งแล้ว
+- `walkway` activated, library ติดตั้งแล้ว
 - กล้อง IP ที่รองรับ RTSP หรือ URL กล้อง RTSP (ถ้าไม่มีให้ใช้ไฟล์วิดีโอ `.mp4` แทน)
 
 ---

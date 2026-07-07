@@ -251,8 +251,8 @@ print(f"{'✅' if success else '❌'} Email: {msg[:100]}")
 เมื่อทุก component ผ่านแล้ว:
 
 ```bash
-# activate venv
-venv\Scripts\Activate.ps1   # Windows
+# activate walkway
+walkway\Scripts\Activate.ps1   # Windows
 
 # รัน Python detection service
 python main.py
@@ -313,7 +313,7 @@ cd frontend && npm run dev
 ### 7C — ความปลอดภัย
 
 - [ ] `.env` ไม่ถูก commit ขึ้น Git (ตรวจ `git status`)
-- [ ] `.gitignore` มี `.env`, `venv/`, `*.pt`, `logs/`
+- [ ] `.gitignore` มี `.env`, `walkway/`, `*.pt`, `logs/`
 - [ ] ไม่มี password hardcode ในโค้ด
 
 ### 7D — ส่งมอบให้ Admin
@@ -402,7 +402,7 @@ useEffect(() => {
 ```text
 ❌ ห้าม commit:
 ├── .env                     ← secret ทั้งหมด
-├── venv/
+├── walkway/
 ├── node_modules/
 ├── dist/
 ├── *.log

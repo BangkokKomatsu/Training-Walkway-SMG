@@ -178,13 +178,13 @@ else:
 
 ```jsx
 // React component
-function DetectionImage({ eventId, alt }) {
+function DetectionImage({ imageUrl, alt }) {
   const [hasError, setHasError] = React.useState(false);
 
-  // ดึงรูปภาพผ่าน API แทน URL ตรงๆ
-  const imageUrl = `/api/events/${eventId}/image`;
+  // imageUrl มาจาก field `image_url` ใน response ของ GET /api/events/:id
+  // (data-api ขอ signed URL จาก BKC image API มาให้แล้ว — ถ้าไม่ได้ตั้งค่า BKC_IMAGE_API_KEY จะเป็น null)
 
-  if (hasError) {
+  if (!imageUrl || hasError) {
     return (
       <div className="flex items-center justify-center bg-gray-100 h-32 text-gray-400 text-sm">
         ไม่พบรูปภาพ

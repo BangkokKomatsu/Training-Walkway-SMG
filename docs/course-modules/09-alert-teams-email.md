@@ -246,7 +246,6 @@ def send_email_alert(event: dict) -> tuple[bool, str]:
         f"กล้อง:        {event.get('camera_name', '')} ({event.get('camera_no', '')})",
         f"พื้นที่:       {event.get('location_name', '')}",
         f"ประเภท event: {event.get('event_type', '')}",
-        f"ความมั่นใจ:   {confidence_pct}%",
         f"เวลา:         {event.get('detected_at', '')}",
     ]
     if event.get("image_name"):

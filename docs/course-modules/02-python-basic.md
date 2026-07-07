@@ -25,8 +25,8 @@
 
 ## ส่วนที่ 2 — สิ่งที่ต้องเตรียม
 
-- ผ่าน Module 01 (ติดตั้ง Python, venv, library แล้ว)
-- `venv` activated อยู่
+- ผ่าน Module 01 (ติดตั้ง Python, walkway (virtual environment), library แล้ว)
+- `walkway` activated อยู่
 - เปิดโปรเจกต์ใน VS Code
 
 ---
@@ -361,11 +361,11 @@ import os
 load_dotenv()
 
 # อ่านค่า (ถ้าไม่มีจะคืน None หรือ default)
-camera_url = os.getenv("CAMERA_RTSP_URL", "")
+camera_user = os.getenv("CAMERA_RTSP_USER", "")
 company_code = os.getenv("COMPANY_CODE", "DEMO")
 
 print(f"Company: {company_code}")
-print(f"Camera URL: {camera_url}")
+print(f"Camera RTSP User: {camera_user}")
 ```
 > **โปรเจกต์นี้ไม่ใช้ `os.getenv` กระจัดกระจาย** — ทุกค่าโหลดผ่าน `config/settings.py` ตัวเดียว ดูรายละเอียดใน Module 03
 
