@@ -1,8 +1,8 @@
 [
   {
     "camera_no": "1",
-    "camera_name": "กล้อง อาคาร 1",
-    "location_name": "อาคาร 1 ทางเดิน A",
+    "camera_name": "Camera No.1",
+    "location_name": "อาคารสำนักงาน 1",
     "enabled": true,
     "rtsp_url": "rtsp://{user}:{password}@192.168.0.1:554/Streaming/Channels/102",
     "danger_zones": [
@@ -18,8 +18,8 @@
   },
   {
     "camera_no": "8",
-    "camera_name": "กล้อง อาคาร 2",
-    "location_name": "อาคาร 2 ทางเดิน B",
+    "camera_name": "Camera No.8",
+    "location_name": "ทางเดินข้าง F1",
     "enabled": true,
     "rtsp_url": "rtsp://{user}:{password}@192.168.0.8:554/Streaming/Channels/102",
     "danger_zones": [
@@ -36,9 +36,9 @@
   }
   ,
   {
-    "camera_no": "28",
-    "camera_name": "กล้อง โซน Forklift Casting",
-    "location_name": "โซน Forklift Casting",
+    "camera_no": "108",
+    "camera_name": "Camera No.108",
+    "location_name": "ทางเดิน Casting",
     "enabled": true,
     "rtsp_url": "rtsp://{user}:{password}@192.168.1.88:554/Streaming/Channels/102",
     "danger_zones": [

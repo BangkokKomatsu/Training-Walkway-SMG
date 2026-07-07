@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Camera, Wifi, WifiOff, Search, RefreshCw, AlertTriangle, X, Undo, Eraser, Save, Plus, Edit, Trash2, ImageOff } from 'lucide-react'
+import { Camera, Wifi, WifiOff, Search, RefreshCw, AlertTriangle, X, Undo, Eraser, Save, Plus, Edit, Trash2, ImageOff, Eye, EyeOff } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import CameraStatusCard from '../components/ui/CameraStatusCard'
@@ -165,10 +165,12 @@ export default function CameraMonitorPage() {
 
   // Polygon editor states
   const [selectedCam, setSelectedCam] = useState(null)
+  const [areas, setAreas] = useState([])          // โซนที่บันทึก/เพิ่มไว้แล้ว: [{ area_name, points }]
   const [areaName, setAreaName] = useState('Restricted Area')
-  const [points, setPoints] = useState([])
+  const [points, setPoints] = useState([])        // โซนที่กำลังวาดอยู่ตอนนี้
   const [hoverPt, setHoverPt] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)   // toggle รูปลูกตาช่อง password
 
   // Camera snapshot preview states (Draw Polygon background)
   const [snapshotUrl, setSnapshotUrl] = useState(null)
@@ -206,24 +208,23 @@ export default function CameraMonitorPage() {
   // Fetch existing polygon data + snapshot preview when camera changes
   useEffect(() => {
     if (selectedCam) {
+      setPoints([])
+      setHoverPt(null)
       api.getCameraPolygons(selectedCam.camera_no)
         .then(res => {
-          if (res && res.length > 0) {
-            setAreaName(res[0].area_name || 'Restricted Area')
+          const loaded = (res || []).map(a => {
             try {
-              const pts = JSON.parse(res[0].polygon_json).map(([x, y]) => ({ x, y }))
-              setPoints(pts)
+              return { area_name: a.area_name || 'Restricted Area', points: JSON.parse(a.polygon_json).map(([x, y]) => ({ x, y })) }
             } catch {
-              setPoints([])
+              return null
             }
-          } else {
-            setAreaName('Restricted Area')
-            setPoints([])
-          }
+          }).filter(Boolean)
+          setAreas(loaded)
+          setAreaName(`Restricted Area ${loaded.length + 1}`)
         })
         .catch(() => {
-          setAreaName('Restricted Area')
-          setPoints([])
+          setAreas([])
+          setAreaName('Restricted Area 1')
         })
 
       setSyncError(null)
@@ -323,23 +324,47 @@ export default function CameraMonitorPage() {
     })
   }
 
-  const handleSavePolygon = async () => {
+  // เพิ่มโซนที่กำลังวาดเข้า "รายการโซน" แล้วเคลียร์ canvas เพื่อวาดโซนถัดไป
+  const handleAddZone = () => {
     if (points.length < 3) {
-      alert('Please plot at least 3 points to close a polygon.')
+      alert('ปักอย่างน้อย 3 จุดก่อนเพิ่มเป็นโซน')
+      return
+    }
+    const next = [...areas, { area_name: areaName.trim() || `Restricted Area ${areas.length + 1}`, points }]
+    setAreas(next)
+    setPoints([])
+    setHoverPt(null)
+    setAreaName(`Restricted Area ${next.length + 1}`)
+  }
+
+  const handleDeleteZone = (idx) => {
+    setAreas(areas.filter((_, i) => i !== idx))
+  }
+
+  // บันทึกทุกโซนของกล้องนี้ (รวมโซนที่ยังวาดค้างอยู่ ถ้าครบ 3 จุด) — backend ลบของเดิมแล้วเขียนใหม่ทั้งชุด
+  const handleSavePolygon = async () => {
+    const pending = points.length >= 3
+      ? [{ area_name: areaName.trim() || `Restricted Area ${areas.length + 1}`, points }]
+      : []
+    const allZones = [...areas, ...pending]
+    if (allZones.length === 0) {
+      alert('ต้องมีอย่างน้อย 1 โซน (ปักอย่างน้อย 3 จุด) ก่อนบันทึก')
       return
     }
     setSaving(true)
     try {
-      const jsonStr = JSON.stringify(points.map(p => [p.x, p.y]))
       await api.saveCameraPolygons(selectedCam.camera_no, {
-        area_name: areaName.trim() || 'Restricted Area',
-        polygon_json: jsonStr
+        areas: allZones.map(z => ({
+          area_name: z.area_name,
+          polygon_json: JSON.stringify(z.points.map(p => [p.x, p.y])),
+        })),
       })
       setSelectedCam(null)
+      setAreas([])
       setPoints([])
       setHoverPt(null)
     } catch (err) {
-      alert(err.message || 'Failed to save zone')
+      alert(err.message || 'Failed to save zones')
     } finally {
       setSaving(false)
     }
@@ -447,7 +472,7 @@ export default function CameraMonitorPage() {
       {/* Visual Polygon Zone Editor Modal (Locked at 500x400) */}
       {selectedCam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-[850px] rounded-2xl border border-border bg-surface shadow-2xl overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border">
+          <div className="relative w-full max-w-[850px] max-h-[92vh] overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border">
             
             {/* Draw Area Canvas */}
             <div className="p-6 flex flex-col items-center justify-center flex-1">
@@ -484,6 +509,30 @@ export default function CameraMonitorPage() {
 
                 {/* SVG lines */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                  {/* โซนที่บันทึก/เพิ่มไว้แล้ว (สีเหลืองอำพัน + เลขกำกับ) */}
+                  {areas.map((zone, zi) => {
+                    const cx = zone.points.reduce((s, p) => s + p.x, 0) / zone.points.length
+                    const cy = zone.points.reduce((s, p) => s + p.y, 0) / zone.points.length
+                    return (
+                      <g key={`zone-${zi}`}>
+                        <polygon
+                          points={zone.points.map(p => `${p.x},${p.y}`).join(' ')}
+                          fill="rgba(245, 158, 11, 0.15)"
+                          stroke="#F59E0B"
+                          strokeWidth="2"
+                          strokeLinejoin="round"
+                        />
+                        <text
+                          x={cx} y={cy} fill="#FBBF24" fontSize="13" fontWeight="700"
+                          textAnchor="middle" dominantBaseline="middle"
+                          style={{ paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.65)', strokeWidth: 3 }}
+                        >
+                          {zi + 1}
+                        </text>
+                      </g>
+                    )
+                  })}
+                  {/* โซนที่กำลังวาดอยู่ (สีแดง) */}
                   {points.length > 0 && (
                     <polygon
                       points={points.map(p => `${p.x},${p.y}`).join(' ')}
@@ -575,8 +624,34 @@ export default function CameraMonitorPage() {
                   )}
                 </div>
 
+                {/* รายการโซนที่บันทึก/เพิ่มไว้แล้วในกล้องนี้ */}
+                {areas.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[12px] font-bold text-ink-subtle uppercase">Saved Zones ({areas.length}):</label>
+                    <div className="max-h-28 overflow-y-auto border border-border rounded-lg bg-surface divide-y divide-border/60">
+                      {areas.map((zone, zi) => (
+                        <div key={zi} className="flex items-center justify-between gap-2 px-2.5 py-1.5">
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="flex-none w-4 h-4 rounded-full bg-amber-500/20 text-amber-500 text-[10px] font-bold flex items-center justify-center">{zi + 1}</span>
+                            <span className="text-[12px] text-ink truncate">{zone.area_name}</span>
+                          </span>
+                          <button
+                            onClick={() => handleDeleteZone(zi)}
+                            className="flex-none p-1 rounded text-ink-subtle hover:text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer"
+                            title="ลบโซนนี้"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[12px] font-bold text-ink-subtle uppercase">Area/Zone Name:</label>
+                  <label className="text-[12px] font-bold text-ink-subtle uppercase">
+                    Area/Zone Name: <span className="text-primary normal-case">(กำลังวาดโซน #{areas.length + 1})</span>
+                  </label>
                   <input
                     type="text"
                     value={areaName}
@@ -624,19 +699,27 @@ export default function CameraMonitorPage() {
                 </div>
 
                 <button
-                  disabled={points.length < 3 || saving}
+                  disabled={points.length < 3}
+                  onClick={handleAddZone}
+                  className="w-full py-2 px-4 border border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl text-[13px] font-bold hover:bg-amber-500/20 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={13} /> เพิ่มเป็นโซน (วาดโซนถัดไปต่อได้)
+                </button>
+
+                <button
+                  disabled={saving || (areas.length === 0 && points.length < 3)}
                   onClick={handleSavePolygon}
                   className="w-full py-2.5 px-4 bg-primary text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-primary/10 hover:brightness-110 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   {saving ? (
                     <>
                       <RefreshCw size={12} className="animate-spin" />
-                      <span>Saving Polygon Area...</span>
+                      <span>กำลังบันทึก...</span>
                     </>
                   ) : (
                     <>
                       <Save size={13} />
-                      <span>Save Restricted Zone</span>
+                      <span>Save All Zones ({areas.length + (points.length >= 3 ? 1 : 0)})</span>
                     </>
                   )}
                 </button>
@@ -650,7 +733,7 @@ export default function CameraMonitorPage() {
       {/* Sleek Camera Configuration Form Modal */}
       {formOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-[650px] rounded-2xl border border-border bg-surface shadow-2xl overflow-hidden flex flex-col p-6 space-y-6">
+          <div className="relative w-full max-w-[650px] max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl flex flex-col p-6 space-y-6">
             
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
@@ -784,13 +867,24 @@ export default function CameraMonitorPage() {
                     {/* Password */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[12px] font-bold text-ink-subtle uppercase">Password:</label>
-                      <input
-                        type="password"
-                        value={formData.password}
-                        onChange={e => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="••••••••"
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={formData.password}
+                          onChange={e => setFormData({ ...formData, password: e.target.value })}
+                          placeholder="••••••••"
+                          className="w-full px-3 py-2 pr-10 rounded-lg border border-border bg-surface text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(v => !v)}
+                          aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                          title={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-ink-subtle hover:text-ink hover:bg-surface-2 transition-all cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
                     </div>
 
                     {/* Channel */}

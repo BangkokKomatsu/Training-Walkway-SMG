@@ -102,7 +102,7 @@ export default function DashboardPage() {
   // Calculations for Donut Chart (Alert success vs failures)
   const alertSuccess = d.alerts_success ?? 0
   const alertFailed = d.alerts_failed ?? 0
-  const alertTotal = d.alerts_total ?? 1 // Prevent division by zero
+  const alertTotal = d.alerts_total || 1 // Prevent division by zero (?? ไม่กัน 0 จริง — บริษัทที่ยังไม่มี alert เลยจะได้ alerts_total = 0 พอดี)
   const successPercentage = Math.round((alertSuccess / alertTotal) * 100)
   
   // SVG Ring values

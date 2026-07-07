@@ -740,19 +740,21 @@ app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'camera_name and location_name are required' })
     }
 
-    const company_code = req.companyCode || 'DEMO'
     const pool = await getPool()
 
-    // 1. Fetch existing camera settings to retrieve password/rtsp_url if omitted
+    // 1. Fetch existing camera settings + resolve company_code จริงจาก DB
+    //    (Super Admin ที่ดู "All Companies" จะได้ req.companyCode = null → ต้องหาจาก camera_no)
+    // ponytail: TOP 1 — ถ้า camera_no ซ้ำข้ามบริษัทและ super admin ไม่ได้เลือก x-company จะได้ตัวแรก, ส่ง x-company ถ้าต้องเจาะจง
     const existingResult = await pool.request()
       .input('camera_no', sql.NVarChar(20), camera_no)
-      .input('company_code', sql.NVarChar(20), company_code)
-      .query('SELECT username, password, rtsp_url FROM smg.mst_camera WHERE camera_no = @camera_no AND company_code = @company_code')
+      .input('company_code', sql.NVarChar(20), req.companyCode)
+      .query('SELECT TOP 1 company_code, username, password, rtsp_url FROM smg.mst_camera WHERE camera_no = @camera_no AND (@company_code IS NULL OR company_code = @company_code)')
 
     if (existingResult.recordset.length === 0) {
       return res.status(404).json({ error: 'Camera not found' })
     }
     const existingCam = existingResult.recordset[0]
+    const company_code = existingCam.company_code
 
     // 2. Decide on password: if blank/empty, preserve the existing one
     const finalPassword = (password !== undefined && password !== null && password !== '')
@@ -815,9 +817,12 @@ app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
 app.post('/api/cameras/:camera_no/delete', requireAuth, async (req, res) => {
   try {
     const { camera_no } = req.params
-    const company_code = req.companyCode || 'DEMO'
-
     const pool = await getPool()
+
+    // resolve company_code จริงจาก DB — กัน Super Admin (req.companyCode = null) ลบไม่โดนแล้วคืน success เงียบๆ
+    const cam = await resolveCameraSnapshotRow(pool, camera_no, req.companyCode)
+    if (!cam) return res.status(404).json({ error: 'Camera not found' })
+    const company_code = cam.company_code
 
     // 1. Delete associated polygon areas from mst_detection_area
     await pool.request()
@@ -1024,35 +1029,46 @@ app.get('/api/cameras/:camera_no/polygons', requireAuth, async (req, res) => {
 app.post('/api/cameras/:camera_no/polygons', requireAuth, async (req, res) => {
   try {
     const { camera_no } = req.params
-    const { area_name, polygon_json } = req.body || {}
+    // รับได้ทั้ง array หลายโซน { areas: [{area_name, polygon_json}] } และแบบเดิมโซนเดียว (back-compat)
+    const body = req.body || {}
+    const areas = Array.isArray(body.areas)
+      ? body.areas
+      : (body.polygon_json ? [{ area_name: body.area_name, polygon_json: body.polygon_json }] : [])
+
+    if (areas.length === 0) return res.status(400).json({ error: 'No areas provided' })
 
     const pool = await getPool()
-    
-    await pool.request()
-      .input('camera_no', sql.NVarChar(20), camera_no)
-      .input('company_code', sql.NVarChar(20), req.companyCode || 'DEMO')
-      .input('area_name', sql.NVarChar(100), area_name || 'Restricted Area')
-      .input('polygon_json', sql.NVarChar(sql.MAX), polygon_json)
-      .query(`
-        IF EXISTS (
-          SELECT 1 FROM smg.mst_detection_area 
-          WHERE camera_no = @camera_no AND company_code = @company_code
-        )
-        BEGIN
-          UPDATE smg.mst_detection_area
-          SET polygon_json = @polygon_json,
-              area_name = @area_name,
-              is_active = 1
-          WHERE camera_no = @camera_no AND company_code = @company_code
-        END
-        ELSE
-        BEGIN
-          INSERT INTO smg.mst_detection_area (company_code, camera_no, area_name, polygon_json, is_active)
-          VALUES (@company_code, @camera_no, @area_name, @polygon_json, 1)
-        END
-      `)
+    // resolve company_code จริงจาก DB — กัน Super Admin เขียนผิดบริษัท (mst_detection_area ไม่มีตารางอื่นอ้าง area_id → ลบ+เขียนใหม่ปลอดภัย)
+    const cam = await resolveCameraSnapshotRow(pool, camera_no, req.companyCode)
+    if (!cam) return res.status(404).json({ error: 'Camera not found' })
+    const company_code = cam.company_code
 
-    res.json({ success: true, message: 'Polygon saved successfully' })
+    const tx = new sql.Transaction(pool)
+    await tx.begin()
+    try {
+      await new sql.Request(tx)
+        .input('camera_no', sql.NVarChar(20), camera_no)
+        .input('company_code', sql.NVarChar(20), company_code)
+        .query('DELETE FROM smg.mst_detection_area WHERE camera_no = @camera_no AND company_code = @company_code')
+
+      for (const a of areas) {
+        await new sql.Request(tx)
+          .input('camera_no', sql.NVarChar(20), camera_no)
+          .input('company_code', sql.NVarChar(20), company_code)
+          .input('area_name', sql.NVarChar(100), (a.area_name || 'Restricted Area').slice(0, 100))
+          .input('polygon_json', sql.NVarChar(sql.MAX), a.polygon_json)
+          .query(`
+            INSERT INTO smg.mst_detection_area (company_code, camera_no, area_name, polygon_json, is_active)
+            VALUES (@company_code, @camera_no, @area_name, @polygon_json, 1)
+          `)
+      }
+      await tx.commit()
+    } catch (e) {
+      await tx.rollback()
+      throw e
+    }
+
+    res.json({ success: true, message: `Saved ${areas.length} zone(s)` })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
