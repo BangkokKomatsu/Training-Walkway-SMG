@@ -499,7 +499,7 @@ export default function CameraMonitorPage() {
 
                 {/* Visual grid mesh — ช่วยกะระยะตอนปักจุด polygon */}
                 <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
-                <div className="absolute top-4 left-4 flex items-center gap-1.5 text-[12px] font-bold tracking-widest uppercase bg-black/40 px-2 py-1 rounded-md">
+                <div className="absolute top-4 right-4 flex items-center gap-1.5 text-[12px] font-bold tracking-widest uppercase bg-black/40 px-2 py-1 rounded-md">
                   <span className={`w-2 h-2 rounded-full ${snapshotUrl ? 'bg-emerald-500' : 'bg-zinc-500'}`} />
                   <span className="text-white font-mono">{selectedCam.camera_no}</span>
                   <span className="text-zinc-400 font-mono normal-case tracking-normal">
