@@ -7,6 +7,9 @@ ultralytics==8.3.40
 torch==2.5.1
 numpy==1.26.4
 
+# Data Processing
+pandas==2.2.3
+
 # Database (MSSQL)
 pyodbc==5.1.0
 

@@ -17,6 +17,7 @@ class CameraConfig:
     source: str
     danger_zones: list[list[tuple[int, int]]] = field(default_factory=list)
     schedule_rules: list[dict] = field(default_factory=list)
+    reference_point: str = "bottom_center"  # จุดของ bbox ที่ใช้เช็ค polygon (ต่อกล้อง)
 
 
 def load_camera_configs() -> list[CameraConfig]:
@@ -140,6 +141,7 @@ def _load_from_json(path: str) -> list[CameraConfig]:
             source=rtsp_url,
             danger_zones=zones,
             schedule_rules=entry.get("schedule_rules", []),
+            reference_point=entry.get("reference_point", "bottom_center"),
         ))
 
     logger.info("โหลดกล้องจาก %s สำเร็จ: %d ตัว", path, len(configs))

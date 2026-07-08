@@ -28,7 +28,7 @@ from src.camera.camera_config import CameraConfig, load_camera_configs
 from src.camera.camera_reader import CameraReader
 from src.detection.area_checker import AreaChecker
 from src.detection.yolo_detector import YoloDetector
-from src.utils.helpers import get_bbox_bottom_center, is_boxes_close, draw_label
+from src.utils.helpers import is_boxes_close, draw_label
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +327,7 @@ def _camera_loop(
     from src.storage.image_storage import save_camera_snapshot
     from src.database.detection_repository import has_pending_snapshot_request, update_camera_snapshot_time
 
-    area_checker = AreaChecker(cam_config.danger_zones)
+    area_checker = AreaChecker(cam_config.danger_zones, cam_config.reference_point)
     tracker = CameraEventTracker(settings.DWELL_SECONDS, settings.ALERT_COOLDOWN_SECONDS)
     camera = None
     last_snapshot_check_time = 0.0
@@ -423,7 +423,7 @@ def _get_unsafe_person(
     คืน None ถ้าทุกคนปลอดภัย (อยู่นอกพื้นที่ หรือ อยู่ใกล้ bicycle)
     """
     for person in persons:
-        ref_point = get_bbox_bottom_center(person["bbox"])
+        ref_point = area_checker.point_from_bbox(person["bbox"])
 
         if not area_checker.is_in_danger_zone(ref_point):
             continue
@@ -446,7 +446,7 @@ def _get_detection_color(detection: dict, area_checker: AreaChecker, bicycles: l
     if detection["class_name"] == "bicycle":
         return COLOR_SAFE
 
-    ref_point = get_bbox_bottom_center(detection["bbox"])
+    ref_point = area_checker.point_from_bbox(detection["bbox"])
     if not area_checker.is_in_danger_zone(ref_point):
         return COLOR_SAFE
 

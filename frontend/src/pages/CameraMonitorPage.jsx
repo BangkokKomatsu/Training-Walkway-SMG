@@ -477,7 +477,7 @@ export default function CameraMonitorPage() {
             {/* Draw Area Canvas */}
             <div className="p-6 flex flex-col items-center justify-center flex-1">
               <span className="text-[12px] font-bold text-ink-subtle uppercase tracking-widest self-start mb-2 pl-0.5">
-                Restricted Area Draw Canvas (500 x 400 Grid)
+                Restricted Area Draw Canvas
               </span>
 
               {/* Clickable Frame container */}

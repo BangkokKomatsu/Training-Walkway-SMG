@@ -156,6 +156,7 @@ pip install -r requirements.txt
 ```text
 opencv-python>=4.9
 ultralytics>=8.3
+pandas>=2.2
 pyodbc>=5.1
 python-dotenv>=1.0
 requests>=2.31
