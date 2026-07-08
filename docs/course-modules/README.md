@@ -3,6 +3,8 @@
 เอกสารคอร์สสำหรับผู้เรียน (มือใหม่ ทั้ง IT และไม่ใช่ IT) อธิบายค่อยเป็นค่อยไป มีตัวอย่างทุกบท
 แต่ละ Module มี 10 ส่วนตามรูปแบบมาตรฐาน
 
+> ดู [ภาพรวมคอร์สทั้งหมด (Course Overview)](./00-course-overview.md) สำหรับ roadmap + เวลาเรียนรวมทุก Module
+
 ## รายชื่อ Modules
 
 1. [Module 01 — เตรียมเครื่องและ Environment (Python + OpenCV)](./01-setup-environment.md)

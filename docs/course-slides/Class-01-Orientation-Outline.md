@@ -6,13 +6,14 @@
 
 ## ⏱️ Timeline สรุป
 
+สไลด์จริงแบ่งเป็น **4 ส่วนหลัก**: Overview, Preparation, Installation, Basic Python
+
 | ช่วง | เวลา | สัดส่วน |
 |---|---|---|
-| 0. Kickoff | 15 นาที | slide 1–7 |
-| 1. Use Case Introduction | 15 นาที | slide 8–12 |
-| 2. Prerequisite Review | 10 นาที | slide 13–15 |
-| 3. Install Live-Along | 65 นาที | slide 16–29 |
-| 4. Python พื้นฐาน | 65 นาที | slide 30–46 |
+| 1. Overview (Kickoff + Use Case Introduction) | 30 นาที | slide 1–12 |
+| 2. Preparation (เดิม Prerequisite Review) | 10 นาที | slide 13–15 |
+| 3. Installation (เดิม Install Live-Along) | 65 นาที | slide 16–29 |
+| 4. Basic Python (เดิม Python พื้นฐาน) | 65 นาที | slide 30–46 |
 | buffer/พัก | 10 นาที | — |
 | **รวม** | **180 นาที** | |
 
@@ -21,7 +22,9 @@
 
 ---
 
-## ช่วงที่ 0 — Kickoff (15 นาที)
+## ช่วงที่ 1 — Overview (30 นาที)
+
+### 1.1 Kickoff (15 นาที)
 
 ### Slide 1 — Title
 - ชื่อคอร์ส: Walkway Detection System — Training Course
@@ -60,7 +63,7 @@
 
 ---
 
-## ช่วงที่ 1 — Use Case Introduction (15 นาที)
+### 1.2 Use Case Introduction (15 นาที)
 
 ### Slide 8 — ปัญหาที่ต้องแก้
 - อุบัติเหตุจากคนเดิน/forklift เข้าพื้นที่อันตรายในโรงงาน/คลังสินค้า
@@ -89,7 +92,7 @@ CCTV (RTSP) → Python+OpenCV → YOLO(person+bicycle) → Area Checker(polygon+
 
 ---
 
-## ช่วงที่ 2 — Prerequisite Review (10 นาที)
+## ช่วงที่ 2 — Preparation (10 นาที)
 
 ### Slide 13 — พื้นฐานที่ควรมี (ไม่ต้องมีมาก่อนก็เรียนได้)
 - ใช้คอมพิวเตอร์/ติดตั้งโปรแกรมเป็น
@@ -110,7 +113,7 @@ CCTV (RTSP) → Python+OpenCV → YOLO(person+bicycle) → Area Checker(polygon+
 
 ---
 
-## ช่วงที่ 3 — Install Live-Along (65 นาที)
+## ช่วงที่ 3 — Installation (65 นาที)
 
 > อ้างอิงเต็มที่ [`01-setup-environment.md`](../course-modules/01-setup-environment.md) — ให้แปะลิงก์นี้ใน chat ให้ผู้เรียนเปิดตามได้
 
@@ -301,7 +304,7 @@ python main.py
 
 ---
 
-## ช่วงที่ 4 — Python พื้นฐาน (65 นาที)
+## ช่วงที่ 4 — Basic Python (65 นาที)
 
 > อ้างอิงเต็มที่ [`02-python-basic.md`](../course-modules/02-python-basic.md) — วันนี้สอนแบบพอใช้งานได้จริงกับโปรเจกต์นี้ ไม่ลงลึกเท่าตัวเอกสารเต็ม (เนื้อหาละเอียดกว่าดูเองได้ทีหลัง)
 

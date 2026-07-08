@@ -68,7 +68,7 @@ library ที่ติดตั้งในกล่องนี้จะไม
         ↓
 2. ติดตั้ง VS Code + Extensions
         ↓
-3. Clone/เปิด repo โปรเจกต์
+3. Clone/Copy เพื่อเปิดโปรเจกต์
         ↓
 4. สร้าง virtual environment ชื่อ walkway
         ↓
