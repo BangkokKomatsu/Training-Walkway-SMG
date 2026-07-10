@@ -60,15 +60,6 @@ const loginRateLimiter = rateLimiter({
   message: 'Too many login attempts from this address — please try again in a minute',
 })
 
-// ─── Helper: API key (external read-only integration) ─
-// Random key is shown to the admin once; only its SHA-256 hash is stored.
-function generateApiKey() {
-  return crypto.randomBytes(32).toString('hex')
-}
-function hashApiKey(key) {
-  return crypto.createHash('sha256').update(key).digest('hex')
-}
-
 // ─── Helper: password policy ──────────────────────────
 // 8+ chars, uppercase, lowercase, number, special char — returns list of
 // violation messages, or [] when the password satisfies every rule.
@@ -138,13 +129,33 @@ async function getBkcSignedUrl(imagePath, imageName) {
   }
 }
 
+// ─── Helper: detection image URL (local-first, BKC signed-URL optional) ──
+// Default (any self-hosted company): serve the file from IMAGE_SHARED_DRIVE through
+// this API. If BKC_IMAGE_API_KEY is set, use BKC's public signed URL instead.
+// image_path (the full path Python wrote) must resolve *inside* IMAGE_SHARED_DRIVE —
+// this is the only guard against path traversal when touching the local filesystem.
+function localImageFile(imagePath) {
+  const drive = process.env.IMAGE_SHARED_DRIVE
+  if (!drive || !imagePath) return null
+  const resolved = path.resolve(imagePath)
+  if (!resolved.startsWith(path.resolve(drive))) return null
+  return fs.existsSync(resolved) ? resolved : null
+}
+
+async function resolveEventImageUrl(row) {
+  if (process.env.BKC_IMAGE_API_KEY) {
+    return getBkcSignedUrl(row.image_path, row.image_name)
+  }
+  // relative URL — frontend fetches it with the bearer token (see api.js authImage)
+  return localImageFile(row.image_path) ? `/api/events/${row.event_id}/image` : null
+}
+
 // ─── Helper: camera snapshot (Draw Polygon "Sync ภาพล่าสุด") ─────────
 // path segments (company_code/camera_no) ต้องผ่าน regex นี้ก่อนถูกใช้สร้าง fs path เสมอ —
 // นี่เป็น route เดียวใน data-api ที่แตะ local filesystem ตรงๆ
 const SAFE_PATH_SEGMENT = /^[A-Za-z0-9_-]+$/
 
-// resolve company_code จริงจาก DB เสมอ — ห้ามเชื่อ req.companyCode ตอนสร้าง fs path
-// (Super Admin ที่ไม่ได้ระบุ x-company จะได้ company_code ของกล้องตัวแรกที่ตรง camera_no)
+// resolve the camera's company_code + last_snapshot_at from DB before building any fs path
 async function resolveCameraSnapshotRow(pool, cameraNo, requestedCompanyCode) {
   const result = await pool.request()
     .input('camera_no', sql.NVarChar(20), cameraNo)
@@ -179,11 +190,9 @@ function requireAuth(req, res, next) {
   }
   try {
     req.user = jwt.verify(authHeader.slice(7), JWT_SECRET)
-    // Super admin: x-company header = กรอง; ไม่มี header = ทุกบริษัท (null)
-    // Regular user: ใช้ company_code จาก JWT เสมอ
-    req.companyCode = req.user.is_super_admin
-      ? (req.headers['x-company'] || null)
-      : req.user.company_code
+    // Single-tenant: every deployment serves exactly one company. company_code
+    // comes from the JWT — the server never trusts a client-supplied company.
+    req.companyCode = req.user.company_code
     next()
   } catch {
     res.status(401).json({ error: 'Token invalid or expired — please log in again' })
@@ -191,58 +200,9 @@ function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.user?.is_super_admin && req.user?.role_name !== 'admin') {
+  if (req.user?.role_name !== 'admin') {
     return res.status(403).json({ error: 'Forbidden — admin role required' })
   }
-  next()
-}
-
-function requireSuperAdmin(req, res, next) {
-  if (!req.user?.is_super_admin) {
-    return res.status(403).json({ error: 'Forbidden — super admin required' })
-  }
-  next()
-}
-
-// ─── API key middleware (external read-only integration, /api/public/v1) ──
-async function requireApiKey(req, res, next) {
-  const apiKey = req.headers['x-api-key']
-  if (!apiKey) {
-    return res.status(401).json({ error: 'x-api-key header is required' })
-  }
-  try {
-    const result = await execSP('smg.sp_verify_api_key', [
-      { name: 'api_key_hash', type: sql.NVarChar(64), value: hashApiKey(apiKey) },
-    ])
-    const company = result.recordset[0]
-    if (!company) {
-      return res.status(401).json({ error: 'Invalid or inactive API key' })
-    }
-    req.companyCode = company.company_code
-    next()
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-}
-
-const apiKeyRateLimiter = rateLimiter({
-  windowMs: 60_000,
-  max: 60,
-  keyFn: (req) => req.companyCode,
-  message: 'Rate limit exceeded — max 60 requests per minute per API key',
-})
-
-// Logs every /api/public/v1 call after the response is sent (fire-and-forget).
-function logApiUsage(req, res, next) {
-  res.on('finish', () => {
-    execSP('smg.sp_log_api_usage', [
-      { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
-      { name: 'endpoint',     type: sql.NVarChar(200), value: req.baseUrl + req.path },
-      { name: 'http_method',  type: sql.NVarChar(10),  value: req.method },
-      { name: 'status_code',  type: sql.Int,            value: res.statusCode },
-      { name: 'ip_address',   type: sql.NVarChar(50),  value: req.ip },
-    ]).catch((err) => console.error('sp_log_api_usage failed:', err.message))
-  })
   next()
 }
 
@@ -286,7 +246,6 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
       company_code:  user.company_code,
       role_id:       user.role_id,
       role_name:     user.role_name,
-      is_super_admin: user.is_super_admin === true || user.is_super_admin === 1,
       must_change_password: user.must_change_password === true || user.must_change_password === 1,
     }
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES })
@@ -345,17 +304,6 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
   }
 })
 
-// ─── GET /api/companies  (Super Admin only) ───────────
-app.get('/api/companies', requireAuth, async (req, res) => {
-  if (!req.user.is_super_admin) return res.status(403).json({ error: 'Forbidden' })
-  try {
-    const result = await execSP('smg.sp_get_company_list', [])
-    res.json(result.recordset)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
 // ─── GET /api/roles  (dropdown for user management) ───
 app.get('/api/roles', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -381,17 +329,13 @@ app.get('/api/users', requireAuth, requireAdmin, async (req, res) => {
 // ─── POST /api/users  (Create) ────────────────────────
 app.post('/api/users', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { username, full_name, role_id, company_code: bodyCompanyCode, is_super_admin, temp_password } = req.body || {}
+    const { username, full_name, role_id, temp_password } = req.body || {}
     if (!username || !role_id) {
       return res.status(400).json({ error: 'username and role_id are required' })
     }
 
-    // Server-enforced scoping: regular admins can only create users in their own company
-    const company_code = req.user.is_super_admin ? (bodyCompanyCode || req.companyCode) : req.user.company_code
-    if (!company_code) {
-      return res.status(400).json({ error: 'company_code is required' })
-    }
-    const grantSuperAdmin = req.user.is_super_admin && company_code === 'BKC' && !!is_super_admin
+    // Single-tenant: every user belongs to this deployment's one company
+    const company_code = req.companyCode
 
     const pool = await getPool()
     const existing = await pool.request()
@@ -414,7 +358,6 @@ app.post('/api/users', requireAuth, requireAdmin, async (req, res) => {
     request.input('full_name', sql.NVarChar(200), full_name || null)
     request.input('password_hash', sql.NVarChar(256), passwordHash)
     request.input('role_id', sql.Int, parseInt(role_id))
-    request.input('is_super_admin', sql.Bit, grantSuperAdmin ? 1 : 0)
     request.output('user_id', sql.Int)
     const result = await request.execute('smg.sp_user_create')
 
@@ -444,7 +387,7 @@ app.post('/api/users/:id/update', requireAuth, requireAdmin, async (req, res) =>
     const target = existing.recordset[0]
     if (!target) return res.status(404).json({ error: 'User not found' })
 
-    if (!req.user.is_super_admin && target.company_code !== req.user.company_code) {
+    if (target.company_code !== req.user.company_code) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 
@@ -474,7 +417,7 @@ app.post('/api/users/:id/reset-password', requireAuth, requireAdmin, async (req,
     const target = existing.recordset[0]
     if (!target) return res.status(404).json({ error: 'User not found' })
 
-    if (!req.user.is_super_admin && target.company_code !== req.user.company_code) {
+    if (target.company_code !== req.user.company_code) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 
@@ -558,10 +501,11 @@ app.get('/api/events', requireAuth, async (req, res) => {
       { name: 'page_size',     type: sql.Int,            value: parseInt(page_size || '50') },
     ])
     const rows = result.recordsets[0] || []
-    // ponytail: page_size is capped at 50, so N parallel BKC calls per list load is fine — revisit with a cache if this list is ever unpaginated
+    // ponytail: page_size is capped at 50, so N image lookups (BKC call or local
+    // fs.existsSync) per list load is fine — revisit with a cache if ever unpaginated
     const data = await Promise.all(rows.map(async (row) => ({
       ...row,
-      image_url: await getBkcSignedUrl(row.image_path, row.image_name),
+      image_url: await resolveEventImageUrl(row),
     })))
     res.json({
       data,
@@ -581,13 +525,33 @@ app.get('/api/events/:id', requireAuth, async (req, res) => {
     ])
     if (!result.recordsets[0]?.length) return res.status(404).json({ error: 'Event not found' })
     const ev = result.recordsets[0][0]
-    // เรียก BKC image API เพื่อได้ signedUrl — null ถ้าไม่มี image หรือไม่ได้ตั้งค่า BKC_IMAGE_API_KEY
-    const image_url = await getBkcSignedUrl(ev.image_path, ev.image_name)
+    // local-serving by default; BKC signed URL only if BKC_IMAGE_API_KEY is set; null → placeholder
+    const image_url = await resolveEventImageUrl(ev)
     res.json({
       ...ev,
       image_url,
       alert_history: result.recordsets[1] || [],
     })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/events/:id/image ───────────────────────
+// Streams the detection image from IMAGE_SHARED_DRIVE (local-serving mode, i.e.
+// BKC_IMAGE_API_KEY not set). Bearer-token protected like every other route, so the
+// frontend fetches it as a blob (see api.js authImage) rather than a bare <img src>.
+app.get('/api/events/:id/image', requireAuth, async (req, res) => {
+  try {
+    const result = await execSP('smg.sp_get_detection_event_detail', [
+      { name: 'event_id',     type: sql.BigInt,       value: parseInt(req.params.id) },
+      { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
+    ])
+    const ev = result.recordsets[0]?.[0]
+    if (!ev) return res.status(404).json({ error: 'Event not found' })
+    const localPath = localImageFile(ev.image_path)
+    if (!localPath) return res.status(404).json({ error: 'Image not available' })
+    res.type('image/jpeg').sendFile(path.resolve(localPath))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -742,9 +706,7 @@ app.post('/api/cameras/:camera_no/update', requireAuth, async (req, res) => {
 
     const pool = await getPool()
 
-    // 1. Fetch existing camera settings + resolve company_code จริงจาก DB
-    //    (Super Admin ที่ดู "All Companies" จะได้ req.companyCode = null → ต้องหาจาก camera_no)
-    // ponytail: TOP 1 — ถ้า camera_no ซ้ำข้ามบริษัทและ super admin ไม่ได้เลือก x-company จะได้ตัวแรก, ส่ง x-company ถ้าต้องเจาะจง
+    // 1. Fetch existing camera settings (company_code comes from the JWT — single tenant)
     const existingResult = await pool.request()
       .input('camera_no', sql.NVarChar(20), camera_no)
       .input('company_code', sql.NVarChar(20), req.companyCode)
@@ -1158,58 +1120,6 @@ app.get('/api/cameras/:camera_no/snapshot/raw', requireAuth, async (req, res) =>
   }
 })
 
-// ─── GET /api/company/api-key  (Admin — own company's key status, no secret) ──
-app.get('/api/company/api-key', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const result = await execSP('smg.sp_get_company_api_key_info', [
-      { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
-    ])
-    res.json(result.recordset[0] || null)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// ─── POST /api/company/api-key/regenerate  (Admin) ────
-// Returns the plain key exactly once — only its hash is ever stored.
-app.post('/api/company/api-key/regenerate', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const apiKey = generateApiKey()
-    await execSP('smg.sp_regenerate_company_api_key', [
-      { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
-      { name: 'api_key_hash', type: sql.NVarChar(64), value: hashApiKey(apiKey) },
-    ])
-    res.json({ api_key: apiKey })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// ─── GET /api/company/usage  (Admin — own company's call log summary) ──
-app.get('/api/company/usage', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const { date_from, date_to } = req.query
-    const result = await execSP('smg.sp_get_api_usage_summary', [
-      { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
-      { name: 'date_from',    type: sql.Date,          value: date_from || null },
-      { name: 'date_to',      type: sql.Date,          value: date_to || null },
-    ])
-    res.json(result.recordset)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// ─── GET /api/admin/billing-overview  (Super Admin only) ──
-app.get('/api/admin/billing-overview', requireAuth, requireSuperAdmin, async (req, res) => {
-  try {
-    const result = await execSP('smg.sp_get_billing_overview', [])
-    res.json(result.recordset)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
 // ─── /api/internal/*  — server-to-server only (Python detection service) ──
 // ให้ Teams alert ฝั่ง Python ขอ signedUrl รูปโดยไม่ต้องถือ BKC_IMAGE_API_KEY เอง
 app.post('/api/internal/image-url', requireInternalKey, async (req, res) => {
@@ -1217,82 +1127,6 @@ app.post('/api/internal/image-url', requireInternalKey, async (req, res) => {
   const image_url = await getBkcSignedUrl(image_path, image_name)
   res.json({ image_url })
 })
-
-// ─── /api/public/v1/*  — external, read-only, API-key auth ────────────
-// Separate from the JWT-protected routes above: its own auth (x-api-key),
-// its own rate limit, and a contract that can evolve independently of the
-// internal frontend API.
-const publicApi = express.Router()
-publicApi.use(requireApiKey, apiKeyRateLimiter, logApiUsage)
-
-publicApi.get('/events', async (req, res) => {
-  try {
-    const { camera_no, date_from, date_to, event_status, event_type, page_no, page_size } = req.query
-    const result = await execSP('smg.sp_get_detection_events', [
-      { name: 'company_code', type: sql.NVarChar(20),  value: req.companyCode },
-      { name: 'camera_no',    type: sql.NVarChar(20),  value: camera_no || null },
-      { name: 'date_from',    type: sql.Date,           value: date_from || null },
-      { name: 'date_to',      type: sql.Date,           value: date_to || null },
-      { name: 'event_status', type: sql.NVarChar(20),  value: event_status || null },
-      { name: 'event_type',   type: sql.NVarChar(50),  value: event_type || null },
-      { name: 'page_no',      type: sql.Int,            value: parseInt(page_no) || 1 },
-      { name: 'page_size',    type: sql.Int,            value: parseInt(page_size) || 50 },
-    ])
-    res.json({ events: result.recordsets[0], total: result.recordsets[1][0].total })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-publicApi.get('/cameras', async (req, res) => {
-  try {
-    const result = await execSP('smg.sp_get_camera_list_public', [
-      { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
-    ])
-    res.json(result.recordset)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-publicApi.get('/dashboard-summary', async (req, res) => {
-  try {
-    const { date_from, date_to } = req.query
-    const result = await execSP('smg.sp_get_dashboard_summary', [
-      { name: 'company_code', type: sql.NVarChar(20), value: req.companyCode },
-      { name: 'date_from',    type: sql.Date,          value: date_from || null },
-      { name: 'date_to',      type: sql.Date,          value: date_to || null },
-    ])
-    res.json({
-      summary: result.recordsets[0][0],
-      by_camera: result.recordsets[1],
-      alerts: result.recordsets[2][0],
-      trend_7day: result.recordsets[3],
-    })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-publicApi.get('/alerts', async (req, res) => {
-  try {
-    const { alert_channel, alert_status, date_from, date_to, page_no, page_size } = req.query
-    const result = await execSP('smg.sp_get_alert_log', [
-      { name: 'company_code',  type: sql.NVarChar(20), value: req.companyCode },
-      { name: 'alert_channel', type: sql.NVarChar(20), value: alert_channel || null },
-      { name: 'alert_status',  type: sql.NVarChar(20), value: alert_status || null },
-      { name: 'date_from',     type: sql.Date,          value: date_from || null },
-      { name: 'date_to',       type: sql.Date,          value: date_to || null },
-      { name: 'page_no',       type: sql.Int,           value: parseInt(page_no) || 1 },
-      { name: 'page_size',     type: sql.Int,           value: parseInt(page_size) || 50 },
-    ])
-    res.json({ alerts: result.recordsets[0], total: result.recordsets[1][0].total })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-app.use('/api/public/v1', publicApi)
 
 // ─── Database Migrations (Run on startup) ─────────────
 async function runMigrations() {
@@ -1611,34 +1445,7 @@ async function runMigrations() {
     `)
     console.log('Migration: User management stored procedures updated successfully')
 
-    // ── API key (external read-only integration) + login lockout + usage log ──
-    const checkCompanyCols = await pool.request().query(`
-      SELECT COLUMN_NAME
-      FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = 'smg'
-        AND TABLE_NAME = 'mst_company'
-        AND COLUMN_NAME IN ('api_key_hash', 'api_key_created_at', 'api_key_is_active')
-    `)
-    const existingCompany = checkCompanyCols.recordset.map(r => r.COLUMN_NAME)
-    if (!existingCompany.includes('api_key_hash')) {
-      await pool.request().query(`ALTER TABLE smg.mst_company ADD api_key_hash NVARCHAR(64) NULL`)
-      console.log('Migration: Added column api_key_hash to mst_company')
-    }
-    if (!existingCompany.includes('api_key_created_at')) {
-      await pool.request().query(`ALTER TABLE smg.mst_company ADD api_key_created_at DATETIME2 NULL`)
-      console.log('Migration: Added column api_key_created_at to mst_company')
-    }
-    if (!existingCompany.includes('api_key_is_active')) {
-      await pool.request().query(`ALTER TABLE smg.mst_company ADD api_key_is_active BIT NOT NULL DEFAULT 0`)
-      console.log('Migration: Added column api_key_is_active to mst_company')
-    }
-    await pool.request().query(`
-      IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_company_api_key_hash')
-        CREATE UNIQUE NONCLUSTERED INDEX IX_company_api_key_hash
-            ON smg.mst_company (api_key_hash)
-            WHERE api_key_hash IS NOT NULL;
-    `)
-
+    // ── Login lockout (brute-force protection) ──
     const checkLockoutCols = await pool.request().query(`
       SELECT COLUMN_NAME
       FROM INFORMATION_SCHEMA.COLUMNS
@@ -1655,33 +1462,6 @@ async function runMigrations() {
       await pool.request().query(`ALTER TABLE smg.mst_user ADD locked_until DATETIME2 NULL`)
       console.log('Migration: Added column locked_until to mst_user')
     }
-
-    await pool.request().query(`
-      IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id
-                     WHERE s.name = 'smg' AND t.name = 'trn_api_usage_log')
-      CREATE TABLE smg.trn_api_usage_log (
-          log_id          BIGINT          NOT NULL IDENTITY(1,1),
-          company_code    NVARCHAR(20)    NOT NULL,
-          endpoint        NVARCHAR(200)   NOT NULL,
-          http_method     NVARCHAR(10)    NOT NULL,
-          status_code     INT             NOT NULL,
-          ip_address      NVARCHAR(50)    NULL,
-          called_at       DATETIME2       NOT NULL DEFAULT SYSUTCDATETIME(),
-          CONSTRAINT PK_trn_api_usage_log PRIMARY KEY (log_id),
-          CONSTRAINT FK_api_usage_company FOREIGN KEY (company_code) REFERENCES smg.mst_company(company_code)
-      );
-    `)
-    await pool.request().query(`
-      IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_api_usage_company_called')
-        CREATE NONCLUSTERED INDEX IX_api_usage_company_called
-            ON smg.trn_api_usage_log (company_code, called_at DESC)
-            INCLUDE (endpoint, status_code);
-    `)
-    await pool.request().query(`
-      IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_api_usage_called_at')
-        CREATE NONCLUSTERED INDEX IX_api_usage_called_at
-            ON smg.trn_api_usage_log (called_at);
-    `)
 
     await pool.request().query(`
       CREATE OR ALTER PROCEDURE smg.sp_login
@@ -1730,123 +1510,7 @@ async function runMigrations() {
       END;
     `)
 
-    await pool.request().query(`
-      CREATE OR ALTER PROCEDURE smg.sp_regenerate_company_api_key
-          @company_code   NVARCHAR(20),
-          @api_key_hash   NVARCHAR(64)
-      AS
-      BEGIN
-          SET NOCOUNT ON;
-          UPDATE smg.mst_company
-          SET api_key_hash = @api_key_hash,
-              api_key_created_at = SYSUTCDATETIME(),
-              api_key_is_active = 1
-          WHERE company_code = @company_code;
-      END;
-    `)
-
-    await pool.request().query(`
-      CREATE OR ALTER PROCEDURE smg.sp_get_company_api_key_info
-          @company_code NVARCHAR(20)
-      AS
-      BEGIN
-          SET NOCOUNT ON;
-          SELECT company_code, api_key_created_at, api_key_is_active
-          FROM smg.mst_company
-          WHERE company_code = @company_code;
-      END;
-    `)
-
-    await pool.request().query(`
-      CREATE OR ALTER PROCEDURE smg.sp_verify_api_key
-          @api_key_hash NVARCHAR(64)
-      AS
-      BEGIN
-          SET NOCOUNT ON;
-          SELECT company_code, company_name
-          FROM smg.mst_company
-          WHERE api_key_hash = @api_key_hash
-              AND api_key_is_active = 1
-              AND is_active = 1;
-      END;
-    `)
-
-    await pool.request().query(`
-      CREATE OR ALTER PROCEDURE smg.sp_log_api_usage
-          @company_code   NVARCHAR(20),
-          @endpoint       NVARCHAR(200),
-          @http_method    NVARCHAR(10),
-          @status_code    INT,
-          @ip_address     NVARCHAR(50) = NULL
-      AS
-      BEGIN
-          SET NOCOUNT ON;
-          INSERT INTO smg.trn_api_usage_log (company_code, endpoint, http_method, status_code, ip_address)
-          VALUES (@company_code, @endpoint, @http_method, @status_code, @ip_address);
-      END;
-    `)
-
-    await pool.request().query(`
-      CREATE OR ALTER PROCEDURE smg.sp_get_api_usage_summary
-          @company_code   NVARCHAR(20) = NULL,
-          @date_from      DATE         = NULL,
-          @date_to        DATE         = NULL
-      AS
-      BEGIN
-          SET NOCOUNT ON;
-          SELECT
-              company_code, endpoint,
-              COUNT(*) AS call_count,
-              MAX(called_at) AS last_called_at
-          FROM smg.trn_api_usage_log
-          WHERE
-              (@company_code IS NULL OR company_code = @company_code)
-              AND (@date_from IS NULL OR CAST(called_at AS DATE) >= @date_from)
-              AND (@date_to   IS NULL OR CAST(called_at AS DATE) <= @date_to)
-          GROUP BY company_code, endpoint
-          ORDER BY company_code, call_count DESC;
-      END;
-    `)
-
-    await pool.request().query(`
-      CREATE OR ALTER PROCEDURE smg.sp_get_billing_overview
-      AS
-      BEGIN
-          SET NOCOUNT ON;
-          SELECT
-              c.company_code, c.company_name, c.is_active,
-              c.api_key_is_active, c.api_key_created_at,
-              (SELECT COUNT(*) FROM smg.mst_camera cam
-                  WHERE cam.company_code = c.company_code AND cam.is_active = 1) AS active_camera_count
-          FROM smg.mst_company c
-          ORDER BY c.company_code;
-      END;
-    `)
-
-    await pool.request().query(`
-      CREATE OR ALTER PROCEDURE smg.sp_get_camera_list_public
-          @company_code NVARCHAR(20)
-      AS
-      BEGIN
-          SET NOCOUNT ON;
-          SELECT company_code, camera_no, camera_name, location_name, is_active
-          FROM smg.mst_camera
-          WHERE company_code = @company_code
-          ORDER BY camera_no;
-      END;
-    `)
-
-    await pool.request().query(`
-      CREATE OR ALTER PROCEDURE smg.sp_purge_api_usage_log
-          @retention_days INT = 180
-      AS
-      BEGIN
-          SET NOCOUNT ON;
-          DELETE FROM smg.trn_api_usage_log
-          WHERE called_at < DATEADD(DAY, -@retention_days, SYSUTCDATETIME());
-      END;
-    `)
-    console.log('Migration: API key, login lockout, and usage log objects updated successfully')
+    console.log('Migration: Login lockout objects updated successfully')
   } catch (err) {
     console.error('Migration failed:', err.message)
   }

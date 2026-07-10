@@ -65,10 +65,8 @@ async function runDemo() {
 
 ```javascript
     console.log("\n=== 2. ใช้ Token ดึงข้อมูล Dashboard ===");
-    // company scoping ไม่ได้ส่งเป็น query param (?company_code=...) — server อ่าน company_code
-    // ของ user ธรรมดาจาก JWT โดยอัตโนมัติ ไม่ต้องส่งอะไรเพิ่ม
-    // ถ้า login ด้วยบัญชี Super Admin (company_code=BKC, is_super_admin=1) ถึงจะส่ง header
-    // 'x-company': 'DEMO' เพิ่มเพื่อขอดูข้อมูลของบริษัทอื่นแทน
+    // company scoping ไม่ได้ส่งเป็น query param (?company_code=...) — ระบบเป็น single-tenant
+    // (1 deployment = 1 บริษัท) server อ่าน company_code ของ user จาก JWT เองอัตโนมัติ ไม่ต้องส่งอะไรเพิ่ม
     const dashboardResponse = await fetch(`${API_BASE}/api/dashboard`, {
       method: 'GET',
       headers: {
@@ -100,7 +98,7 @@ runDemo();
 **คำอธิบายโค้ด (Line-by-Line):**
 - `fetch(`${API_BASE}/api/dashboard`, { method: 'GET' })`: ดึงข้อมูลจาก API ปลายทางด้วยเมธอด GET — **ไม่มี** query param `?company_code=...` เพราะ endpoint นี้ไม่รับ company scoping ผ่าน query string เลย
 - `'Authorization': 'Bearer ' + token`: นี่คือหัวใจสำคัญของการยืนยันตัวตนแบบ JWT เราต้องส่ง Token ไปใน HTTP Header ทุกครั้ง หากลืมส่ง Backend จะปฏิเสธคำขอทันที
-- company scoping ที่แท้จริง: middleware `requireAuth` ใน `data-api/server.js` จะตั้งค่า `req.companyCode` ให้อัตโนมัติจาก `company_code` ใน JWT ของ user ธรรมดา — เฉพาะ **Super Admin** เท่านั้น (`is_super_admin: true`, `company_code: 'BKC'`) ถึงจะสามารถส่ง header เพิ่ม เช่น `headers: { 'x-company': 'DEMO' }` เพื่อขอดูข้อมูลของบริษัทอื่นแทนบริษัทตัวเอง
+- company scoping ที่แท้จริง: middleware `requireAuth` ใน `data-api/server.js` จะตั้งค่า `req.companyCode` ให้อัตโนมัติจาก `company_code` ใน JWT — ระบบเป็น single-tenant (1 deployment = 1 บริษัท) client จึงไม่มีทางระบุบริษัทอื่นได้ server บังคับจาก JWT ฝั่งเดียว
 - `dashboardResponse.json()`: แกะแพ็กเกจข้อมูลแดชบอร์ดออกมา
 - `dashboardData.events_today || 0`: ชื่อ field จริงจาก `GET /api/dashboard` คือ `events_today` (ไม่ใช่ `today_events`) — เป็นการป้องกันค่า `undefined` หรือ `null` หาก Backend ไม่ได้ส่งตัวเลขกลับมา ก็จะแสดงผลเป็น 0 แทน
 - `catch (err) { ... }`: บล็อกนี้จะทำงานหากโปรแกรมเราติดต่อ Server ไม่ได้เลย (เช่น ลืมเปิดรัน Server หรือเน็ตหลุด) ซึ่งต่างจาก `if (!ok)` ที่ติดต่อได้แต่ผลลัพธ์เป็น Error

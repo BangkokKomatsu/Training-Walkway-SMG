@@ -16,7 +16,7 @@ const PAGE_TITLES = {
 
 export default function TopBar({ onMenuClick }) {
   const { theme, toggle } = useTheme()
-  const { user, activeCompanyCode } = useAuth()
+  const { user } = useAuth()
   const location = useLocation()
 
   const title = Object.entries(PAGE_TITLES).find(([path]) =>
@@ -44,10 +44,10 @@ export default function TopBar({ onMenuClick }) {
       {/* Utilities / Actions & User Profile */}
       <div className="flex items-center gap-4">
         {/* Company indicator */}
-        {activeCompanyCode && (
+        {user?.company_code && (
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-mono border border-border bg-surface-2 text-primary font-bold">
             <Building size={11} />
-            <span>{activeCompanyCode}</span>
+            <span>{user.company_code}</span>
           </div>
         )}
 
@@ -74,7 +74,7 @@ export default function TopBar({ onMenuClick }) {
               {user?.full_name || user?.username || 'Operator'}
             </p>
             <span className="text-[11px] text-ink-subtle leading-none mt-0.5">
-              {user?.is_super_admin ? 'System Admin' : (user?.role_name || 'operator')}
+              {user?.role_name || 'operator'}
             </span>
           </div>
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center font-bold text-primary-fg text-sm shadow-md shadow-primary/10">

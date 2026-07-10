@@ -36,10 +36,8 @@ async function runDemo() {
     console.log("📦 ได้รับ Token:", token.substring(0, 30) + "...");
 
     console.log("\n=== 2. ใช้ Token ดึงข้อมูล Dashboard ===");
-    // company scoping ไม่ได้ส่งเป็น query param (?company_code=...) — server อ่าน company_code
-    // ของ user ธรรมดาจาก JWT โดยอัตโนมัติ ไม่ต้องส่งอะไรเพิ่ม
-    // ถ้า login ด้วยบัญชี Super Admin (company_code=BKC, is_super_admin=1) ถึงจะส่ง header
-    // 'x-company': 'DEMO' เพิ่มเพื่อขอดูข้อมูลของบริษัทอื่นแทน
+    // company scoping ไม่ได้ส่งเป็น query param (?company_code=...) — ระบบเป็น single-tenant
+    // (1 deployment = 1 บริษัท) server อ่าน company_code ของ user จาก JWT เองอัตโนมัติ ไม่ต้องส่งอะไรเพิ่ม
     const dashboardResponse = await fetch(`${API_BASE}/api/dashboard`, {
       method: 'GET',
       headers: {

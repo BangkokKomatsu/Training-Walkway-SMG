@@ -45,14 +45,11 @@ SP คือ "ฟังก์ชัน SQL" ที่บันทึกไว้
 
 ### `company_code` คืออะไร?
 
-ระบบนี้รองรับหลายบริษัท (multi-tenant) บน database เดียวกัน `company_code` คือรหัสบริษัท (เช่น `"DEMO"`, `"ABC"`, `"XYZ"`) ที่แยกข้อมูลของแต่ละบริษัทออกจากกัน
+ระบบนี้เป็นแบบ **single-tenant** — หนึ่ง deployment (Python + database + server) ให้บริการ **บริษัทเดียว** `company_code` คือรหัสบริษัทนั้น (เช่น `"DEMO"`, `"ACME"`) ที่ติดไปกับทุกแถวข้อมูล ทำให้ query กรองข้อมูลได้ชัดเจนและเผื่อไว้กรณีมีการรวมข้อมูลข้ามระบบภายหลัง
 
 ```sql
--- บริษัท ABC เห็นเฉพาะข้อมูลตัวเอง
-SELECT * FROM smg.trn_detection_event WHERE company_code = 'ABC'
-
--- บริษัท XYZ ก็เห็นเฉพาะของตัวเอง
-SELECT * FROM smg.trn_detection_event WHERE company_code = 'XYZ'
+-- ทุก query อ้างบริษัทของ deployment นี้
+SELECT * FROM smg.trn_detection_event WHERE company_code = 'DEMO'
 ```
 
 **ทำไม SP ฝั่ง read ถึงเขียน `@company_code NVARCHAR(20) = NULL` เสมอ?**
@@ -63,7 +60,7 @@ SP ที่ให้ data-api ดึงข้อมูล (`sp_get_detection_ev
 WHERE (@company_code IS NULL OR company_code = @company_code)
 ```
 
-ความหมาย: **`@company_code = NULL` แปลว่า "ทุกบริษัท"** — ใช้เมื่อ Super Admin (`is_super_admin = 1`) ต้องการดูภาพรวมทุกบริษัทพร้อมกัน ส่วน user ทั่วไปจะถูก data-api บังคับส่ง `@company_code` เป็นค่าจาก JWT ของตัวเองเสมอ (ไม่มีทาง NULL) จึงเห็นแค่ข้อมูลบริษัทตัวเอง ผู้เรียนไม่ต้องเจาะลึกเรื่อง JWT/Super Admin ในบทนี้ (ดูเพิ่มที่ Module ว่าด้วย Authentication) แต่ควรจำ convention นี้ไว้เวลาอ่าน SP ที่มี parameter เป็น `NULL` default
+ความหมาย: **`@company_code = NULL` แปลว่า "ไม่กรองบริษัท"** — เป็น pattern มาตรฐานที่ยืดหยุ่นไว้ ในทางปฏิบัติ data-api จะ**บังคับส่ง `@company_code` เป็นค่าจาก JWT ของผู้ใช้เสมอ** (อ่านจาก `req.companyCode` = `company_code` ใน JWT) ผู้ใช้จึงเห็นแค่ข้อมูลบริษัทของ deployment ตัวเอง ผู้เรียนไม่ต้องเจาะลึกเรื่อง JWT ในบทนี้ (ดูเพิ่มที่ Module ว่าด้วย Authentication) แต่ควรจำ convention นี้ไว้เวลาอ่าน SP ที่มี parameter เป็น `NULL` default
 
 ### ทำไม Parameterized Query จึงสำคัญ?
 
@@ -351,7 +348,6 @@ print("อัปเดต Teams status สำเร็จ")
 - `smg.sp_get_detection_event_detail`: ดึงรายละเอียด Event เดียว (ใช้เปิดหน้า/modal รายละเอียด event) พร้อมประวัติการส่ง alert ของ event นั้น
 - `smg.sp_get_camera_status`: ดึงข้อมูลกล้องทั้งหมดพร้อมสถานะปัจจุบัน
 - `smg.sp_get_alert_log`: ดูบันทึกการส่งการแจ้งเตือน (Teams/Email)
-- `smg.sp_get_company_list`: ดึงรายชื่อบริษัททั้งหมด (ใช้กับ dropdown สลับบริษัทของ Super Admin เท่านั้น)
 
 *รายละเอียดและโครงสร้างของ SP เหล่านี้สามารถดูเพิ่มเติมได้ใน `docs/admin-backend/02-stored-procedure-design.md`*
 

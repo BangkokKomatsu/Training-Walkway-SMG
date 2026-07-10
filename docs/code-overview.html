@@ -179,7 +179,7 @@
       <span class="badge">React & Vite</span>
       <span class="badge">JWT Auth</span>
       <span class="badge">Teams Webhook</span>
-      <span class="badge">API Key + Billing</span>
+      <span class="badge">Self-host (1 บริษัท / 1 deployment)</span>
     </div>
   </div>
 
@@ -201,7 +201,7 @@
         <span class="step">2</span>
         <div>
           <p><strong style="color:#fbbf24">Node.js API Server</strong> <span style="color:#475569">←</span> <code style="color:#fbbf24;font-size:0.78rem">data-api/server.js</code></p>
-          <p style="color:#64748b;font-size:0.78rem">ให้บริการ API Endpoint (`/api/auth`, `/api/cameras`, `/api/events`, `/api/users`, `/api/roles`) ป้องกันด้วย <b>JWT Authentication</b> — รวมระบบ <b>บังคับเปลี่ยนรหัสผ่านครั้งแรก</b> (must_change_password), <b>จัดการผู้ใช้หลายบริษัท</b> (Multi-tenant User Management), <b>ป้องกัน brute-force login</b> (rate limit + account lockout) และ <b>`/api/public/v1/*`</b> — API แยกต่างหากสำหรับบริษัทลูกค้าเรียกด้วย API Key (read-only, มี rate limit + usage log สำหรับคิดค่าบริการ)</p>
+          <p style="color:#64748b;font-size:0.78rem">ให้บริการ API Endpoint (`/api/auth`, `/api/cameras`, `/api/events`, `/api/users`, `/api/roles`) ป้องกันด้วย <b>JWT Authentication</b> — รวมระบบ <b>บังคับเปลี่ยนรหัสผ่านครั้งแรก</b> (must_change_password), <b>จัดการผู้ใช้ในบริษัท</b> (User Management) และ <b>ป้องกัน brute-force login</b> (rate limit + account lockout) — ทุก request ผูกกับ `company_code` เดียวของ deployment นี้ (อ่านจาก JWT)</p>
         </div>
       </div>
       <div class="step-row">
@@ -374,54 +374,6 @@
         <div class="vf-note" style="border-color:#7f1d1d;background:rgba(127,29,29,0.12);color:#fca5a5">
           <span style="font-size:1rem">🛡️</span>
           <span>ป้องกัน brute-force: <code style="color:#f87171">/api/auth/login</code> จำกัด 20 ครั้ง/นาที/IP และ login ผิดครบ 5 ครั้งติดกัน จะล็อก account 15 นาที</span>
-        </div>
-      </div>
-
-      <div class="vf-conn">
-        <div class="vf-conn-line" style="background:linear-gradient(to bottom,#14b8a6,#4f46e5);height:20px"></div>
-        <div class="vf-conn-arrow" style="color:#818cf8">▼</div>
-      </div>
-
-      <!-- ⑥ EXTERNAL API (API KEY) FLOW -->
-      <div class="vf-loop" style="border-color:#4f46e5; background:rgba(79, 70, 229, 0.04)">
-        <div class="vf-loop-label" style="color:#818cf8">
-          🔌 &nbsp;External Company API &nbsp;—&nbsp; /api/public/v1/* (API Key, read-only)
-        </div>
-        <div class="vf-loop-chain">
-          <div class="vf-mini" style="background:#1e1b4b;border-color:#4f46e5;color:#a5b4fc">
-            <div class="vf-mini-icon">🏢</div>
-            External System
-            <div class="vf-mini-sub">บริษัทลูกค้า</div>
-          </div>
-          <div class="vf-chain-arr">→</div>
-          <div class="vf-mini clickable-node" style="background:#1e1b4b;border-color:#4f46e5;color:#a5b4fc" onclick="openCodeModal('api_key_auth')">
-            <div class="vf-mini-icon">🔑</div>
-            requireApiKey
-            <div class="vf-mini-sub">x-api-key → SHA-256 hash lookup</div>
-          </div>
-          <div class="vf-chain-arr">→</div>
-          <div class="vf-mini clickable-node" style="background:#1e1b4b;border-color:#4f46e5;color:#a5b4fc" onclick="openCodeModal('api_rate_limit')">
-            <div class="vf-mini-icon">🚦</div>
-            Rate Limit
-            <div class="vf-mini-sub">60 req/min ต่อ key</div>
-          </div>
-          <div class="vf-chain-arr">→</div>
-          <div class="vf-mini" style="background:#0f2d2d;border-color:#14b8a6;color:#5eead4">
-            <div class="vf-mini-icon">📊</div>
-            events / cameras
-            <div class="vf-mini-sub">dashboard-summary / alerts</div>
-          </div>
-          <div class="vf-chain-arr">→</div>
-          <div class="vf-mini clickable-node" style="background:#1e1030;border-color:#a855f7;color:#d8b4fe" onclick="openCodeModal('usage_log')">
-            <div class="vf-mini-icon">📝</div>
-            Usage Log
-            <div class="vf-mini-sub">trn_api_usage_log (180 วัน)</div>
-          </div>
-        </div>
-        <div class="vf-note" style="border-color:#4338ca;background:rgba(67,56,202,0.12);color:#c7d2fe">
-          <span style="font-size:1rem">ℹ️</span>
-          <span>1 บริษัท = 1 API key เก็บเป็น hash ใน <code style="color:#a5b4fc">mst_company</code> เท่านั้น (ไม่เก็บ plain text) — Admin ดู/regenerate ได้ที่หน้า <b>API Access & Billing</b>
-            <!-- Super Admin เห็นภาพรวมทุกบริษัทผ่าน <span class="clickable-node" style="cursor:pointer;color:#f0abfc" onclick="openCodeModal('billing_overview')">sp_get_billing_overview</span> (คิดค่าบริการจากจำนวนกล้อง)</span> -->
         </div>
       </div>
 
@@ -710,16 +662,21 @@
               <td>อายุของ JWT token ก่อนหมดอายุ ต้อง login ใหม่</td>
             </tr>
 
-            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">BKC Image API</td></tr>
+            <tr><td colspan="3" style="background:#1e2535; font-weight:bold; color:#f1f5f9; text-align:center;">Image Serving</td></tr>
+            <tr>
+              <td>IMAGE_SHARED_DRIVE</td>
+              <td>\\server\shared\images<br>หรือ C:\DetectionImages</td>
+              <td><b>วิธีปกติ (ทุกบริษัท + training)</b> — path เดียวกับที่ Python เซฟรูป data-api อ่านไฟล์จากที่นี่แล้ว stream กลับให้ frontend (endpoint ตรวจ path ว่าอยู่ในโฟลเดอร์นี้จริง กัน path traversal)</td>
+            </tr>
             <tr>
               <td>BKC_IMAGE_API_URL</td>
               <td>https://iapi.bkc.co.th/...</td>
-              <td>Endpoint ขอ signed URL รูปหลักฐาน (ดู CLAUDE.md ข้อ 9)</td>
+              <td><span class="opt">OPTIONAL</span> (เฉพาะ BKC) Endpoint ขอ signed URL รูปหลักฐาน (ดู CLAUDE.md ข้อ 9)</td>
             </tr>
             <tr>
               <td>BKC_IMAGE_API_KEY</td>
               <td>your-bkc-api-key-here</td>
-              <td><span class="opt">OPTIONAL</span> ถ้าไม่ตั้งค่า ระบบจะ skip การแสดงรูป (training mode) — ห้ามส่งค่านี้ไปฝั่ง browser เด็ดขาด</td>
+              <td><span class="opt">OPTIONAL</span> (เฉพาะ BKC) ถ้าตั้งค่า จะใช้ BKC signed URL แทนการอ่านไฟล์ local — ห้ามส่งค่านี้ไปฝั่ง browser เด็ดขาด ถ้าทั้ง local file และ key นี้ไม่มี → รูปเป็น placeholder</td>
             </tr>
           </tbody>
         </table>
@@ -1063,20 +1020,18 @@ const token = jwt.sign({ ...req.user, must_change_password: false }, JWT_SECRET)
     "user_management": {
       title: "data-api/server.js",
       content: `
-        <h3>จัดการผู้ใช้หลายบริษัท (Multi-tenant User Management)</h3>
-        <p>หน้า User Management (Admin/Super Admin เท่านั้น) เรียก <code>/api/users</code> เพื่อ list / create / update / reset password — ระบบ generate รหัสผ่านชั่วคราวแบบสุ่มให้ทุกครั้ง แล้วส่งกลับให้ Admin เพียงครั้งเดียว (ไม่เก็บ plaintext ไว้ที่ไหนเลย)</p>
-        <pre><code class="language-javascript">// data-api/server.js — company scoping บังคับฝั่ง server เสมอ
+        <h3>จัดการผู้ใช้ในบริษัท (User Management)</h3>
+        <p>หน้า User Management (Admin เท่านั้น) เรียก <code>/api/users</code> เพื่อ list / create / update / reset password — ระบบ generate รหัสผ่านชั่วคราวแบบสุ่มให้ทุกครั้ง แล้วส่งกลับให้ Admin เพียงครั้งเดียว (ไม่เก็บ plaintext ไว้ที่ไหนเลย)</p>
+        <pre><code class="language-javascript">// data-api/server.js — ต้องเป็น admin role เท่านั้น
 function requireAdmin(req, res, next) {
-  if (!req.user?.is_super_admin && req.user?.role_name !== 'admin') {
+  if (req.user?.role_name !== 'admin') {
     return res.status(403).json({ error: 'Forbidden — admin role required' })
   }
   next()
 }
 
-// Admin ทั่วไปสร้าง user ได้แค่ในบริษัทตัวเอง — ไม่สนใจค่าที่ client ส่งมา
-const company_code = req.user.is_super_admin
-  ? (bodyCompanyCode || req.companyCode)
-  : req.user.company_code
+// company_code มาจาก JWT ของ deployment นี้เสมอ — ไม่สนใจค่าที่ client ส่งมา
+const company_code = req.user.company_code
 
 const plainPassword = temp_password || generateTempPassword()
 const passwordHash = await bcrypt.hash(plainPassword, 10)
@@ -1111,96 +1066,6 @@ SET failed_login_count = failed_login_count + 1,
 WHERE username = @username;</code></pre>
       `
     },
-    "api_key_auth": {
-      title: "data-api/server.js — requireApiKey middleware",
-      content: `
-        <h3>ยืนยันตัวตนด้วย API Key</h3>
-        <p>บริษัทลูกค้าส่ง header <code>x-api-key</code> มาแทนที่จะ login — server hash ค่าที่ได้รับด้วย SHA-256 แล้วเทียบกับ hash ที่เก็บไว้ใน <code>mst_company</code> (ไม่เก็บ key จริงในฐานข้อมูล ไม่มีทางกู้ค่าเดิมได้แม้ DB รั่ว)</p>
-        <pre><code class="language-javascript">async function requireApiKey(req, res, next) {
-  const apiKey = req.headers['x-api-key']
-  if (!apiKey) return res.status(401).json({ error: 'x-api-key header is required' })
-
-  const result = await execSP('smg.sp_verify_api_key', [
-    { name: 'api_key_hash', type: sql.NVarChar(64), value: hashApiKey(apiKey) },
-  ])
-  const company = result.recordset[0]
-  if (!company) return res.status(401).json({ error: 'Invalid or inactive API key' })
-
-  req.companyCode = company.company_code
-  next()
-}
-
-function hashApiKey(key) {
-  return crypto.createHash('sha256').update(key).digest('hex')
-}</code></pre>
-      `
-    },
-    "api_rate_limit": {
-      title: "data-api/server.js — rateLimiter",
-      content: `
-        <h3>Rate Limit แบบ In-memory (ไม่ต้องเพิ่ม dependency)</h3>
-        <p>Fixed-window counter เก็บใน <code>Map</code> ต่อ process — ใช้ทั้งกับ login (ต่อ IP) และ <code>/api/public/v1/*</code> (ต่อ API key, 60 request/นาที) เป็น safety net กัน abuse ไม่ผูกกับ billing plan</p>
-        <pre><code class="language-javascript">function rateLimiter({ windowMs, max, keyFn, message }) {
-  const hits = new Map()
-  setInterval(() => {
-    const now = Date.now()
-    for (const [key, entry] of hits) if (entry.resetAt <= now) hits.delete(key)
-  }, windowMs).unref()
-
-  return (req, res, next) => {
-    const key = keyFn(req)
-    let entry = hits.get(key)
-    if (!entry || entry.resetAt <= Date.now()) {
-      entry = { count: 0, resetAt: Date.now() + windowMs }
-      hits.set(key, entry)
-    }
-    if (++entry.count > max) {
-      return res.status(429).json({ error: message })
-    }
-    next()
-  }
-}
-
-const apiKeyRateLimiter = rateLimiter({ windowMs: 60_000, max: 60, keyFn: req => req.companyCode })</code></pre>
-      `
-    },
-    "usage_log": {
-      title: "data-api/server.js — logApiUsage",
-      content: `
-        <h3>บันทึกทุกครั้งที่เรียก External API</h3>
-        <p>เก็บลง <code>trn_api_usage_log</code> เพื่อ monitor/security เท่านั้น (ไม่ใช่ตัวเลขที่ใช้คิดเงินจริง — บิลคิดจากจำนวนกล้อง) เก็บ 180 วันแล้ว purge ด้วย <code>sp_purge_api_usage_log</code></p>
-        <pre><code class="language-javascript">function logApiUsage(req, res, next) {
-  res.on('finish', () => {
-    execSP('smg.sp_log_api_usage', [
-      { name: 'company_code', value: req.companyCode },
-      { name: 'endpoint',     value: req.baseUrl + req.path },
-      { name: 'http_method',  value: req.method },
-      { name: 'status_code',  value: res.statusCode },
-      { name: 'ip_address',   value: req.ip },
-    ]).catch(err => console.error('sp_log_api_usage failed:', err.message))
-  })
-  next()
-}</code></pre>
-      `
-    },
-    "billing_overview": {
-      title: "sql/07_api_key_and_login_security.sql",
-      content: `
-        <h3>ภาพรวมค่าบริการ (Super Admin เท่านั้น)</h3>
-        <p>Snapshot ปัจจุบัน ณ วันที่ดู — นับจำนวนกล้อง <code>is_active = 1</code> ต่อบริษัท ไม่ prorate ตามวันที่เพิ่ม/ลบกล้องกลางเดือน</p>
-        <pre><code class="language-sql">CREATE OR ALTER PROCEDURE smg.sp_get_billing_overview
-AS
-BEGIN
-    SELECT
-        c.company_code, c.company_name, c.is_active,
-        c.api_key_is_active, c.api_key_created_at,
-        (SELECT COUNT(*) FROM smg.mst_camera cam
-            WHERE cam.company_code = c.company_code AND cam.is_active = 1) AS active_camera_count
-    FROM smg.mst_company c
-    ORDER BY c.company_code;
-END;</code></pre>
-      `
-    }
   };
 
   function openCodeModal(key) {

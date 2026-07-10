@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ListChecks, AlertCircle, RefreshCw, CheckCircle, XCircle, Camera, CheckSquare, Square } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
+import { useImageSrc } from '../hooks/useImageSrc'
 import { api } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import FilterPanel from '../components/ui/FilterPanel'
@@ -20,6 +21,15 @@ const FILTERS = [
 ]
 
 const PAGE_SIZE = 30
+
+// Thumbnail that resolves an event image_url (absolute BKC URL or auth-protected
+// local path) into a displayable source; falls back to a camera glyph.
+function EventThumb({ src }) {
+  const resolved = useImageSrc(src)
+  if (!src || resolved === false) return <Camera size={14} className="text-ink-subtle" />
+  if (!resolved) return <div className="w-full h-full bg-surface-2 animate-pulse" />
+  return <img src={resolved} className="w-full h-full object-cover" alt="Event capture" />
+}
 
 export default function EventLogPage() {
   const { user } = useAuth()
@@ -188,11 +198,7 @@ export default function EventLogPage() {
                       </td>
                       <td className="px-6 py-2">
                         <div className="w-12 h-8 rounded-lg overflow-hidden border border-border bg-surface-2 flex items-center justify-center">
-                          {ev.image_url ? (
-                            <img src={ev.image_url} className="w-full h-full object-cover" alt="Event capture" />
-                          ) : (
-                            <Camera size={14} className="text-ink-subtle" />
-                          )}
+                          <EventThumb src={ev.image_url} />
                         </div>
                       </td>
                       <td className="px-6 py-3 font-mono text-ink-muted">

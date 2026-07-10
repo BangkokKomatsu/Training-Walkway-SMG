@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -15,7 +15,6 @@ import {
   Users
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { api } from '../../services/api'
 import clsx from 'clsx'
 
 const NAV = [
@@ -27,53 +26,13 @@ const NAV = [
 ]
 
 const ADMIN_NAV = [
-  { to: '/users',      icon: Users,     label: 'User Management' },
-  { to: '/api-access', icon: KeyRound,  label: 'API Access & Billing' },
+  { to: '/users', icon: Users, label: 'User Management' },
 ]
 
-function CompanySwitcher({ activeCompanyCode, switchCompany, collapsed }) {
-  const [companies, setCompanies] = useState([])
-
-  useEffect(() => {
-    api.getCompanies().then(setCompanies).catch(() => {})
-  }, [])
-
-  if (collapsed) {
-    return (
-      <div className="flex justify-center py-2" title="Switch Company">
-        <div className="w-8 h-8 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-[12px] font-mono font-bold text-primary">
-          {activeCompanyCode || 'ALL'}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="px-4 pt-3 pb-2 transition-all">
-      <div className="text-[12px] font-semibold mb-1 text-ink-subtle tracking-wider flex items-center gap-1">
-        <Building size={10} />
-        VIEW COMPANY
-      </div>
-      <select
-        value={activeCompanyCode || ''}
-        onChange={e => switchCompany(e.target.value || null)}
-        className="w-full px-2 py-1.5 rounded-md border border-border bg-surface-2 text-ink text-sm font-mono font-medium cursor-pointer outline-none focus:border-primary transition-all"
-      >
-        <option value="">All Companies</option>
-        {companies.map(c => (
-          <option key={c.company_code} value={c.company_code}>
-            {c.company_code} — {c.company_name}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
 export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggleCollapse }) {
-  const { user, activeCompanyCode, logout, switchCompany } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const isAdmin = user?.is_super_admin || user?.role_name === 'admin'
+  const isAdmin = user?.role_name === 'admin'
   const navItems = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV
 
   const handleLogout = () => {
@@ -137,41 +96,33 @@ export default function Sidebar({ mobileOpen, onCloseMobile, collapsed, onToggle
                 {user?.full_name || user?.username || '—'}
               </p>
               <span className="inline-block mt-0.5 text-[11px] px-1.5 py-0.2 bg-primary/10 text-primary rounded-full font-semibold border border-primary/20">
-                {user?.is_super_admin ? 'Super Admin' : (user?.role_name || 'viewer')}
+                {user?.role_name || 'viewer'}
               </span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Company Switcher / Details */}
-      {user?.is_super_admin ? (
-        <CompanySwitcher
-          activeCompanyCode={activeCompanyCode}
-          switchCompany={switchCompany}
-          collapsed={collapsed && !mobileOpen}
-        />
-      ) : (
-        activeCompanyCode && (
-          <div className={clsx("p-3", collapsed && !mobileOpen ? "flex justify-center" : "")}>
-            <div
-              className={clsx(
-                "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[13px] font-mono border border-border bg-surface-2 text-primary",
-                collapsed && !mobileOpen ? "w-8 h-8 justify-center p-0" : "w-full"
-              )}
-              title={`Active Company: ${activeCompanyCode}`}
-            >
-              {collapsed && !mobileOpen ? (
-                <span className="font-bold">{activeCompanyCode.slice(0, 3)}</span>
-              ) : (
-                <>
-                  <span className="text-[11px] text-ink-subtle font-sans font-normal">COMP:</span>
-                  <span className="font-semibold">{activeCompanyCode}</span>
-                </>
-              )}
-            </div>
+      {/* Company badge (single-tenant — this deployment's company) */}
+      {user?.company_code && (
+        <div className={clsx("p-3", collapsed && !mobileOpen ? "flex justify-center" : "")}>
+          <div
+            className={clsx(
+              "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[13px] font-mono border border-border bg-surface-2 text-primary",
+              collapsed && !mobileOpen ? "w-8 h-8 justify-center p-0" : "w-full"
+            )}
+            title={`Company: ${user.company_code}`}
+          >
+            {collapsed && !mobileOpen ? (
+              <span className="font-bold">{user.company_code.slice(0, 3)}</span>
+            ) : (
+              <>
+                <Building size={11} className="text-ink-subtle" />
+                <span className="font-semibold">{user.company_code}</span>
+              </>
+            )}
           </div>
-        )
+        </div>
       )}
 
       {/* Navigation menu */}

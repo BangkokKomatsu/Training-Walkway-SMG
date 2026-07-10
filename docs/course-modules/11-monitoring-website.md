@@ -78,11 +78,11 @@ Dashboard แสดงสรุป
 รหัสผ่าน:   [********    ]
 [เข้าสู่ระบบ]
 ```
-**ไม่มีช่องกรอกรหัสบริษัท** — login ใช้แค่ username/password เท่านั้น บริษัทที่ผู้ใช้เห็นข้อมูลถูกกำหนดฝั่ง server จาก JWT (ผู้ใช้ทั่วไปถูกล็อกไว้ที่บริษัทตัวเอง ส่วน Super Admin เลือกบริษัทภายหลังผ่าน Company Switcher ที่ Sidebar)
+**ไม่มีช่องกรอกรหัสบริษัท** — login ใช้แค่ username/password เท่านั้น ระบบเป็นแบบ single-tenant (หนึ่ง deployment = หนึ่งบริษัท) บริษัทที่ผู้ใช้เห็นข้อมูลถูกกำหนดฝั่ง server จาก JWT โดยอัตโนมัติ
 
 เมื่อเข้าสู่ระบบสำเร็จ ระบบจะได้รับ **JWT Token** มาเก็บไว้ที่เบราว์เซอร์ (`localStorage`) และจะแนบ Token นี้ไปกับทุก API request เพื่อยืนยันสิทธิ์ในการเข้าถึงข้อมูล (Dashboard, Event Log, Camera Monitor)
 
-> กลไกเบื้องหลังทั้งหมด — bcrypt hashing, JWT issuance/verification/expiry, Super Admin model (`is_super_admin` + `x-company` header), และการส่งรูปภาพแบบ signed URL — อธิบายละเอียดใน **Module 10 หัวข้อ 5.6 Authentication & Authorization**
+> กลไกเบื้องหลังทั้งหมด — bcrypt hashing, JWT issuance/verification/expiry, และการโหลดรูปภาพผ่าน data-api พร้อมแนบ token — อธิบายละเอียดใน **Module 10 หัวข้อ 5.6 Authentication & Authorization**
 
 ### 5.2 Dashboard — สรุปตัวเลข
 
@@ -141,7 +141,7 @@ Event #47
 ```
 หน้ารายละเอียด event จริงแสดงข้อมูล **Camera Source, Company ID, Restricted Area, Timestamp, AI Confidence** เท่านั้น — ไม่มีฟิลด์ "ประเภท event" (INTRUSION/DWELL) แยกต่อ event สถิติ intrusion/dwell มีให้ดูแบบภาพรวมที่หน้า Dashboard เท่านั้น
 
-รูปภาพที่เห็นมาจาก signed URL ที่ data-api ขอมาจาก BKC Image API (ดู Module 10 หัวข้อ 5.6.4) ถ้าไม่ได้ตั้งค่า API key ไว้ (training mode) ระบบจะแสดงข้อความ "Detection Frame Unavailable" แทนที่จะ error
+รูปภาพที่เห็นถูก data-api อ่านจาก `IMAGE_SHARED_DRIVE` แล้ว stream กลับมาให้ frontend fetch พร้อมแนบ token (ดู Module 10 หัวข้อ 5.6.3) — ตอนเรียนคอร์ส แค่ตั้ง `IMAGE_SHARED_DRIVE` เป็น local path เช่น `C:\DetectionImages` รูป detection จริงก็จะแสดงบนเว็บได้เลย ถ้าหาไฟล์ไม่เจอ (ถูกลบ/drive ไม่ได้ mount) ระบบจะแสดงข้อความ "Detection Frame Unavailable" แทนที่จะ error
 
 > **ถ้าเปิดใช้งาน** ตัวแปร `VITE_CLOSE_CASE_MODE=true` ในไฟล์ `.env.local` ของ frontend หน้านี้จะมี panel เพิ่มเติมให้ "ปิดเคส" (resolve/reject พร้อมแนบรูปหลักฐานและคำอธิบาย) — ถ้าไม่ได้ตั้งค่าไว้ panel นี้จะไม่แสดงเลย
 
@@ -221,7 +221,7 @@ Last check: 2026-01-01 10:10:00
 หน้าเว็บมีองค์ประกอบเล็ก ๆ ที่ใช้บ่อยแต่ไม่ได้อยู่ในหน้าใดหน้าหนึ่งโดยเฉพาะ:
 
 - **สลับธีมมืด/สว่าง** — ปุ่มรูปพระอาทิตย์/พระจันทร์มุมขวาบน (TopBar) สลับได้ทันที ระบบจำค่าไว้ให้ (persist) ครั้งหน้าเปิดเว็บจะเป็นธีมเดิม
-- **Company Switcher (เฉพาะ Super Admin)** — ถ้า login ด้วยบัญชี Super Admin (`is_super_admin=1`) จะเห็น dropdown เลือกบริษัทที่ sidebar ด้านซ้าย ใช้สลับดูข้อมูลบริษัทอื่นได้โดยไม่ต้อง logout (ผู้ใช้ทั่วไปจะไม่เห็น dropdown นี้ เพราะถูกล็อกบริษัทตัวเองไว้ตาม JWT)
+- **Badge บริษัท (read-only)** — ที่ sidebar ด้านซ้ายจะมี badge แสดง `company_code` ของ deployment นี้ (มาจาก JWT) เป็นแค่ข้อมูลแสดงผล เปลี่ยนเองไม่ได้ เพราะระบบเป็น single-tenant หนึ่ง deployment ให้บริการบริษัทเดียว
 - **Sidebar แบบ responsive** — บนจอเล็ก/มือถือ sidebar จะยุบเป็นเมนูแบบ drawer เปิด/ปิดด้วยปุ่มแฮมเบอร์เกอร์แทนการแสดงเต็มด้านซ้ายตลอดเวลา
 
 > **หมายเหตุ:** เอกสารรุ่นก่อนหน้าเคยอธิบายว่าหน้า System Health มี panel "System Log" แสดง log แบบ INFO/ERROR สด ๆ — ในระบบจริงไม่มี panel นี้ มีแค่ "Diagnostic Raw JSON Payload" ที่กล่าวถึงใน §5.7 เท่านั้น ถ้าต้องการดู log จริงของฝั่ง Python ต้องเปิดไฟล์ `logs/walkway.log` บนเครื่องที่รัน service โดยตรง
@@ -246,7 +246,7 @@ Last check: 2026-01-01 10:10:00
 - [ ] ดู Camera Monitor รู้ว่ากล้องไหน Online/Offline และรู้ว่าเพิ่ม/แก้ไข/ลบ/วาด polygon ได้จากหน้านี้
 - [ ] ดู Alert Monitor รู้ว่า Teams/Email ส่งสำเร็จหรือ FAILED
 - [ ] ดู System Health รู้ว่าองค์ประกอบใด OK หรือ error พร้อมเปิดดู Diagnostic Raw JSON ได้
-- [ ] ลองสลับธีมมืด/สว่าง และ (ถ้า login เป็น Super Admin) ลองสลับบริษัทที่ sidebar
+- [ ] ลองสลับธีมมืด/สว่าง และสังเกต badge บริษัท (read-only) ที่ sidebar
 
 ---
 
@@ -269,7 +269,7 @@ npm start
 
 **สาเหตุ 1:** `COMPANY_CODE` ที่ฝั่ง Python (`.env`) ไม่ตรงกับบริษัทของบัญชีที่ใช้ login
 
-ตรวจสอบ: ใน `.env` ของ Python ตั้ง `COMPANY_CODE=DEMO` และ login ด้วยบัญชีที่มี `company_code = DEMO` (เช่น `demo_admin`) — ผู้ใช้ทั่วไปเห็นเฉพาะบริษัทของตัวเองเสมอ (Super Admin เท่านั้นที่สลับดูบริษัทอื่นได้ผ่าน Company Switcher)
+ตรวจสอบ: ใน `.env` ของ Python ตั้ง `COMPANY_CODE=DEMO` ให้ตรงกับ `company_code` ของบัญชีที่ใช้ login (เช่น `demo_admin`) — ระบบเป็น single-tenant ผู้ใช้เห็นเฉพาะข้อมูลบริษัทของ deployment นี้เสมอ ถ้า Python เขียน event ด้วย company_code คนละค่ากับบัญชีที่ login เว็บจะไม่เห็น event นั้น
 
 **สาเหตุ 2:** Python ยังไม่เชื่อม DB หรือ insert ล้มเหลว
 

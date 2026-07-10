@@ -2,8 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react'
 
 const AuthContext = createContext(null)
 
-const TOKEN_KEY   = 'smg-ww-token'
-const COMPANY_KEY = 'smg-ww-company'
+const TOKEN_KEY = 'smg-ww-token'
 
 function decodeJwt(token) {
   try {
@@ -23,7 +22,6 @@ function getStoredToken() {
   const t = localStorage.getItem(TOKEN_KEY)
   if (!t || isTokenExpired(t)) {
     localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(COMPANY_KEY)
     return null
   }
   return t
@@ -35,9 +33,6 @@ export function AuthProvider({ children }) {
     const t = getStoredToken()
     return t ? decodeJwt(t) : null
   })
-  const [activeCompanyCode, setActiveCompanyCodeState] = useState(
-    () => localStorage.getItem(COMPANY_KEY) || null
-  )
 
   const login = useCallback(async (username, password) => {
     const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
@@ -50,14 +45,9 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(body.error || 'Login failed')
 
     const { token: newToken, user: userData } = body
-    // Super Admin: default = ทุกบริษัท (null) — Regular user: บริษัทตัวเอง
-    const initialCompany = userData.is_super_admin ? null : userData.company_code
     localStorage.setItem(TOKEN_KEY, newToken)
-    if (initialCompany) localStorage.setItem(COMPANY_KEY, initialCompany)
-    else localStorage.removeItem(COMPANY_KEY)
     setToken(newToken)
     setUser(userData)
-    setActiveCompanyCodeState(initialCompany)
     return userData
   }, [])
 
@@ -71,26 +61,12 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(COMPANY_KEY)
     setToken(null)
     setUser(null)
-    setActiveCompanyCodeState(null)
   }, [])
 
-  // Super admin only — null = ทุกบริษัท, 'DEMO' = กรองเฉพาะบริษัทนั้น
-  const switchCompany = useCallback((code) => {
-    if (!user?.is_super_admin) return
-    if (code) {
-      localStorage.setItem(COMPANY_KEY, code)
-      setActiveCompanyCodeState(code)
-    } else {
-      localStorage.removeItem(COMPANY_KEY)
-      setActiveCompanyCodeState(null)
-    }
-  }, [user])
-
   return (
-    <AuthContext.Provider value={{ token, user, activeCompanyCode, login, logout, switchCompany, applyNewToken }}>
+    <AuthContext.Provider value={{ token, user, login, logout, applyNewToken }}>
       {children}
     </AuthContext.Provider>
   )

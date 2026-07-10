@@ -134,7 +134,7 @@
 |---|---|---|---|
 | `@username` | NVARCHAR(100) | — | required — ถ้าไม่พบ username จะไม่มีผลลัพธ์ (0 แถว) |
 
-**คืน:** 1 row (ถ้าพบ username) — `user_id`, `company_code`, `username`, `full_name`, `password_hash` (bcrypt hash ให้ Node.js เทียบ), `role_id`, `role_name`, `is_super_admin`, `is_active`, `must_change_password`, และหลัง `07_api_key_and_login_security.sql` เพิ่ม `failed_login_count`, `locked_until` (ให้ data-api เช็ค lockout ก่อนอนุญาต login)
+**คืน:** 1 row (ถ้าพบ username) — `user_id`, `company_code`, `username`, `full_name`, `password_hash` (bcrypt hash ให้ Node.js เทียบ), `role_id`, `role_name`, `is_super_admin`, `is_active`, `must_change_password`, `failed_login_count`, `locked_until` (สองตัวหลังให้ data-api เช็ค lockout ก่อนอนุญาต login — เพิ่มโดย `07_login_security.sql`)
 
 ---
 
@@ -144,7 +144,7 @@
 
 | Parameter | Type | Default |
 |---|---|---|
-| `@company_code` | NVARCHAR(20) | NULL (ทุกบริษัท — Super Admin) |
+| `@company_code` | NVARCHAR(20) | — (ของ deployment นี้ จาก JWT) |
 | `@alert_channel` | NVARCHAR(20) | NULL — `TEAMS` / `EMAIL` |
 | `@alert_status` | NVARCHAR(20) | NULL — `SENT` / `FAILED` |
 | `@date_from` | DATE | NULL |
@@ -158,19 +158,7 @@
 
 ---
 
-## 10. `smg.sp_get_company_list`
-
-**ใช้เมื่อ:** Super Admin โหลด dropdown บริษัท
-
-| Parameter | Type | Default |
-|---|---|---|
-| ไม่มี | | |
-
-**คืน:** `company_code`, `company_name` ของบริษัทที่ `is_active = 1` เท่านั้น
-
----
-
-## 11. `smg.sp_change_password`
+## 10. `smg.sp_change_password`
 
 **ใช้เมื่อ:** ผู้ใช้เปลี่ยนรหัสผ่านตัวเอง (`POST /api/auth/change-password`) — บังคับครั้งแรกหรือเปลี่ยนเองภายหลัง bcrypt hash ทำใน Node.js แล้วส่ง hash มาบันทึกเท่านั้น
 
@@ -183,7 +171,7 @@
 
 ---
 
-## 12. `smg.sp_get_role_list`
+## 11. `smg.sp_get_role_list`
 
 **ใช้เมื่อ:** โหลด dropdown role สำหรับหน้า admin จัดการ user (`GET /api/roles`)
 
@@ -191,19 +179,19 @@
 
 ---
 
-## 13. `smg.sp_user_list`
+## 12. `smg.sp_user_list`
 
 **ใช้เมื่อ:** หน้า admin จัดการ user (`GET /api/users`)
 
 | Parameter | Type | Default |
 |---|---|---|
-| `@company_code` | NVARCHAR(20) | NULL (ทุกบริษัท — Super Admin) |
+| `@company_code` | NVARCHAR(20) | — (ของ deployment นี้ จาก JWT) |
 
 **คืน:** `user_id`, `company_code`, `username`, `full_name`, `role_id`, `role_name`, `is_super_admin`, `is_active`, `must_change_password`, `created_at`
 
 ---
 
-## 14. `smg.sp_user_create`
+## 13. `smg.sp_user_create`
 
 **ใช้เมื่อ:** Admin สร้าง user ใหม่ (`POST /api/users`) — `password_hash` เป็น temp password ที่ hash แล้วจาก Node.js, `must_change_password` ถูกบังคับเป็น 1 เสมอ (ฮาร์ดโค้ดใน SP)
 
@@ -221,7 +209,7 @@
 
 ---
 
-## 15. `smg.sp_user_update`
+## 14. `smg.sp_user_update`
 
 **ใช้เมื่อ:** Admin แก้ไขข้อมูล user (`POST /api/users/:id/update`) — ไม่รวม `username` / `company_code` / `password`
 
@@ -236,7 +224,7 @@
 
 ---
 
-## 16. `smg.sp_user_reset_password`
+## 15. `smg.sp_user_reset_password`
 
 **ใช้เมื่อ:** Admin สุ่มรหัสผ่านใหม่ให้ user (`POST /api/users/:id/reset-password`) — บังคับเปลี่ยนตอน login ครั้งถัดไปเสมอ (ตั้ง `must_change_password = 1`)
 
@@ -249,46 +237,14 @@
 
 ---
 
-## API key + login security (07_api_key_and_login_security.sql)
+## Login security (07_login_security.sql)
 
-SP กลุ่มนี้เพิ่มเข้ามาพร้อมฟีเจอร์ external read-only API (`/api/public/v1/*`) และการป้องกัน brute-force login — ดูตารางที่เกี่ยวข้องใน [01 — Database Design](01-database-design.md)
+SP กลุ่มนี้เพิ่มเข้ามาพร้อมการป้องกัน brute-force login — ดูคอลัมน์ที่เกี่ยวข้อง (`failed_login_count`, `locked_until`) ใน [01 — Database Design](01-database-design.md)
 
-### 17. `smg.sp_record_failed_login`
+### 16. `smg.sp_record_failed_login`
 
 เรียกทุกครั้งที่ login ผิด — `@username NVARCHAR(100)` — ผิดครบ 5 ครั้งติดกัน ล็อก account 15 นาที (ค่าคงที่ในตัว SP ไม่มี parameter ปรับ)
 
-### 18. `smg.sp_reset_login_lockout`
+### 17. `smg.sp_reset_login_lockout`
 
 เรียกหลัง login สำเร็จ — `@user_id INT` — เคลียร์ `failed_login_count` และ `locked_until`
-
-### 19. `smg.sp_regenerate_company_api_key`
-
-Admin กด "Regenerate" (`POST /api/company/api-key/regenerate`) — `@company_code NVARCHAR(20)`, `@api_key_hash NVARCHAR(64)` — data-api สร้าง key จริง + SHA-256 hash แล้วส่ง hash มาเก็บ; key จริงคืนให้ผู้ใช้เห็นครั้งเดียวตอน response ของ data-api เท่านั้น ไม่เก็บ plain text ใน DB
-
-### 20. `smg.sp_get_company_api_key_info`
-
-โหลดสถานะ key ของบริษัทตัวเอง (`GET /api/company/api-key`) — `@company_code NVARCHAR(20)` — **คืน:** `company_code`, `api_key_created_at`, `api_key_is_active` (ไม่คืน hash)
-
-### 21. `smg.sp_verify_api_key`
-
-data-api เรียกทุก request เข้า `/api/public/v1/*` เพื่อแปลง key → company_code — `@api_key_hash NVARCHAR(64)` — **คืน:** `company_code`, `company_name` เฉพาะ key ที่ active และบริษัท active
-
-### 22. `smg.sp_log_api_usage`
-
-บันทึกทุกครั้งที่ `/api/public/v1/*` ถูกเรียก (fire-and-forget หลังตอบ response) — `@company_code`, `@endpoint NVARCHAR(200)`, `@http_method NVARCHAR(10)`, `@status_code INT`, `@ip_address NVARCHAR(50) = NULL`
-
-### 23. `smg.sp_get_api_usage_summary`
-
-สรุปจำนวนครั้งเรียก `/api/public/v1/*` แยกตาม endpoint (`GET /api/company/usage`) — `@company_code NVARCHAR(20) = NULL` (Super Admin ดูทุกบริษัท), `@date_from DATE = NULL`, `@date_to DATE = NULL`
-
-### 24. `smg.sp_get_billing_overview`
-
-Super Admin ดูภาพรวมทุกบริษัทเพื่อคิดค่าบริการ (`GET /api/admin/billing-overview`) — ไม่มี parameter — **คืน:** `company_code`, `company_name`, `is_active`, `api_key_is_active`, `api_key_created_at`, `active_camera_count` ต่อบริษัท (snapshot ปัจจุบัน ไม่ prorate)
-
-### 25. `smg.sp_get_camera_list_public`
-
-รายชื่อกล้องสำหรับ `/api/public/v1/cameras` เท่านั้น — `@company_code NVARCHAR(20)` — ตัด `rtsp_url` / `ip_address` / `username` / `password` ออก (ต่างจาก `sp_get_camera_status` ที่มี credential กล้องเต็ม ห้ามส่งออกนอกระบบ)
-
-### 26. `smg.sp_purge_api_usage_log`
-
-ลบ log เก่ากว่า `@retention_days INT = 180` วัน — รันผ่าน SQL Agent job รายวัน หรือรันมือ (MSSQL Express ไม่มี Agent — ดู [03 — SQL Runbook](03-sql-runbook.md))

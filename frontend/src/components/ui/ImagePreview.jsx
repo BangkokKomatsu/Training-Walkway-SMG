@@ -1,12 +1,15 @@
 import React, { useState } from 'react'
 import { ImageOff, ZoomIn } from 'lucide-react'
+import { useImageSrc } from '../../hooks/useImageSrc'
 
 export default function ImagePreview({ src, alt = 'Detection image', className = '' }) {
+  const resolved = useImageSrc(src)
   const [failed, setFailed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
 
-  if (!src || failed) {
+  // resolved === false → the authed blob fetch failed; treat like a missing frame
+  if (!src || failed || resolved === false) {
     return (
       <div
         className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-surface-2 border border-border aspect-[4/3] w-full ${className}`}
@@ -35,7 +38,7 @@ export default function ImagePreview({ src, alt = 'Detection image', className =
           </div>
         )}
         <img
-          src={src}
+          src={resolved || undefined}
           alt={alt}
           onLoad={() => setLoading(false)}
           onError={() => {
@@ -61,7 +64,7 @@ export default function ImagePreview({ src, alt = 'Detection image', className =
           className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs cursor-pointer animate-fade-in"
         >
           <div className="relative max-w-5xl max-h-[85vh] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 p-1 flex items-center justify-center">
-            <img src={src} alt={alt} className="max-w-full max-h-[80vh] object-contain rounded-lg" />
+            <img src={resolved || undefined} alt={alt} className="max-w-full max-h-[80vh] object-contain rounded-lg" />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 px-3 py-1.5 rounded-full text-[12px] font-bold text-white uppercase pointer-events-none">
               Click anywhere to close
             </div>

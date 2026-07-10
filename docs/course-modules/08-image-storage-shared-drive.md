@@ -34,9 +34,9 @@
 
 ### Shared Drive คืออะไร?
 
-Network folder ที่ทุก server/เครื่องในองค์กรเข้าถึงได้ เช่น `\\server\walkway-images\` หรือ path ที่ admin mount เป็น drive ให้
+Network folder ที่ทุก server/เครื่องในองค์กรเข้าถึงได้ เช่น `\\server\walkway-images\` หรือ path ที่ admin mount เป็น drive ให้ (ตอนเรียนคอร์สใช้ local path เช่น `C:\DetectionImages` ก็ได้)
 
-Python บนเครื่อง detection เซฟรูปที่นี่ → Frontend (เว็บ) อ่านจากที่เดียวกัน
+Python บนเครื่อง detection เซฟรูปที่นี่ → **data-api** อ่านไฟล์จากที่เดียวกันแล้วส่งให้เว็บแสดง (browser ไม่ได้อ่านไฟล์เองโดยตรง — ดูหัวข้อ 5.5)
 
 ### `image_path` vs `image_name`
 
@@ -172,17 +172,25 @@ if image_path:
 else:
     print("บันทึกล้มเหลว — ดู log")
 ```
-### 5.5 กรณีไฟล์หาย (ใน Frontend)
+### 5.5 รูปภาพแสดงบนเว็บได้อย่างไร (และกรณีไฟล์หาย)
 
-เมื่อ Frontend ดึงรูปภาพผ่าน Data API อาจเกิดกรณีรูปหายได้ (ถูก archive, drive ไม่ได้ mount หรือลบไปแล้ว) ต้องจัดการด้วย `onError`:
+**สำคัญ:** browser อ่านไฟล์จาก shared drive/UNC (`\\SERVER\...`) หรือ local path ตรง ๆ **ไม่ได้** (เปิดหน้าเว็บผ่าน http แล้ววาง `file://...` ใน `<img>` จะโดนบล็อก) ดังนั้น **data-api เป็นคนอ่านไฟล์แล้วส่งกลับมาเป็นรูป** ให้ frontend fetch เอาไปแสดง
+
+- `GET /api/events/:id` จะคืน field `image_url` — ค่า default เป็น path แบบ relative `/api/events/:id/image` (endpoint ที่ data-api stream ไฟล์จาก `IMAGE_SHARED_DRIVE` ให้ โดยต้องแนบ token)
+- frontend ใช้ hook `useImageSrc` (ดู Module 10 หัวข้อ 5.6.3) fetch path นั้นพร้อม bearer token แล้วแปลงเป็น blob URL ให้ `<img>` แสดง
+- ถ้าตั้งค่า `BKC_IMAGE_API_KEY` (เฉพาะ BKC) `image_url` จะเป็น absolute signed URL แทน — ใช้ตรง ๆ ได้เลย
+
+> **ผลดีสำหรับผู้เรียน:** แค่ตั้ง `IMAGE_SHARED_DRIVE` เป็น local path เช่น `C:\DetectionImages` — **รูป detection จริงจะแสดงบนเว็บได้เลย** (data-api อ่านไฟล์ให้) ไม่ต้องมี BKC API key ใด ๆ เดิมตอนเรียนคอร์สจะเห็นแค่ placeholder เท่านั้น
+
+เมื่อดึงรูปอาจเกิดกรณีรูปหายได้ (ถูก archive, drive ไม่ได้ mount หรือลบไปแล้ว → data-api คืน 404 หรือ `image_url: null`) frontend จัดการด้วย `onError` + fallback placeholder:
 
 ```jsx
-// React component
+// React component (แบบง่ายเพื่อให้เห็น pattern จัดการรูปหาย)
 function DetectionImage({ imageUrl, alt }) {
   const [hasError, setHasError] = React.useState(false);
 
   // imageUrl มาจาก field `image_url` ใน response ของ GET /api/events/:id
-  // (data-api ขอ signed URL จาก BKC image API มาให้แล้ว — ถ้าไม่ได้ตั้งค่า BKC_IMAGE_API_KEY จะเป็น null)
+  // ในเว็บจริงจะผ่าน hook useImageSrc เพื่อ fetch path /api/... พร้อม bearer token ก่อน (ดู Module 10)
 
   if (!imageUrl || hasError) {
     return (

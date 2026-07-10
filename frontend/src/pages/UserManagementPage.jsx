@@ -66,13 +66,11 @@ function TempPasswordModal({ username, password, onClose }) {
   )
 }
 
-function UserFormModal({ mode, initial, roles, companies, canPickCompany, defaultCompanyCode, onClose, onSubmit }) {
+function UserFormModal({ mode, initial, roles, companyCode, onClose, onSubmit }) {
   const [username, setUsername]   = useState(initial?.username || '')
   const [fullName, setFullName]   = useState(initial?.full_name || '')
   const [roleId,   setRoleId]     = useState(initial?.role_id ?? roles[0]?.role_id ?? '')
-  const [companyCode, setCompanyCode] = useState(initial?.company_code || defaultCompanyCode || '')
   const [isActive,  setIsActive]  = useState(initial?.is_active ?? true)
-  const [grantSuperAdmin, setGrantSuperAdmin] = useState(initial?.is_super_admin ?? false)
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
 
@@ -82,7 +80,7 @@ function UserFormModal({ mode, initial, roles, companies, canPickCompany, defaul
     setSaving(true)
     try {
       if (mode === 'add') {
-        await onSubmit({ username, full_name: fullName, role_id: roleId, company_code: companyCode, is_super_admin: grantSuperAdmin })
+        await onSubmit({ username, full_name: fullName, role_id: roleId })
       } else {
         await onSubmit({ full_name: fullName, role_id: roleId, is_active: isActive })
       }
@@ -132,19 +130,7 @@ function UserFormModal({ mode, initial, roles, companies, canPickCompany, defaul
           {mode === 'add' && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-ink-muted">Company</label>
-              {canPickCompany ? (
-                <select
-                  value={companyCode}
-                  onChange={e => setCompanyCode(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-surface-2 text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer transition-all"
-                >
-                  {companies.map(c => (
-                    <option key={c.company_code} value={c.company_code}>{c.company_code} — {c.company_name}</option>
-                  ))}
-                </select>
-              ) : (
-                <div className="px-3 py-2 rounded-lg border border-border bg-surface-2/60 text-ink-muted font-mono">{companyCode}</div>
-              )}
+              <div className="px-3 py-2 rounded-lg border border-border bg-surface-2/60 text-ink-muted font-mono">{companyCode}</div>
             </div>
           )}
 
@@ -160,18 +146,6 @@ function UserFormModal({ mode, initial, roles, companies, canPickCompany, defaul
               ))}
             </select>
           </div>
-
-          {mode === 'add' && canPickCompany && companyCode === 'BKC' && (
-            <label className="flex items-center gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={grantSuperAdmin}
-                onChange={e => setGrantSuperAdmin(e.target.checked)}
-                className="w-4 h-4 text-primary bg-surface border-border rounded-sm cursor-pointer"
-              />
-              <span className="text-sm font-semibold text-ink">Grant Super Admin (sees every company)</span>
-            </label>
-          )}
 
           {mode === 'edit' && (
             <label className="flex items-center gap-2.5 cursor-pointer">
@@ -215,12 +189,11 @@ function UserFormModal({ mode, initial, roles, companies, canPickCompany, defaul
 }
 
 export default function UserManagementPage() {
-  const { user, activeCompanyCode } = useAuth()
-  const isAdmin = user?.is_super_admin || user?.role_name === 'admin'
+  const { user } = useAuth()
+  const isAdmin = user?.role_name === 'admin'
 
   const { data: users, loading, error, refetch } = useAsync(() => api.getUsers(), [])
   const [roles, setRoles] = useState([])
-  const [companies, setCompanies] = useState([])
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState('add')
   const [editingUser, setEditingUser] = useState(null)
@@ -228,8 +201,7 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     api.getRoles().then(setRoles).catch(() => {})
-    if (user?.is_super_admin) api.getCompanies().then(setCompanies).catch(() => {})
-  }, [user])
+  }, [])
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />
 
@@ -326,7 +298,6 @@ export default function UserManagementPage() {
                   <tr key={u.user_id} className="hover:bg-surface-2/40 transition-colors duration-150">
                     <td className="px-5 py-3 font-mono font-bold text-ink">
                       {u.username}
-                      {u.is_super_admin ? <span className="ml-2 text-[11px] font-bold text-primary">SUPER</span> : null}
                     </td>
                     <td className="px-5 py-3 text-ink-muted">{u.full_name || '—'}</td>
                     <td className="px-5 py-3 font-mono text-ink-subtle">{u.company_code}</td>
@@ -370,9 +341,7 @@ export default function UserManagementPage() {
           mode={formMode}
           initial={editingUser}
           roles={roles}
-          companies={companies}
-          canPickCompany={!!user?.is_super_admin}
-          defaultCompanyCode={activeCompanyCode || user?.company_code}
+          companyCode={user?.company_code}
           onClose={() => setFormOpen(false)}
           onSubmit={handleFormSubmit}
         />
