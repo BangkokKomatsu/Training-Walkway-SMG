@@ -109,6 +109,7 @@ walkway-detection-system/
 │       ├── helpers.py          ← ฟังก์ชันช่วยทั่วไป
 │       └── logger.py
 │
+├── Models/                     ← yolo11n.pt (โมเดล YOLO — ไม่ขึ้น Git, ดู Module 05)
 ├── sql/                        ← SQL script (admin)
 ├── data-api/                   ← Node/Express บาง (เรียก SP → JSON)
 ├── frontend/                   ← React + Vite + Tailwind
