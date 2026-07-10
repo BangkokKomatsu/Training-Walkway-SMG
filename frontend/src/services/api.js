@@ -54,6 +54,7 @@ export const api = {
   getCameras:     (params = {}) => get('/api/cameras',   params),
   getAlerts:      (params = {}) => get('/api/alerts',    params),
   getHealth:      (params = {}) => get('/api/health',    params),
+  getLocalImages: ()            => get('/api/local-images'),
   closeEvent:     (id, payload) => post(`/api/events/${id}/close`, payload),
   bulkUpdateEvents:  (payload)  => post('/api/events/bulk-update', payload),
   getCameraPolygons: (camera_no) => get(`/api/cameras/${camera_no}/polygons`),

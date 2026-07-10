@@ -80,10 +80,11 @@
 
 /* ─── Base ────────────────────────────────────────── */
 html {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
   background-color: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -131,9 +132,9 @@ body::before {
   outline-offset: 2px;
 }
 
-/* ─── Mono values ────────────────────────────────── */
+/* ─── Mono values (data/ID/เวลา) — ไทยใน mono fallback ไป Plex Sans Thai ─── */
 .mono {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'IBM Plex Mono', 'IBM Plex Sans Thai', ui-monospace, monospace;
 }
 
 /* ─── Print Layout Configuration ─────────────────── */

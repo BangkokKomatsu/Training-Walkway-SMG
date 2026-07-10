@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { Bell, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Bell, RefreshCw, AlertTriangle, MessageSquare, Mail } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
 import { api } from '../services/api'
 import FilterPanel from '../components/ui/FilterPanel'
@@ -86,15 +86,15 @@ export default function AlertMonitorPage() {
                   <th className="px-5 py-3">Event ID</th>
                   <th className="px-5 py-3">Sent Timestamp</th>
                   <th className="px-5 py-3">Notification Type</th>
-                  <th className="px-5 py-3">MS Teams Status</th>
-                  <th className="px-5 py-3">Email Status</th>
+                  <th className="px-5 py-3">Channel</th>
+                  <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Error Logs</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {alerts.map((al, i) => (
                   <tr
-                    key={al.alert_id ?? i}
+                    key={al.log_id ?? i}
                     className="hover:bg-surface-2/40 transition-colors duration-150"
                   >
                     <td className="px-5 py-3 font-mono font-bold text-ink-subtle">
@@ -104,22 +104,24 @@ export default function AlertMonitorPage() {
                       {formatDateTime(al.sent_at)}
                     </td>
                     <td className="px-5 py-3 text-ink font-semibold">
-                      {al.alert_type ?? '—'}
+                      {al.event_type ?? '—'}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-ink-muted font-semibold">
+                        {al.alert_channel === 'TEAMS'
+                          ? <MessageSquare size={13} className="text-primary" />
+                          : <Mail size={13} className="text-primary" />}
+                        {al.alert_channel === 'TEAMS' ? 'MS Teams' : 'Email'}
+                      </span>
                     </td>
                     <td className="px-5 py-3">
                       <StatusBadge
-                        status={al.teams_sent ? 'ok' : 'error'}
-                        label={al.teams_sent ? 'Sent' : 'Failed'}
+                        status={al.alert_status === 'SENT' ? 'ok' : al.alert_status === 'FAILED' ? 'error' : 'warn'}
+                        label={al.alert_status === 'SENT' ? 'Sent' : al.alert_status === 'FAILED' ? 'Failed' : (al.alert_status ?? 'Pending')}
                       />
                     </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge
-                        status={al.email_sent ? 'ok' : 'error'}
-                        label={al.email_sent ? 'Sent' : 'Failed'}
-                      />
-                    </td>
-                    <td className="px-5 py-3 max-w-xs truncate text-rose-500 font-mono text-[13px]" title={al.error_message}>
-                      {al.error_message || '—'}
+                    <td className="px-5 py-3 max-w-xs truncate text-rose-500 font-mono text-[13px]" title={al.response_msg}>
+                      {al.response_msg || '—'}
                     </td>
                   </tr>
                 ))}

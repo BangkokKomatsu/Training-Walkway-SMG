@@ -150,6 +150,41 @@ async function resolveEventImageUrl(row) {
   return localImageFile(row.image_path) ? `/api/events/${row.event_id}/image` : null
 }
 
+// ─── Helper: teaching "Local Gallery" — browse/serve images straight from disk ──
+// อ่านรูปจากโฟลเดอร์ของบริษัทตัวเอง ({IMAGE_SHARED_DRIVE}/{companyCode}) โดยไม่ต้องมี event ใน DB
+// ใช้สอนแนวคิด save → serve → display · JWT-protected + scope ต่อบริษัท + กัน path traversal
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png'])
+
+function companyImageBase(companyCode) {
+  const drive = process.env.IMAGE_SHARED_DRIVE
+  if (!drive || !companyCode || !SAFE_PATH_SEGMENT.test(companyCode)) return null
+  return path.resolve(drive, companyCode)
+}
+
+// เดินโฟลเดอร์แบบ recursive เก็บไฟล์ภาพ — จำกัดจำนวนไว้ (teaching endpoint ไม่ต้อง scale)
+// ponytail: cap 300 ไฟล์ + sync fs; ถ้าโฟลเดอร์ใหญ่มากค่อยเปลี่ยนเป็น paginate/async walk
+function listImagesUnder(baseDir, cap = 300) {
+  const out = []
+  const walk = (dir) => {
+    if (out.length >= cap) return
+    let entries
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
+    for (const e of entries) {
+      if (out.length >= cap) break
+      const full = path.join(dir, e.name)
+      if (e.isDirectory()) { walk(full); continue }
+      if (!IMAGE_EXTENSIONS.has(path.extname(e.name).toLowerCase())) continue
+      try {
+        const stat = fs.statSync(full)
+        // normalize path separator เป็น '/' — ให้ frontend split โฟลเดอร์ย่อย + ใส่ใน URL ได้ตรง ๆ
+        out.push({ name: e.name, path: path.relative(baseDir, full).replace(/\\/g, '/'), size: stat.size, modified: stat.mtime })
+      } catch { /* ไฟล์อาจถูกลบระหว่างสแกน — ข้าม */ }
+    }
+  }
+  walk(baseDir)
+  return out
+}
+
 // ─── Helper: camera snapshot (Draw Polygon "Sync ภาพล่าสุด") ─────────
 // path segments (company_code/camera_no) ต้องผ่าน regex นี้ก่อนถูกใช้สร้าง fs path เสมอ —
 // นี่เป็น route เดียวใน data-api ที่แตะ local filesystem ตรงๆ
@@ -467,7 +502,7 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
       events_today:    s.today_count     ?? 0,
       events_month:    s.month_count     ?? 0,
       new_count:       s.new_count       ?? 0,
-      reviewed_count:  s.reviewed_count  ?? 0,
+      closed_count:    s.closed_count    ?? 0,
       dismissed_count: s.dismissed_count ?? 0,
       alerts_failed:   alerts.failed_alerts ?? 0,
       alerts_total:    alerts.total_alerts  ?? 0,
@@ -552,6 +587,46 @@ app.get('/api/events/:id/image', requireAuth, async (req, res) => {
     const localPath = localImageFile(ev.image_path)
     if (!localPath) return res.status(404).json({ error: 'Image not available' })
     res.type('image/jpeg').sendFile(path.resolve(localPath))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/local-images  (teaching — list images in this company's folder) ──
+// ไม่ผูกกับ DB: อ่านไฟล์จริงจาก {IMAGE_SHARED_DRIVE}/{companyCode} มาโชว์เป็น gallery
+// (ของเดิม /api/events/:id/image ยังทำงานปกติ — อันนี้เพิ่มไว้สำหรับสอน)
+app.get('/api/local-images', requireAuth, (req, res) => {
+  try {
+    const base = companyImageBase(req.companyCode)
+    if (!base || !fs.existsSync(base)) {
+      return res.json({ base_folder: base, images: [] })
+    }
+    const images = listImagesUnder(base).sort((a, b) => new Date(b.modified) - new Date(a.modified))
+    res.json({ base_folder: base, images })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── GET /api/local-images/raw?path=<relative>  (teaching — stream one image) ──
+app.get('/api/local-images/raw', requireAuth, (req, res) => {
+  try {
+    const base = companyImageBase(req.companyCode)
+    if (!base) return res.status(404).json({ error: 'IMAGE_SHARED_DRIVE not configured' })
+    const rel = req.query.path
+    if (!rel || typeof rel !== 'string') return res.status(400).json({ error: 'path query is required' })
+
+    const target = path.resolve(base, rel)
+    // ต้องอยู่ในโฟลเดอร์บริษัทเท่านั้น (กัน ../ หลุดออกนอก) และต้องเป็นไฟล์ภาพ
+    if (target !== base && !target.startsWith(base + path.sep)) {
+      return res.status(400).json({ error: 'Invalid path' })
+    }
+    if (!IMAGE_EXTENSIONS.has(path.extname(target).toLowerCase())) {
+      return res.status(400).json({ error: 'Not an image file' })
+    }
+    if (!fs.existsSync(target)) return res.status(404).json({ error: 'Image not found' })
+
+    res.type(path.extname(target).slice(1)).sendFile(target)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

@@ -137,7 +137,7 @@ BEGIN
     SELECT
         COUNT(*)                                            AS total_events,
         SUM(CASE WHEN event_status = 'NEW'       THEN 1 ELSE 0 END) AS new_count,
-        SUM(CASE WHEN event_status = 'REVIEWED'  THEN 1 ELSE 0 END) AS reviewed_count,
+        SUM(CASE WHEN event_status = 'CLOSED'    THEN 1 ELSE 0 END) AS closed_count,
         SUM(CASE WHEN event_status = 'DISMISSED' THEN 1 ELSE 0 END) AS dismissed_count,
         SUM(CASE WHEN CAST(detected_at AS DATE) = CAST(SYSUTCDATETIME() AS DATE) THEN 1 ELSE 0 END) AS today_count,
         SUM(CASE WHEN MONTH(detected_at) = MONTH(SYSUTCDATETIME()) AND YEAR(detected_at) = YEAR(SYSUTCDATETIME()) THEN 1 ELSE 0 END) AS month_count,

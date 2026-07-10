@@ -12,6 +12,7 @@ import CameraMonitorPage from './pages/CameraMonitorPage'
 import AlertMonitorPage from './pages/AlertMonitorPage'
 import SystemHealthPage from './pages/SystemHealthPage'
 import UserManagementPage from './pages/UserManagementPage'
+import LocalGalleryPage from './pages/LocalGalleryPage'
 
 function ProtectedRoutes() {
   const { token, user } = useAuth()
@@ -34,6 +35,7 @@ function ProtectedRoutes() {
         <Route path="/cameras" element={<CameraMonitorPage />} />
         <Route path="/alerts" element={<AlertMonitorPage />} />
         <Route path="/health" element={<SystemHealthPage />} />
+        <Route path="/local-gallery" element={<LocalGalleryPage />} />
         <Route path="/users" element={<UserManagementPage />} />
       </Routes>
     </AppShell>

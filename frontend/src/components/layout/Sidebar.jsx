@@ -12,7 +12,8 @@ import {
   Menu,
   Building,
   KeyRound,
-  Users
+  Users,
+  Images
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import clsx from 'clsx'
@@ -23,6 +24,7 @@ const NAV = [
   { to: '/cameras',   icon: Camera,           label: 'Cameras' },
   { to: '/alerts',    icon: Bell,             label: 'Alerts' },
   { to: '/health',    icon: Activity,         label: 'System Health' },
+  { to: '/local-gallery', icon: Images,       label: 'Local Gallery' },
 ]
 
 const ADMIN_NAV = [

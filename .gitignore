@@ -34,6 +34,7 @@ data-api/dist/
 # ---- รูปจาก detection จริง (ห้าม commit) ----
 assets/sample-images/real/
 **/detection_*.jpg
+DetectionImages/
 
 # ---- OS / IDE ----
 .DS_Store

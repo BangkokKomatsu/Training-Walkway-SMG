@@ -5,8 +5,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'ui-monospace', 'monospace'],
+        // IBM Plex superfamily — Sans Thai คุมทั้งไทย+อังกฤษ, Mono สำหรับ data (ไทยใน mono fallback ไป Sans Thai)
+        sans: ['IBM Plex Sans Thai', 'system-ui', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'IBM Plex Sans Thai', 'ui-monospace', 'monospace'],
       },
       letterSpacing: {
         tightest: '-0.045em',

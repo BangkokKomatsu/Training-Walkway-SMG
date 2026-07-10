@@ -5,11 +5,21 @@ import {
   Clock, ChevronRight, Shield, RefreshCw
 } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
+import { useImageSrc } from '../hooks/useImageSrc'
 import { api } from '../services/api'
 import DashboardCard from '../components/ui/DashboardCard'
 import StatusBadge from '../components/ui/StatusBadge'
 import { SkeletonMetrics, SkeletonTable } from '../components/ui/LoadingState'
 import { formatDateTime, formatConfidence } from '../utils/format'
+
+// Thumbnail that resolves an event image_url (absolute BKC URL or auth-protected
+// local path) into a displayable source; falls back to a camera glyph.
+function EventThumb({ src }) {
+  const resolved = useImageSrc(src)
+  if (!src || resolved === false) return <Camera size={14} className="text-ink-subtle" />
+  if (!resolved) return <div className="w-full h-full bg-surface-2 animate-pulse" />
+  return <img src={resolved} className="w-full h-full object-cover" alt="Event preview" />
+}
 
 export default function DashboardPage() {
   const { data, loading, error, refetch } = useAsync(
@@ -85,31 +95,6 @@ export default function DashboardPage() {
   const d = data || {}
   const events = recentData?.data || []
 
-  // Map actual camera totals for Bar Chart
-  const barChartData = d.by_camera && d.by_camera.length > 0
-    ? (() => {
-        const hasMultipleCompanies = new Set(d.by_camera.map(c => c.company_code)).size > 1
-        return d.by_camera.map(item => ({ 
-          name: hasMultipleCompanies ? `${item.camera_no} (${item.company_code})` : item.camera_no, 
-          value: item.event_count,
-          label: item.camera_name || item.camera_no 
-        })).sort((a, b) => a.name.localeCompare(b.name))
-      })()
-    : []
-
-  const maxBarValue = Math.max(...barChartData.map(item => item.value), 1)
-
-  // Calculations for Donut Chart (Alert success vs failures)
-  const alertSuccess = d.alerts_success ?? 0
-  const alertFailed = d.alerts_failed ?? 0
-  const alertTotal = d.alerts_total || 1 // Prevent division by zero (?? ไม่กัน 0 จริง — บริษัทที่ยังไม่มี alert เลยจะได้ alerts_total = 0 พอดี)
-  const successPercentage = Math.round((alertSuccess / alertTotal) * 100)
-  
-  // SVG Ring values
-  const radius = 50
-  const circumference = 2 * Math.PI * radius
-  const successStrokeDashoffset = circumference - (alertSuccess / alertTotal) * circumference
-
   // Build dynamic 7-day trend history
   const trendHistory = d.trend_data ? (() => {
     const history = []
@@ -155,32 +140,46 @@ export default function DashboardPage() {
     return true
   })
 
-  // Math coordinates mapping for SVG line
+  // Aggregate violations by area (location_name), from the same 7-day trend_data
+  // and date range filter as the Trend chart — no extra backend query needed.
+  const areaChartData = (() => {
+    if (!d.trend_data || !d.by_camera) return []
+    const locationByCamera = {}
+    d.by_camera.forEach(c => { locationByCamera[c.camera_no] = c.location_name || 'Unknown' })
+
+    const totals = {}
+    d.trend_data.forEach(row => {
+      const rowDateStr = row.event_date
+        ? (typeof row.event_date === 'string' ? row.event_date.split('T')[0] : new Date(row.event_date).toISOString().split('T')[0])
+        : ''
+      if (startDate && rowDateStr < startDate) return
+      if (endDate && rowDateStr > endDate) return
+      const area = locationByCamera[row.camera_no] || 'Unknown'
+      totals[area] = (totals[area] || 0) + (row.event_count || 0)
+    })
+
+    return Object.entries(totals)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  })()
+
+  const maxAreaValue = Math.max(...areaChartData.map(item => item.value), 1)
+
+  // Math coordinates mapping for SVG bar chart
   const trendMax = Math.max(...filteredTrend.map(item => item.counts[selectedCamera] || 0), 5)
-  const lWidth = 500
-  const lHeight = 150
-  const padL = 35
+  const lWidth = 1200
+  const lHeight = 240
+  const padL = 48
   const padR = 20
   const padT = 15
-  const padB = 25
+  const padB = 40
   const chartW = lWidth - padL - padR
   const chartH = lHeight - padT - padB
 
-  const getX = (idx) => padL + idx * (chartW / Math.max(filteredTrend.length - 1, 1))
+  const slotW = chartW / Math.max(filteredTrend.length, 1)
+  const barW = Math.min(slotW * 0.5, 56)
+  const getBarCenterX = (idx) => padL + slotW * (idx + 0.5)
   const getY = (val) => lHeight - padB - (val / trendMax) * chartH
-
-  let linePathD = ''
-  let fillPathD = ''
-  if (filteredTrend.length > 0) {
-    const pts = filteredTrend.map((item, idx) => ({
-      x: getX(idx),
-      y: getY(item.counts[selectedCamera] ?? 0)
-    }))
-    linePathD = pts.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-    if (pts.length > 0) {
-      fillPathD = `${linePathD} L ${pts[pts.length - 1].x} ${lHeight - padB} L ${pts[0].x} ${lHeight - padB} Z`
-    }
-  }
 
   const isRefreshing = loading || recentLoading || manualRefreshing
 
@@ -267,8 +266,8 @@ export default function DashboardPage() {
       {/* Bento Grid Charts Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
-        {/* Line Chart Bento Box (Daily trend) */}
-        <div className="md:col-span-2 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl flex flex-col justify-between shadow-xs">
+        {/* Line Chart Bento Box (Daily trend) — full width */}
+        <div className="md:col-span-2 lg:col-span-3 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl flex flex-col justify-between shadow-xs">
           <div>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
@@ -308,8 +307,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Custom SVG Line Chart */}
-            <div className="w-full h-48 relative">
+            {/* Custom SVG Bar Chart */}
+            <div className="w-full h-80 relative">
               {filteredTrend.length === 0 ? (
                 <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-ink-subtle">
                   No trend logs match selected filters
@@ -321,36 +320,23 @@ export default function DashboardPage() {
                   <line x1={padL} y1={padT + chartH / 2} x2={lWidth - padR} y2={padT + chartH / 2} stroke="var(--border)" strokeDasharray="3 3" className="opacity-30" />
                   <line x1={padL} y1={lHeight - padB} x2={lWidth - padR} y2={lHeight - padB} stroke="var(--border)" className="opacity-60" />
 
-                  {/* Gradient area under the line */}
-                  {fillPathD && (
-                    <path
-                      d={fillPathD}
-                      fill="url(#trendGradient)"
-                      className="opacity-25"
-                    />
-                  )}
-
-                  {/* Main Line path */}
-                  {linePathD && (
-                    <path
-                      d={linePathD}
-                      fill="none"
-                      stroke="var(--primary)"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  )}
-
-                  {/* Circle markers */}
+                  {/* Bars */}
                   {filteredTrend.map((item, idx) => {
-                    const x = getX(idx)
                     const val = item.counts[selectedCamera] ?? 0
+                    const x = getBarCenterX(idx) - barW / 2
                     const y = getY(val)
+                    const h = Math.max((lHeight - padB) - y, 0)
                     return (
-                      <g key={idx} className="group/dot">
-                        <circle cx={x} cy={y} r="8" className="fill-primary/20 opacity-0 group-hover/dot:opacity-100 transition-opacity duration-150" />
-                        <circle cx={x} cy={y} r="4" className="fill-primary stroke-bg stroke-2 cursor-pointer" />
+                      <g key={idx} className="group/bar">
+                        <rect
+                          x={x}
+                          y={y}
+                          width={barW}
+                          height={h}
+                          rx={3}
+                          fill="var(--primary)"
+                          className="opacity-90 group-hover/bar:opacity-100 transition-opacity duration-150"
+                        />
                         <title>{`${item.label}: ${val} events`}</title>
                       </g>
                     )
@@ -361,12 +347,23 @@ export default function DashboardPage() {
                   <text x={padL - 6} y={padT + chartH / 2 + 3} textAnchor="end" className="text-[11px] font-mono font-bold fill-ink-subtle">{Math.round(trendMax / 2)}</text>
                   <text x={padL - 6} y={lHeight - padB + 3} textAnchor="end" className="text-[11px] font-mono font-bold fill-ink-subtle">0</text>
 
+                  {/* Y-Axis Title */}
+                  <text
+                    x={14}
+                    y={padT + chartH / 2}
+                    textAnchor="middle"
+                    transform={`rotate(-90, 14, ${padT + chartH / 2})`}
+                    className="text-[11px] font-mono font-bold fill-ink-subtle uppercase tracking-wider"
+                  >
+                    Events
+                  </text>
+
                   {/* X-Axis Labels */}
                   {filteredTrend.map((item, idx) => (
                     <text
                       key={idx}
-                      x={getX(idx)}
-                      y={lHeight - 10}
+                      x={getBarCenterX(idx)}
+                      y={lHeight - 22}
                       textAnchor="middle"
                       className="text-[11px] font-mono font-bold fill-ink-subtle"
                     >
@@ -374,122 +371,16 @@ export default function DashboardPage() {
                     </text>
                   ))}
 
-                  {/* Gradient definitions */}
-                  <defs>
-                    <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--primary)" />
-                      <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
+                  {/* X-Axis Title */}
+                  <text
+                    x={padL + chartW / 2}
+                    y={lHeight - 6}
+                    textAnchor="middle"
+                    className="text-[11px] font-mono font-bold fill-ink-subtle uppercase tracking-wider"
+                  >
+                    Date
+                  </text>
                 </svg>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Pie/Donut Chart Bento Box (Alert Delivery) */}
-        <div className="col-span-1 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl flex flex-col justify-between shadow-xs">
-          <div>
-            <h3 className="text-sm font-bold text-ink uppercase tracking-wider mb-1">Alert Delivery Health</h3>
-            <p className="text-[12px] text-ink-subtle">Success vs Failures (Teams & Email)</p>
-          </div>
-
-          {/* SVG Donut Chart */}
-          <div className="flex items-center justify-center py-3 relative">
-            <svg width="130" height="130" viewBox="0 0 120 120" className="transform -rotate-90">
-              <circle
-                cx="60"
-                cy="60"
-                r={radius}
-                fill="transparent"
-                stroke="var(--border)"
-                strokeWidth="10"
-                className="opacity-40"
-              />
-              <circle
-                cx="60"
-                cy="60"
-                r={radius}
-                fill="transparent"
-                stroke="#10B981"
-                strokeWidth="10"
-                strokeDasharray={circumference}
-                strokeDashoffset={successStrokeDashoffset}
-                strokeLinecap="round"
-                className="transition-all duration-500"
-              />
-              {alertFailed > 0 && (
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={radius}
-                  fill="transparent"
-                  stroke="#F43F5E"
-                  strokeWidth="10.5"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference - (alertFailed / alertTotal) * circumference}
-                  strokeLinecap="round"
-                  className="transition-all duration-500 transform rotate-180"
-                />
-              )}
-            </svg>
-            <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold font-mono text-ink tracking-tighter">
-                {successPercentage}%
-              </span>
-              <span className="text-[11px] uppercase font-bold text-ink-subtle">
-                DELIVERED
-              </span>
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="grid grid-cols-2 gap-2 text-[12px] pt-2 border-t border-border/40">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded bg-emerald-500 flex-shrink-0" />
-              <span className="text-ink-muted truncate">Success: <strong className="font-mono text-ink">{alertSuccess}</strong></span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded bg-rose-500 flex-shrink-0" />
-              <span className="text-ink-muted truncate">Failed: <strong className="font-mono text-ink">{alertFailed}</strong></span>
-            </div>
-          </div>
-        </div>
-
-        {/* Bar Chart Bento Box (Violations by camera) */}
-        <div className="md:col-span-2 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl flex flex-col justify-between shadow-xs">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-ink uppercase tracking-wider">Violations by Camera Feeds</h3>
-              <span className="text-[12px] text-ink-muted">Reflecting total violations</span>
-            </div>
-            
-            {/* Custom SVG Bar Chart (Responsive) */}
-            <div className="w-full h-48 flex items-end justify-between pt-6 px-2 sm:px-4">
-              {barChartData.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-ink-subtle">
-                  No camera violation events recorded
-                </div>
-              ) : (
-                barChartData.map((item, index) => {
-                  const barHeightPercent = (item.value / maxBarValue) * 75 // Max height 75%
-                  return (
-                    <div key={index} className="flex flex-col items-center flex-1 group h-full justify-end">
-                      {/* Tooltip value */}
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-surface border border-border text-ink text-[11px] font-bold py-0.5 px-2 rounded-md mb-2 shadow-sm font-mono -translate-y-1">
-                        {item.value} ev
-                      </span>
-                      {/* Bar shape */}
-                      <div className="w-6 sm:w-10 md:w-12 bg-surface-2 rounded-t-lg relative overflow-hidden flex items-end justify-center min-h-[4px]" style={{ height: `${barHeightPercent}%` }}>
-                        <div className="absolute inset-0 bg-gradient-to-t from-primary to-accent group-hover:brightness-110 transition-all duration-300 rounded-t-lg" />
-                      </div>
-                      {/* Label */}
-                      <span className="mt-2 text-[11px] sm:text-[12px] font-mono font-bold text-ink-muted group-hover:text-ink transition-colors truncate max-w-[50px] sm:max-w-none" title={item.label}>
-                        {item.name}
-                      </span>
-                    </div>
-                  )
-                })
               )}
             </div>
           </div>
@@ -537,22 +428,92 @@ export default function DashboardPage() {
               })()}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
-                <span className="text-[11px] font-bold text-ink-subtle uppercase">Scope</span>
-                <strong className="text-ink font-mono text-[13px]">YOLO11 Nano</strong>
+            {/* Resolution Status — meter list (จัดการเคส 0 ได้ดีกว่า pie) */}
+            <div className="mb-4 p-3.5 rounded-lg bg-surface/50 border border-border/60">
+              {(() => {
+                const rows = [
+                  { key: 'New',       count: d.new_count ?? 0,       cls: 'bg-status-warn' },
+                  { key: 'Closed',    count: d.closed_count ?? 0,    cls: 'bg-status-ok' },
+                  { key: 'Dismissed', count: d.dismissed_count ?? 0, cls: 'bg-status-err' },
+                ]
+                const total = rows.reduce((s, r) => s + r.count, 0)
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-wider">Resolution Status</span>
+                      <span className="text-[11px] font-mono text-ink-muted">
+                        <span className="font-bold text-ink">{total}</span> total
+                      </span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {rows.map((r) => {
+                        const pct = total > 0 ? Math.round((r.count / total) * 100) : 0
+                        return (
+                          <div key={r.key} className="flex items-center gap-3">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.cls}`} />
+                            <span className="text-[12px] font-semibold text-ink-muted w-20 flex-shrink-0">{r.key}</span>
+                            <div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                              <div className={`h-full rounded-full ${r.cls} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[12px] font-mono font-bold text-ink w-8 text-right tabular-nums">{r.count}</span>
+                            <span className="text-[11px] font-mono text-ink-subtle w-9 text-right tabular-nums">{pct}%</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+          </div>
+        </div>
+
+        {/* Bar Chart Bento Box (Violations by area) */}
+        <div className="md:col-span-2 p-5 border border-border bg-surface/40 dark:bg-surface/20 rounded-2xl flex flex-col shadow-xs">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-ink uppercase tracking-wider">Violations by Area</h3>
+            <span className="text-[12px] text-ink-muted">
+              Last 7 days{(startDate || endDate) ? ' · filtered by trend date range' : ''}
+            </span>
+          </div>
+
+          {/* Custom SVG Bar Chart (Responsive) — fills remaining card height, with axis titles */}
+          <div className="flex-1 flex items-stretch gap-2 min-h-[8rem]">
+            <div className="flex items-center justify-center px-0.5">
+              <span className="text-[10px] font-mono font-bold text-ink-subtle uppercase tracking-wider whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
+                Violations
+              </span>
+            </div>
+            <div className="flex-1 flex flex-col">
+              <div className="flex-1 w-full flex items-end justify-between pt-5 px-2 sm:px-4">
+                {areaChartData.length === 0 ? (
+                  <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-ink-subtle">
+                    No area violation data for the last 7 days
+                  </div>
+                ) : (
+                  areaChartData.map((item, index) => {
+                    const barHeightPercent = (item.value / maxAreaValue) * 75 // Max height 75%
+                    return (
+                      <div key={index} className="flex flex-col items-center flex-1 group h-full justify-end">
+                        {/* Value (always visible) */}
+                        <span className="text-ink text-[11px] font-bold mb-1 font-mono">
+                          {item.value}
+                        </span>
+                        {/* Bar shape */}
+                        <div className="w-6 sm:w-10 md:w-12 bg-surface-2 rounded-t-lg relative overflow-hidden flex items-end justify-center min-h-[4px]" style={{ height: `${barHeightPercent}%` }}>
+                          <div className="absolute inset-0 bg-gradient-to-t from-primary to-accent group-hover:brightness-110 transition-all duration-300 rounded-t-lg" />
+                        </div>
+                        {/* Label */}
+                        <span className="mt-2 text-[11px] sm:text-[12px] font-mono font-bold text-ink-muted group-hover:text-ink transition-colors truncate max-w-[70px] sm:max-w-none" title={item.name}>
+                          {item.name}
+                        </span>
+                      </div>
+                    )
+                  })
+                )}
               </div>
-              <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
-                <span className="text-[11px] font-bold text-ink-subtle uppercase">Hardware</span>
-                <strong className="text-ink font-mono text-[13px] text-primary">CUDA GPU</strong>
-              </div>
-              <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
-                <span className="text-[11px] font-bold text-ink-subtle uppercase">Dwell Limit</span>
-                <strong className="text-ink font-mono text-[13px]">5 Seconds</strong>
-              </div>
-              <div className="p-2 rounded-lg bg-surface/50 border border-border/60 flex justify-between items-center">
-                <span className="text-[11px] font-bold text-ink-subtle uppercase">Cooldown</span>
-                <strong className="text-ink font-mono text-[13px]">60 Seconds</strong>
+              <div className="text-center text-[10px] font-mono font-bold text-ink-subtle uppercase tracking-wider mt-2">
+                Area
               </div>
             </div>
           </div>
@@ -601,11 +562,7 @@ export default function DashboardPage() {
                       {/* Image Thumbnail Column */}
                       <td className="px-6 py-2">
                         <div className="w-12 h-8 rounded-lg overflow-hidden border border-border bg-surface-2 flex items-center justify-center">
-                          {ev.image_url ? (
-                            <img src={ev.image_url} className="w-full h-full object-cover" alt="Event preview" />
-                          ) : (
-                            <Camera size={14} className="text-ink-subtle" />
-                          )}
+                          <EventThumb src={ev.image_url} />
                         </div>
                       </td>
                       <td className="px-6 py-3 font-mono text-ink-muted">
