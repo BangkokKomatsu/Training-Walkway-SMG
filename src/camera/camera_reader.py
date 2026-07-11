@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 # FFmpeg backend ของ OpenCV ใช้ default ~30 วิ ในการรอเชื่อมต่อ/อ่านเฟรม — นานเกินไปเมื่อเทียบกับ
 # ROTATION_INTERVAL_SECONDS (มักตั้งไว้ 60 วิ) ลดลงให้ attempt ที่ล้มเหลวคืนค่าเร็วขึ้น จะได้ retry ทันภายในรอบเดียว
-OPEN_TIMEOUT_MSEC = 8000
-READ_TIMEOUT_MSEC = 8000
+OPEN_TIMEOUT_MSEC = 6000
+READ_TIMEOUT_MSEC = 6000
 
 
 class CameraReader:
