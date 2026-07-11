@@ -41,6 +41,8 @@ DetectionImages/
 Thumbs.db
 .vscode/
 .idea/
+.claude/
+.pytest_cache/
 frontend/.vscode/
 frontend/src/node_modules/
 data-api/.vscode/
